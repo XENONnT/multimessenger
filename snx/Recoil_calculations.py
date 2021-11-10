@@ -1,12 +1,9 @@
 #!/usr/bin/python
 
-from aux_scripts.set_params import *
-from aux_scripts.constants import *
-# from .Supernova_Models import SN_lightcurve
-# from .SN_plotter import Plotter
+# from aux_scripts.set_params import *
+from .constants import *
+from .libraries import *
 
-from scipy.special import spherical_jn
-from scipy.integrate import quad, trapz
 
 class TARGET:
     def __init__(self, atom, pure = False):
@@ -25,17 +22,20 @@ class TARGET:
         self.dRatedErecoil2D_vect = np.vectorize(self.dRatedErecoil2D)
     
     def TransMoment(self, Er):
-        '''mass in keV, Er in keV, return in keV
+        ''' mass in keV, Er in keV, return in keV
+
         '''
         return np.sqrt(2 * self.masskeV * Er)
     
     def MinNeutrinoEnergy(self, Er):
         ''' Er in keV, mass in keV, return in keV
+
         '''
         return (Er + np.sqrt(Er**2 + 2 * self.masskeV * Er)) / 2.0
     
     def MaxRecoilEnergy(self, Ev):
         ''' Ev in MeV, convert massMeV to MeV, return in MeV
+
         '''
         return 2 * Ev**2 / (self.massMeV + 2 * Ev)
     
@@ -43,6 +43,7 @@ class TARGET:
         ''' q in keV, other params converted such that
             the units of the eq is reasonable
             returns unitless form factor
+
         '''
         if q == 0:
             return 1.0
@@ -63,7 +64,8 @@ class TARGET:
     def dXsecdErecoil(self, Er, Ev):
         ''' Er in keV, Ev in MeV
             Gf^2 * mass term needed a correction
-            returns Area / Energy (cm^2/keV)            
+            returns Area / Energy (cm^2/keV)
+
         '''
         # if Er.to(u.MeV).value > self.MaxRecoilEnergy(Ev).value: # MeV >< Mev
         Er_mev = Er * 1e-3
@@ -88,6 +90,7 @@ class TARGET:
             dXsecdErecoil returns cm^2 / keV -> converted into cm^2/MeV
             so that `dRatedErEv` returns counts (unitless)
             returns counts integrated over recoil energies
+
         '''
         def dRatedErdEv(_ev):
             Flux_at_Ev = Flux(_ev)
@@ -101,6 +104,7 @@ class TARGET:
 
     def dRatedErecoil2D(self, Er, Flux, t):
         ''' This time the flux should be sampled from a 2D surface
+
         '''
         def dRatedErdEv(_ev, t):
             # Flux[t] : interpolator at t

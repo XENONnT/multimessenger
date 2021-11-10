@@ -11,11 +11,9 @@ Notes
 # pickling images https://fredborg-braedstrup.dk/blog/2014/10/10/saving-mpl-figures-using-pickle/
 # extracting data fig_handle.axes[0].lines[0].get_data()
 """
-from aux_scripts.constants import *
-from aux_scripts.set_params import *
-import os
-os.system('./aux_scripts/set_file_paths.py')
 
+from .constants import *
+from .libraries import *
 
 class Plotter:
     """ Plotter Class for SN data
@@ -50,14 +48,16 @@ class Plotter:
             figsize = (min(figsize),max(figsize))
             ncol, nrow = 1,3
             sharex,sharey = True,False
-        if ftype.lower()=='horizontal':
+        elif ftype.lower()=='horizontal':
             figsize = (max(figsize),min(figsize))
             ncol, nrow = 3,1
             sharex,sharey = False,True
-        if ftype.lower()=='single':
+        elif ftype.lower()=='single':
             figsize = (max(figsize),min(figsize))
             ncol, nrow = 1,1
             sharex,sharey = False,False
+        else:
+            return f"ftype is expected to be 'vertical', 'horizontal' or 'single' but got {ftype}"
         fig, axes = plt.subplots(ncols=ncol,nrows=nrow, 
                                  figsize=figsize, sharex=sharex, sharey=sharey)
         return fig, axes

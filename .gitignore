@@ -2,7 +2,7 @@
 imgs/
 logs/
 data/
-scripts/*test*
-scripts/*.csv
-scripts/Supernova_Signal-WFSim-2.ipynb
+snx/*test*
+snx/*.csv
+snx/Supernova_Signal-WFSim-2.ipynb
 *.ipynb_checkpoints*

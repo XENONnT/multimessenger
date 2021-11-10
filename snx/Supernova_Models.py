@@ -15,28 +15,20 @@ How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle
 _get_t_int_flux -> sum or integration?
 
 ###
-2D rates: there is a confusion between mean neutrino energies and recoil energies
-I guess I was looping over the wrong thing
+The recoil energies changes after 1D truncation. Thus, the next time it looks for the data, it
+finds the wrong emin, emax values and can confuse.
 
 >>> The total_rates1D and the total rates from 2D does NOT give the same
 .... Need to investigate this!
 
 """
-from aux_scripts.constants import *
-from aux_scripts.set_params import *
-
-def construct_and_import():
-    """ Construct folder structure and
-        import all the libraries
-    """
-    import os
-    import aux_scripts.set_file_paths as sfp 
-    sfp.make_folders()
+from .constants import *
+from .libraries import *
 
 def get_composite():
     """ Get a Xenon nucleus composite
     """
-    from Recoil_calculations import TARGET
+    from .Recoil_calculations import TARGET
     XeNuc = [TARGET(ATOM_TABLE["Xe124"], pure = False),
       TARGET(ATOM_TABLE["Xe126"], pure = False),
       TARGET(ATOM_TABLE["Xe128"], pure = False),
@@ -57,7 +49,8 @@ class SN_lightcurve:
                  time_of_revival, 
                  distance=10,
                  recoil_energies=(0,20,50),
-                 filename=None):
+                 filename_=None,
+                 force=False):
         """
         Parameters
         ----------
@@ -75,7 +68,6 @@ class SN_lightcurve:
         filename : str, optional
             Filename to save. If None, constructs a name based on properties.
         """
-        construct_and_import()
         self.XeNuc     = get_composite()
         self.M         = progenitor_mass
         self.t_revival = time_of_revival
@@ -83,18 +75,18 @@ class SN_lightcurve:
         self.dist      = distance
         self.t0        = 0
         self.tf        = 10
-        self.name      = filename or f'../data/Object_M{self.M}-Z{self.Z}_dist{self.dist}.p'
-        self.recoil_en = np.linspace(recoil_energies[0],
-                                     recoil_energies[1],
-                                     recoil_energies[2])
+        self.name      = filename_ or f'Object_M{self.M}-Z{self.Z}_dist{self.dist}.p'
+        self.recoil_en = np.linspace(recoil_energies[0],recoil_energies[1], recoil_energies[2])
         try:
-            self.retrieve_object();
+            if force: BREAK
+            self.retrieve_object()
             print('Object was found! \n'
                   'To save manually: save_object(filename, update=True)\n')
         except:
             print('Running.. Saving the Object..\n')
             self._load_light_curve()
             self.save_object(update=True)
+
         self.__version__ = "0.0.5"
 
     def save_object(self, filename=None, update=False):
@@ -103,14 +95,14 @@ class SN_lightcurve:
         """
         filename = filename or self.name
         if update:
-            with open(filename, 'wb') as output:  # Overwrites any existing file.
+            with open(f'{paths["data"]}{filename}', 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1) # pickle.HIGHEST_PROTOCOL
-                print(f'Saved at {filename}!\n')
+                click.secho(f'Saved at {paths["data"]}{filename}!\n', bg='blue')
             
     def retrieve_object(self, filename=None): 
         filename = filename or self.name
-        with open(filename, 'rb') as handle:
-            print('Retrieving object', filename)
+        with open(f'{paths["data"]}'+filename, 'rb') as handle:
+            click.secho(f'Retrieving object {paths["data"]}{filename}', bg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
@@ -118,7 +110,7 @@ class SN_lightcurve:
     def _load_light_curve(self):
         ''' Load data from file;
         File structure is
-        `    timestep,\n
+        `    time_step,\n
              col1 col2 col3 col4 col5 col6 \n
         20x  col1 col2 col3 col4 col5 col6 \n
              col1 col2 col3 col4 col5 col6 \n
@@ -140,6 +132,7 @@ class SN_lightcurve:
         C = int(t_revival/100) 
 
         try:
+            # filepath = f'{paths["data"]}intp{mass}{B}{C}.data'
             filepath = f'../data/rperes_data/intp{mass}{B}{C}.data'
             _f = open(filepath, 'r')
         except:
@@ -319,12 +312,7 @@ class SN_lightcurve:
         self._truncate1D()
         return None
 
-    def get_recoil_spectra1D(self, 
-                             Rec_en=None, 
-                             t0=None, 
-                             tf=None,
-                             dist=None, 
-                             _force_calc=0):
+    def get_recoil_spectra1D(self, Rec_en=None, t0=None, tf=None, dist=None, _force_calc=0):
         """
         Compute the 1D recoil spectra for all flavors
         Arguments
@@ -350,7 +338,7 @@ class SN_lightcurve:
         tf = tf or self.tf
         dist = dist or self.dist
         recoil_energies = Rec_en or self.recoil_en
-        ermin,ermax = recoil_energies.min(), recoil_energies.max()
+        ermin, ermax = recoil_energies.min(), recoil_energies.max()
         # update these
         self.recoil_en = recoil_energies
         self.t0 = t0
@@ -419,7 +407,7 @@ class SN_lightcurve:
         # rates_list = [rates_2D] * len(XeNuc)
 
         # times as vectorized, recoil energies are looped
-        for i, _Er in enumerate(tqdm_notebook(Ebins)):
+        for i, _Er in enumerate(tqdm(Ebins)):
             # at each recoil energy, loop over each isotope
             # convert MeV->keV + multiply by Nr of Xe atoms
             raw_rate1 = [xe.dRatedErecoil2D_vect(Er = _Er, Flux = interpolator[nu_keys[0]], t=tbins)*1e-3*N_Xe.value for xe in XeNuc]
@@ -437,82 +425,7 @@ class SN_lightcurve:
         # no trimming for 2D data for the moment
         return rates_2D
 
-    # def _get_rate2D(self, Rec_en, dist, step):
-    #     """
-    #     Compute the 2D recoil rate for all flavors
-    #     In both neutrino energies and times.
-
-    #     Parameters
-    #     ----------
-    #     Rec_en : ndarray
-    #         recoil energies to calculate rates for
-    #     dist : float, optional
-    #         supernova distance in units of kpc
-    #     step : int
-    #         step size in time grid.Finer time sampling
-    #         results in long computation times.
-        
-    #     Returns
-    #     -------
-    #         2D array with interaction rates in both
-    #         time and energies 
-    #     """
-    #     XeNuc = self.XeNuc
-    #     # fluxes = {nu: self.nu_list[nu][::step,:] for nu in self.nu_list.keys()}
-    #     fluxes = self.fluxes_at_tpc(dist)
-    #     fluxes = {nu: fluxes[nu][::step,:] for nu in fluxes.keys()}
-    #     nu_keys = list(fluxes.keys())
-    #     nu_energies = self.mean_E      # Incident neutrino energy NOT the recoil
-
-    #     # Make data. i.e. 2D interpolated flux
-    #     Ebins = self.recoil_en
-    #     tbins = self.t[::step]
-    #     # ee, tt = np.meshgrid(Ebins, tbins)
-
-    #     # make an interpolator, that, at each time step
-    #     # generates an interpolator for neutrino energy <-> flux
-    #     interpolator = {nu:
-    #         {t:itp.interp1d(nu_energies, fluxes[nu][ti,:], kind="cubic", fill_value="extrapolate") 
-    #         for ti,t in enumerate(tbins)}
-    #                     for nu in nu_keys}
-
-    #     # rates at each time step, each recoil energy
-    #     # shape is (time, recoil energies)
-    #     _rates_2D = np.zeros(shape=(len(tbins),len(Ebins)))
-    #     rates_2D = {nu : _rates_2D.copy() for nu in nu_keys}
-    #     # need 1 dictionary with all flavors for each isotope
-    #     rates_list = [rates_2D] * len(XeNuc)
-
-    #     # times as vectorized, recoil energies are looped
-    #     for i, _Er in enumerate(tqdm_notebook(Ebins)):
-    #         raw_rate1 = [xe.dRatedErecoil2D_vect(Er = _Er, Flux = interpolator[nu_keys[0]], t=tbins) for xe in XeNuc]
-    #         raw_rate2 = [xe.dRatedErecoil2D_vect(Er = _Er, Flux = interpolator[nu_keys[1]], t=tbins) for xe in XeNuc]
-    #         raw_rate3 = [xe.dRatedErecoil2D_vect(Er = _Er, Flux = interpolator[nu_keys[2]], t=tbins) for xe in XeNuc]
-    #         # at each recoil energy, loop over each isotope
-    #         # convert MeV->keV + multiply by Nr of Xe atoms
-    #         # for each isotope the rates are calculated wrt their fraction
-    #         # Thus, multiplying each with N_Xe makes sense.
-    #         for j in range(len(raw_rate1)):
-    #             rates_list[j][nu_keys[0]][:,i] = raw_rate1[j] * (1./1e3)*N_Xe.value
-    #             rates_list[j][nu_keys[1]][:,i] = raw_rate2[j] * (1./1e3)*N_Xe.value
-    #             rates_list[j][nu_keys[2]][:,i] = raw_rate3[j] * (1./1e3)*N_Xe.value
-
-    #     # total_rates; total of all Xenon nuclides
-    #     for nu in nu_keys:              # for each flavor
-    #         for xe in rates_list:       # add rates from all isotopes
-    #             rates_2D[nu] += xe[nu]
-
-    #     self.rates2D = rates_2D
-    #     # get also the total
-    #     self.get_total_rate(dim=2)
-    #     # no trimming for 2D data for the moment
-    #     return rates_2D
-
-    def get_recoil_spectra2D(self, 
-                             Rec_en=None, 
-                             dist=None,
-                             step=1, 
-                             _force_calc=0):
+    def get_recoil_spectra2D(self, Rec_en=None, dist=None, step=1, _force_calc=0):
         """
         Rates will be computed along Neutrino Energies and Time
         Arguments
@@ -537,13 +450,13 @@ class SN_lightcurve:
         dist = dist or self.dist
         recoil_energies = Rec_en or self.recoil_en
         self.recoil_en = recoil_energies # update
-        ermin,ermax = recoil_energies.min(), recoil_energies.max()        
+        ermin, ermax = recoil_energies.min(), recoil_energies.max()
 
         name_ = self.name.split('.p')[0]
         ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}_step{step}_dist{dist}_2D.p'
         if not _force_calc:
             try: # check if it is saved
-                self.retrieve_object(ratename)                
+                self.retrieve_object(ratename)
                 return None
             except:
                 return self.get_recoil_spectra2D(Rec_en, dist, step, _force_calc=1)
@@ -564,9 +477,10 @@ class SN_lightcurve:
         ''' 
         total = 0
         if dim==1: data = self.rate1D
-        if dim==2: data = self.rates2D
-        for name, data in data.items():
-            total = total + data 
+        elif dim==2: data = self.rates2D
+        else: raise ValueError
+        for name, data_ in data.items():
+            total = total + data_
         if dim==1:  self.total_rate1D = total
         if dim==2:  self.total_rate2D = total
         return None
@@ -638,15 +552,6 @@ class SN_lightcurve:
             rates_t['Total'] += rates_t[nu]
         return rates_E, rates_t
 
-#####################
-    # def sample_from_recoil_spectrum(self, N_sample=1):
-    #     from .Simulate_Signal import Simulator
-    #     simulator = Simulator(name='test')
-    #     #         _inverse_transform_sampling
-    #     spectra, recoil_energies = self._truncate_rates(self.rate)
-    #     return simulator._inverse_transform_sampling(recoil_energies, spectra, N_sample)
-
-        #### TEMP
     def _inverse_transform_sampling(self, x_vals, y_vals, n_samples):
         """ Strangely, it does not take self automatically
             Needs to be called as

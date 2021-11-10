@@ -3,12 +3,8 @@
 ## The very first version
 ## Absolutely, hideous. Gonna work on it
 ##
-from aux_scripts.constants import *
-from aux_scripts.set_params import *
-
-import scipy.interpolate as itp
-import nestpy
-import functools
+from .constants import *
+from .libraries import *
 
 # these mean we don't compute photon times. 
 # it's a bit more crude but over 100x faster. 
@@ -21,7 +17,6 @@ wfamp = [0., 0., 0.]
 class vectorize(np.vectorize):
     def __get__(self, obj, objtype):
         return functools.partial(self.__call__, obj)
-
 
 class Simulator:
     def __init__(self, name, detector=None):
@@ -39,6 +34,7 @@ class Simulator:
             Needs to be called as
             a = Simulator
             a._inverse_transform_sampling(a, x, y, N)
+
         """
         cum_values = np.zeros(x_vals.shape)
         y_mid = (y_vals[1:]+y_vals[:-1])*0.5
@@ -63,18 +59,20 @@ class Simulator:
         n_p, n_e = q.photons, q.electrons
         return n_p, n_e
 
-    def simulate_quanta(self, Er_sampled, drift_field=200, plot=False, figsize=(6,6)):
+    def simulate_quanta(self, Er_sampled, drift_field=200, plot=False, figsize=(6,6), mono_energetic=False):
         Ly_j, Qy_j = self.Get_LyQy(energy=Er_sampled, drift_field=drift_field)
         n_p, n_e = self.Get_quanta(energy=Er_sampled, drift_field=drift_field)
         if plot:
             fig, ax = plt.subplots(ncols=1, figsize=figsize)
-            ax.hist2d(n_p, n_e, bins=50, cmin=1, norm=LogNorm(), cmap = cm.plasma);
-#             ax.scatter(Ly_j[0], Qy_j[0], color='r', marker='+', s=500)
-            ax.plot(Ly_j*Er_sampled, Qy_j*Er_sampled, c='red', alpha=0.5, label='Nestpy Prediction');
+            ax.hist2d(n_p, n_e, bins=50, cmin=1, norm=LogNorm(), cmap ='plasma')
+            ax.scatter(Ly_j[0], Qy_j[0], color='g', marker='+', s=500)
+            if mono_energetic:
+                ax.plot(Ly_j*Er_sampled, Qy_j*Er_sampled, c='red', alpha=0.5, label='Nestpy Prediction')
             ax.set_xlabel(r'n$_\gamma$', fontdict=font_small)
             ax.set_ylabel(r'n$_e$', fontdict=font_small)
-            ax.set_title(f'Nestpy for ({drift_field} V/cm)', fontdict=font_small);
+            ax.set_title(f'Nestpy for ({drift_field} V/cm)', fontdict=font_small)
             ax.legend(fontsize='large')
+        return n_p, n_e
             
     @vectorize
     def get_drift_v(self, field, temp=177.15):
@@ -124,11 +122,19 @@ class Simulator:
         cs1 = S1[2] # 7
         cs2 = S2[4] # 7
         return cs1, cs2
-    
-    def Plot_S1S2(self, energies):
+
+    def Plot_S1S2(self, energies, no_thr=True):
         S1, S2 = self.GetS1_S2(energy=energies)
-        fig, ax = plt.subplots(ncols=1, figsize=(5,5))
-        ax.hist2d(S1,S2, bins=150, cmin=1, norm=LogNorm(),cmap ='jet')
+        fig, ax = plt.subplots(ncols=1, figsize=(5, 5))
+        cax = fig.add_axes([0.95, 0.15, 0.07, 0.7])
+        if no_thr:
+            m1 = S1 > 0
+            m2 = S2 > 0
+            ax.hist2d(np.abs(S1[~(m1 & m2)]), np.abs(S2[~(m1 & m2)]), bins=150, cmin=1, norm=LogNorm(), cmap='Greys')
+            *_, im = ax.hist2d(S1[m1 & m2], S2[m1 & m2], bins=150, cmin=1, norm=LogNorm(), cmap='jet')
+        else:
+            *_, im = ax.hist2d(S1, S2, bins=150, cmin=1, norm=LogNorm(), cmap='jet')
         ax.set_xlabel(r'$S1$ [PE]', fontdict=font_small)
         ax.set_ylabel(r'$S2$ [PE]', fontdict=font_small)
+        fig.colorbar(im, cax=cax, orientation='vertical')
         return ax
