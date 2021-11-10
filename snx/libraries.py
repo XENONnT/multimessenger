@@ -37,8 +37,8 @@ import datetime, os
 import configparser
 
 config = configparser.ConfigParser()
-# config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
-config.read('../data/basic_conf.conf')
+config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
+# config.read('../data/basic_conf.conf')
 
 path_img       = config['paths']['imgs']
 path_data      = config['paths']['data']
