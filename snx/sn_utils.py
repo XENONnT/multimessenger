@@ -58,7 +58,7 @@ def get_rates_above_threshold(y_vals, rec_bins):
 
     """
     rate_above_E = np.array([np.trapz(y_vals[i:], rec_bins[i:]) for i in range(len(rec_bins))])
-    return rate_above_E, rec_bins[:-1]
+    return rate_above_E, rec_bins #[:-1]
 
 def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     """ Interpolate the coarsely sampled recoil energies
@@ -132,12 +132,12 @@ def instructions_SN(nevents_total, nevent_SN, single=False, dump_csv = False, fi
         - For multiple SN events, the times are shifted by ten seconds to avoid overfilling the chunks
     """
     A, Z = 131.293, 54
-    lxe_density = float(config['xenonnt']['lx_density'])  # g/cm^3
+    lxe_density = float(config['xenonnt']['lxe_density'])  # g/cm^3
     drift_field = float(config['xenonnt']['drift_field'])  # V/cm
 
     # compute the total expected interactions
     volume = float(config['xenonnt']['volume'])
-    neventSN_total = nevent_SN*volume*1e5  # total nr SN events in the whole volume, after SN duration
+    neventSN_total = nevent_SN*volume  # total nr SN events in the whole volume, after SN duration
     neventSN_total = np.ceil(neventSN_total).astype(int)
 
     # if single signal is requested, overwrite the total
@@ -145,7 +145,7 @@ def instructions_SN(nevents_total, nevent_SN, single=False, dump_csv = False, fi
 
     # to get nevents_total number of events. We need to sample neventSN_total events for X times
     nr_iterations = np.ceil(nevents_total/ neventSN_total).astype(int)
-    rolled_sample_size = int(nr_iterations * nevents_total)
+    rolled_sample_size = int(nr_iterations * neventSN_total)
 
     # we need to sample this many energies and times
     sample_E = np.ones(rolled_sample_size) * - 1
@@ -165,7 +165,7 @@ def instructions_SN(nevents_total, nevent_SN, single=False, dump_csv = False, fi
         sample_E[from_:to_] = smpl_e
         sample_t[from_:to_] = smpl_t + time_shift
 
-    n = nevents_total
+    n = rolled_sample_size
     instructions = np.ones(2 * n, dtype=wfsim.instruction_dtype)
     instructions[:] = -1
     instructions['time'] = (1e8 * sample_t).repeat(2) + 1000000
@@ -246,7 +246,14 @@ def see_repos():
     os.system(f'ls -r {logs_path}')
     click.secho('\n >>Existing data\n', bg='blue', color='white')
     os.system(f'ls -r {strax_data_path}')
-
+    
+def display_config():
+    for x in config.sections():
+        click.secho(f'{x:^20}', bg='blue')
+        for i in config[x]:
+            print(i)
+        print('-'*15)
+    
 def display_times(arr):
     """ Takes times array in ns, prints the corrected times
         and the duration

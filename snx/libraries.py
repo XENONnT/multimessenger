@@ -21,17 +21,33 @@ from scipy.special import spherical_jn
 from scipy.integrate import quad, trapz
 
 import astropy.units as u
-from .sn_utils import isnotebook
+
+def isnotebook():
+    """ Tell if the script is running on a notebook
+
+    """
+    try:
+        shell = get_ipython().__class__.__name__
+        if shell == 'ZMQInteractiveShell':
+            return True  # Jupyter notebook or qtconsole
+        elif shell == 'TerminalInteractiveShell':
+            return False  # Terminal running IPython
+        else:
+            return False  # Other type (?)
+    except NameError:
+        return False  # Probably standard Python interpreter
+
+# from .sn_utils import isnotebook
 if isnotebook(): from tqdm.notebook import tqdm
 else: from tqdm import tqdm
 import pandas as pd
 import _pickle as pickle # new/ faster
 import numpy as np
-# import multihist as mh
+import multihist as mh
 import click
 import functools
 
-# import strax, straxen, wfsim, cutax
+import strax, straxen, wfsim, cutax
 import nestpy
 import datetime, os
 import configparser

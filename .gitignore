@@ -6,3 +6,5 @@ snx/*test*
 snx/*.csv
 snx/Supernova_Signal-WFSim-2.ipynb
 *.ipynb_checkpoints*
+scripts/
+notebooks/tmp
