@@ -290,12 +290,15 @@ def inject_in(small_signal, big_signal):
         click.secho('Something went wrong!', bg='red', bold=True)
 
 
-def compute_rate_within(arr, sampling=1e9):
+def compute_rate_within(arr, sampling=1e9, ts=None, tf=None):
     """ Compute rates for any given sampling interval
         Allows to look for time intervals where the SN signal
         can be maximised
 
     """
-    bins = np.arange(arr.min(), arr.max() + sampling, sampling)  # in seconds
-    rates = np.histogram(arr, bins=bins)[0]
-    return  bins, rates/sampling
+    if ts==None and tf==None:
+        bins = np.arange(arr.min(), arr.max() + sampling, sampling)  # in seconds
+    else:
+        bins = np.arange(ts, tf + sampling, sampling)  # in seconds
+    return np.histogram(arr, bins=bins)
+#     return  bins, rates/sampling

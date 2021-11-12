@@ -61,3 +61,61 @@ def plot_xy_rz(evt):
     plt.xlabel('r$^2$ [cm]')
     plt.ylabel('z [cm]')
     plt.show()
+    
+    
+def compare_features(peak_basics,peaks_run):
+    s2_sn = peak_basics[(peak_basics['type']==2)&(peak_basics['area']<2000)]
+    s1_sn = peak_basics[peak_basics['type']==1]
+
+    s2_runs = peaks_run[(peaks_run['type']==2)&(peaks_run['area']<2000)]
+    run_area = s2_runs['area']
+    run_width = s2_runs['range_50p_area']
+    run_aft = s2_runs['area_fraction_top']
+    sn_area = s2_sn['area']
+    sn_width = s2_sn['range_50p_area']
+    sn_aft = s2_sn['area_fraction_top']
+
+
+    fig, ax = plt.subplots(ncols=3, nrows=3, figsize=(17,13))
+    plt.subplots_adjust(wspace=0.2, hspace=0.4)
+
+
+
+    ax[0,0].hist2d(np.log10(run_area[(run_area>0)&(run_width>0)]), 
+                   np.log10(run_width[(run_area>0)&(run_width>0)]), 
+                   bins=(200,200), norm=LogNorm(), cmap='Reds');
+    ax[0,0].hist2d(np.log10(sn_area), np.log10(sn_width), bins=(200,200), norm=LogNorm(), alpha=0.7);
+    ax[0,0].set_xscale('log') ; ax[0,0].set_yscale('log')
+    ax[0,0].set_xlabel('log(S2 area)'); ax[0,0].set_ylabel('log(S2 width)');
+
+    ax[0,1].hist2d(run_area, run_aft, bins=(200,200), norm=LogNorm(), cmap='Reds');
+    ax[0,1].hist2d(sn_area, sn_aft, bins=(200,200), norm=LogNorm(), alpha=0.6);
+    ax[0,1].set_xlabel('S2 Area [P.E.]'); ax[0,1].set_ylabel('S2 AFT');
+    ax[0,1].axhline(0.68);
+
+    ax[0,2].hist2d(run_width, run_aft, bins=(200,200), norm=LogNorm(), cmap='Reds');
+    ax[0,2].hist2d(sn_width, sn_aft, bins=(200,200), norm=LogNorm(), alpha=0.6);
+    ax[0,2].set_xlabel('width')
+    ax[0,2].set_ylabel('AFT')
+
+    ax[1,0].hist(run_area, bins=50, histtype='step', density=True, label='BG');
+    ax[1,0].hist(sn_area, bins=50, histtype='step', density=True, label='SN');
+    ax[1,0].set_xlabel('S2 area')
+    ax[1,0].set_yscale('log')
+
+    ax[1,1].hist(run_aft, bins=50, histtype='step', density=True, label='BG');
+    ax[1,1].hist(sn_aft, bins=50, histtype='step', density=True, label='SN');
+    ax[1,1].set_xlabel('AFT')
+    ax[1,1].set_yscale('log')
+
+
+    ax[1,2].hist(run_width, bins=50, histtype='step', density=True, label='BG', range=(0,15_000));
+    ax[1,2].hist(sn_width, bins=50, histtype='step', density=True, label='SN', range=(0,15_000));
+    ax[1,2].set_xlabel('width')
+    ax[1,2].set_yscale('log')
+
+
+    for i in range(3):
+        i = int(i)
+        ax[1,i].legend(); 
+
