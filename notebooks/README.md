@@ -24,4 +24,4 @@ Reads in the computed data and demonstrates sampling from the recoil energies an
 
 
 > Notes: <br>
-> The Xenon composite that is used for the recoil calculation can be found in [here](../snx/constants.py)
+> The Xenon composite that is used for the recoil calculation can be found in [here](../mma/snx/constants.py)

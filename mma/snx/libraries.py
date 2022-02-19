@@ -1,8 +1,8 @@
 #!/usr/bin/python
 
+import datetime, os, functools, click
 import warnings
 warnings.filterwarnings('ignore')
-
 
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
@@ -18,9 +18,16 @@ from scipy.stats import gaussian_kde, norm, skewnorm
 from scipy.optimize import curve_fit
 from scipy.integrate import quad, trapz
 from scipy.special import spherical_jn
-from scipy.integrate import quad, trapz
-
 import astropy.units as u
+
+import pandas as pd
+import numpy as np
+import _pickle as pickle
+import strax, straxen, wfsim, cutax, nestpy
+import multihist as mh
+import configparser
+from .Xenon_Atom import ATOM_TABLE
+
 
 def isnotebook():
     """ Tell if the script is running on a notebook
@@ -40,26 +47,17 @@ def isnotebook():
 # from .sn_utils import isnotebook
 if isnotebook(): from tqdm.notebook import tqdm
 else: from tqdm import tqdm
-import pandas as pd
-import _pickle as pickle # new/ faster
-import numpy as np
-import multihist as mh
-import click
-import functools
 
-import strax, straxen, wfsim, cutax
-import nestpy
-import datetime, os
-import configparser
 
+# read in the configurations
 config = configparser.ConfigParser()
 config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
-# config.read('../data/basic_conf.conf')
 
 path_img       = config['paths']['imgs']
 path_data      = config['paths']['data']
 paths = {'img':path_img, 'data':path_data}
 
+# set up the plotting parameters
 plt.style.use('ggplot')
 
 plt.rcParams['xtick.labelsize']=12

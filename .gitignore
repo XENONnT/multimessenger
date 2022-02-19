@@ -2,9 +2,9 @@
 imgs/
 logs/
 data/
-snx/*test*
+mma/snx/*test*
 snx/*.csv
-snx/Supernova_Signal-WFSim-2.ipynb
+mma/snx/Supernova_Signal-WFSim-2.ipynb
 *.ipynb_checkpoints*
 scripts/
 notebooks/tmp
