@@ -7,6 +7,14 @@ from .libraries import *
 
 class TARGET:
     def __init__(self, atom, pure = False):
+        """ Set a Target Atom
+            Compute Recoil Energy Rates 
+            (a) counts integrated over recoil energies `dRatedErecoil`
+                Here the flux passed is integrated over some time.
+            (b) counts integrated over recoil energies at each time `dRatedErecoil2D`
+                Thus it returns a 2D array i.e. dR/dErec at each time
+                
+        """
         self.target = atom
         self.spin = atom["Spin"]
         self.abund = 1 if pure else atom["Fraction"]
@@ -107,8 +115,11 @@ class TARGET:
 
         '''
         def dRatedErdEv(_ev, t):
-            # Flux[t] : interpolator at t
-            # Flux[t](_ev) : interpolated count at t time, and _ev neutrino energy
+            """
+            Flux[t] : interpolator at t
+            Flux[t](_ev) : interpolated count at t time, and _ev neutrino energy
+            
+            """
             Flux_at_Ev = Flux[t](_ev)
             if Flux_at_Ev < 0:
                 Flux_at_Ev = 0
