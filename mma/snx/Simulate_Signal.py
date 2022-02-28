@@ -21,6 +21,9 @@ class vectorize(np.vectorize):
 
 
 class Simulator:
+    """ Simulate signal based on Recoil Energy rates
+        It uses
+    """
     def __init__(self, name, detector=None):
         self.name = name
         self.detector = detector or nestpy.DetectorExample_XENON10  # LUX_RUN3
@@ -61,7 +64,21 @@ class Simulator:
         n_p, n_e = q.photons, q.electrons
         return n_p, n_e
 
-    def simulate_quanta(self, Er_sampled, drift_field=200, plot=False, figsize=(6, 6), mono_energetic=False):
+    def simulate_quanta(self, Er_sampled, drift_field=200, plot=False,
+                        figsize=(6,6), mono_energetic=False):
+        """ simulate quanta based on sampled energies
+            Er_sampled : `array`
+                The sampled Energues
+            drift_field : `float`, optional
+                Electric field drifting electrons V/cm
+            plot : `bool`, optional
+                whether to plot the output
+            figsize : `tuple`, optional
+                figure size, default is (6,6)
+            mono_energetic : `bool`, optional
+                Whether the signal is monoenergetic. If true, adds a nestpy
+                prediction in the plot. (Er_sampled is expected to be repeating)
+        """
         Ly_j, Qy_j = self.Get_LyQy(energy=Er_sampled, drift_field=drift_field)
         n_p, n_e = self.Get_quanta(energy=Er_sampled, drift_field=drift_field)
         if plot:
@@ -77,15 +94,29 @@ class Simulator:
         return n_p, n_e
 
     @vectorize
-    def get_drift_v(self, field, temp=177.15):
-        return self.nc.SetDriftVelocity(temp, self.density, field)  # temp in K (kelvin)
+    def get_drift_v(self, field, temp = 177.15):
+        return self.nc.SetDriftVelocity(temp, self.density, field) # temp in K (kelvin)
 
-    # This function gets both S1 and S2 for reliable anticorrelation.
+
     @vectorize
-    def GetS1_S2(self, interaction=nestpy.NR,
-                 energy=100.,  # energy in keV of the recoil itself
-                 drift_field=81.):  # V/cm
+    def GetS1_S2(self, interaction = nestpy.NR,
+                  energy = 100.,
+                  drift_field = 200):
+            """ This function gets both S1 and S2 for reliable anticorrelation.
+            Parameters
+            ----------
+            interaction : `nestpy.interaction`, optional
+                The type of interaction. Nuclear Recoil by default.
+            energy : `float`, optional
+                Energy in keV of the Recoil. Default is 100
+            drift_field : `float`, optional
+                Electric drift field, default os 200 V/cm
 
+            Returns
+            -------
+            `tuple` : (cs1, cs2) corrected S1 and S2 areas
+
+        """
         y = self.nc.GetYields(interaction, energy, self.density, drift_field, self.A, self.Z)
         q = self.nc.GetQuanta(y, self.density)
 
