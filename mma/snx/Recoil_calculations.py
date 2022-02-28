@@ -22,29 +22,29 @@ class TARGET:
         self.dRatedErecoil2D_vect = np.vectorize(self.dRatedErecoil2D)
     
     def TransMoment(self, Er):
-        ''' mass in keV, Er in keV, return in keV
+        """ mass in keV, Er in keV, return in keV
 
-        '''
+        """
         return np.sqrt(2 * self.masskeV * Er)
     
     def MinNeutrinoEnergy(self, Er):
-        ''' Er in keV, mass in keV, return in keV
+        """ Er in keV, mass in keV, return in keV
 
-        '''
+        """
         return (Er + np.sqrt(Er**2 + 2 * self.masskeV * Er)) / 2.0
     
     def MaxRecoilEnergy(self, Ev):
-        ''' Ev in MeV, convert massMeV to MeV, return in MeV
+        """ Ev in MeV, convert massMeV to MeV, return in MeV
 
-        '''
+        """
         return 2 * Ev**2 / (self.massMeV + 2 * Ev)
     
     def FormFactor(self, q):
-        ''' q in keV, other params converted such that
+        """ q in keV, other params converted such that
             the units of the eq is reasonable
             returns unitless form factor
 
-        '''
+        """
         if q == 0:
             return 1.0
         a = 0.52 * u.fm
@@ -62,11 +62,11 @@ class TARGET:
         return (3 * spherical_jn(1, qrn) / qrn)**2 * np.exp(- (qval * sval)**2)
 
     def dXsecdErecoil(self, Er, Ev):
-        ''' Er in keV, Ev in MeV
+        """ Er in keV, Ev in MeV
             Gf^2 * mass term needed a correction
             returns Area / Energy (cm^2/keV)
 
-        '''
+        """
         # if Er.to(u.MeV).value > self.MaxRecoilEnergy(Ev).value: # MeV >< Mev
         Er_mev = Er * 1e-3
         if Er_mev > self.MaxRecoilEnergy(Ev): # MeV >< Mev
@@ -86,12 +86,12 @@ class TARGET:
         return result
     
     def dRatedErecoil(self, Er, Flux):
-        ''' Flux: function to return flux in units of counts/(MeV*cm^2) - integrated over 10sec
+        """ Flux: function to return flux in units of counts/(MeV*cm^2) - integrated over 10sec
             dXsecdErecoil returns cm^2 / keV -> converted into cm^2/MeV
             so that `dRatedErEv` returns counts (unitless)
             returns counts integrated over recoil energies
 
-        '''
+        """
         def dRatedErdEv(_ev):
             Flux_at_Ev = Flux(_ev)
             dXsec_dEr = self.dXsecdErecoil(Er, _ev) * 1e3 # from cm^2/keV => cm^2/MeV
@@ -101,11 +101,10 @@ class TARGET:
         evmin = self.MinNeutrinoEnergy(Er)*1e-3     # from keV -> MeV
         return self.Integrator(dRatedErdEv, evmin, 30) * self.abund / (self.target["Mass"])
 
-
     def dRatedErecoil2D(self, Er, Flux, t):
-        ''' This time the flux should be sampled from a 2D surface
+        """ This time the flux should be sampled from a 2D surface
 
-        '''
+        """
         def dRatedErdEv(_ev, t):
             # Flux[t] : interpolator at t
             # Flux[t](_ev) : interpolated count at t time, and _ev neutrino energy
@@ -116,5 +115,5 @@ class TARGET:
             return dXsec_dEr * Flux_at_Ev
 
         evmin = self.MinNeutrinoEnergy(Er)*1e-3
-        return self.Integrator(dRatedErdEv, evmin, 30, args=(t)) * self.abund / (self.target["Mass"])
+        return self.Integrator(dRatedErdEv, evmin, 30, args=t) * self.abund / (self.target["Mass"])
     

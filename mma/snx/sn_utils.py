@@ -40,6 +40,7 @@ def _inverse_transform_sampling(x_vals, y_vals, n_samples):
     r = np.random.rand(n_samples)
     return inv_cdf(r)
 
+
 def get_rates_above_threshold(y_vals, rec_bins):
     """ Gives the total number of interactions above every given threshold
         The input is expected to be integrated rates over time. Thus, the
@@ -58,7 +59,8 @@ def get_rates_above_threshold(y_vals, rec_bins):
 
     """
     rate_above_E = np.array([np.trapz(y_vals[i:], rec_bins[i:]) for i in range(len(rec_bins))])
-    return rate_above_E, rec_bins #[:-1]
+    return rate_above_E, rec_bins
+
 
 def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     """ Interpolate the coarsely sampled recoil energies
@@ -73,6 +75,7 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     """
     interpolated = itp.interp1d(rec_bins, y_vals, kind="cubic", fill_value="extrapolate")
     return interpolated
+
 
 def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None):
     """ Sample from the recoil spectrum in given file
@@ -89,22 +92,24 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None):
     """
     pickled_file = pickled_file or paths['data']+"rates_combined.pickle"
     with open(pickled_file, "rb") as input_file:
-        rates_Er, rates_t, recoil_energy_bins, timebins  = pickle.load(input_file)
-    if x.lower()=='energy':
+        rates_Er, rates_t, recoil_energy_bins, timebins = pickle.load(input_file)
+    if x.lower() == 'energy':
         spectrum = rates_Er['Total']
         xaxis = recoil_energy_bins
-        ## interpolate
+        # interpolate
         intrp_rates = itp.interp1d(xaxis, spectrum, kind="cubic", fill_value="extrapolate")
         xaxis = np.linspace(xaxis.min(), xaxis.max(), 200)
         spectrum = intrp_rates(xaxis)
-    elif x.lower()=='time':
+    elif x.lower() == 'time':
         spectrum = rates_t['Total']
         xaxis = timebins
     else: return print('choose x=time or x=energy')
     sample = _inverse_transform_sampling(xaxis, spectrum, N_sample)
     return sample
 
-def instructions_SN(nevents_total, nevent_SN, single=False, dump_csv = False, filename = None, below_cathode = False):
+
+def instructions_SN(nevents_total, nevent_SN, single=False,
+                    dump_csv=False, filename=None, below_cathode=False):
     """
         WFSim instructions to simulate Supernova NR peak.
 
@@ -223,9 +228,9 @@ def clean_repos(pattern='*'):
     strax_data_path = config['wfsim']['strax_data_path']
 
     if input('Are you sure to delete all the data?\n'
-            f'\t{inst_path}{pattern}\n'
-            f'\t{logs_path}{pattern}\n'
-            f'\t{strax_data_path}{pattern}\n>>>').lower() == 'y':
+             f'\t{inst_path}{pattern}\n'
+             f'\t{logs_path}{pattern}\n'
+             f'\t{strax_data_path}{pattern}\n>>>').lower() == 'y':
         os.system(f'rm -r {inst_path}{pattern}')
         os.system(f'rm -r {logs_path}{pattern}')
         os.system(f'rm -r {strax_data_path}{pattern}')
@@ -246,14 +251,16 @@ def see_repos():
     os.system(f'ls -r {logs_path}')
     click.secho('\n >>Existing data\n', bg='blue', color='white')
     os.system(f'ls -r {strax_data_path}')
-    
+
+
 def display_config():
     for x in config.sections():
         click.secho(f'{x:^20}', bg='blue')
         for i in config[x]:
             print(i)
         print('-'*15)
-    
+
+
 def display_times(arr):
     """ Takes times array in ns, prints the corrected times
         and the duration
@@ -296,7 +303,7 @@ def compute_rate_within(arr, sampling=1e9, ts=None, tf=None):
         can be maximised
 
     """
-    if ts==None and tf==None:
+    if ts is None and tf is None:
         bins = np.arange(arr.min(), arr.max() + sampling, sampling)  # in seconds
     else:
         bins = np.arange(ts, tf + sampling, sampling)  # in seconds
