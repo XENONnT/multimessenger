@@ -7,7 +7,6 @@ warnings.filterwarnings('ignore')
 
 import matplotlib.pyplot as plt
 import matplotlib.pylab as pylab
-import click
 import matplotlib
 from matplotlib import cm
 from matplotlib.colors import LogNorm

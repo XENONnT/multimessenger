@@ -4,7 +4,14 @@
 ## Absolutely, hideous. Gonna work on it
 ##
 from .constants import *
-from .libraries import *
+# from .libraries import *
+import nestpy
+import functools, click
+import numpy as np
+import scipy.interpolate as itp
+import matplotlib.pyplot as plt
+from libraries import font_small
+from matplotlib.colors import LogNorm
 
 # these mean we don't compute photon times. 
 # it's a bit more crude but over 100x faster. 
@@ -24,6 +31,7 @@ class Simulator:
     """ Simulate signal based on Recoil Energy rates
         It uses
     """
+
     def __init__(self, name, detector=None):
         self.name = name
         self.detector = detector or nestpy.DetectorExample_XENON10  # LUX_RUN3
@@ -65,7 +73,7 @@ class Simulator:
         return n_p, n_e
 
     def simulate_quanta(self, Er_sampled, drift_field=200, plot=False,
-                        figsize=(6,6), mono_energetic=False):
+                        figsize=(6, 6), mono_energetic=False):
         """ simulate quanta based on sampled energies
             Er_sampled : `array`
                 The sampled Energues
@@ -94,15 +102,14 @@ class Simulator:
         return n_p, n_e
 
     @vectorize
-    def get_drift_v(self, field, temp = 177.15):
-        return self.nc.SetDriftVelocity(temp, self.density, field) # temp in K (kelvin)
-
+    def get_drift_v(self, field, temp=177.15):
+        return self.nc.SetDriftVelocity(temp, self.density, field)  # temp in K (kelvin)
 
     @vectorize
-    def GetS1_S2(self, interaction = nestpy.NR,
-                  energy = 100.,
-                  drift_field = 200):
-            """ This function gets both S1 and S2 for reliable anticorrelation.
+    def GetS1_S2(self, interaction=nestpy.NR,
+                 energy=100.,
+                 drift_field=200):
+        """ This function gets both S1 and S2 for reliable anticorrelation.
             Parameters
             ----------
             interaction : `nestpy.interaction`, optional
