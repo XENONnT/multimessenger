@@ -29,6 +29,8 @@ def isnotebook():
     except NameError:
         return False  # Probably standard Python interpreter
 
+
+
 def _inverse_transform_sampling(x_vals, y_vals, n_samples):
     """ Inverse transform sampling
 

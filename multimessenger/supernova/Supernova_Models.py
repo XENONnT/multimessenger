@@ -32,6 +32,12 @@ import configparser
 import astropy.units as u
 N_Xe = 4.6e27*u.count/u.tonne
 
+from .sn_utils import isnotebook
+if isnotebook():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
+
 def get_composite():
     """ Get a Xenon nucleus composite
     """
