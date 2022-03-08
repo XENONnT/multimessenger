@@ -28,6 +28,7 @@ import numpy as np
 import _pickle as pickle
 import scipy.interpolate as itp
 from .sn_utils import _inverse_transform_sampling
+from .Xenon_Atom import ATOM_TABLE
 
 
 def get_composite():
