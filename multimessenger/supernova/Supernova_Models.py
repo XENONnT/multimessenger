@@ -22,11 +22,14 @@ Todo: The total_rates1D and the total rates from 2D does NOT give the same
  Need to investigate this! # might be fixed/understood
 
 """
+import os
 import numpy as np
 import _pickle as pickle
 import scipy.interpolate as itp
 from .sn_utils import _inverse_transform_sampling
 from .Xenon_Atom import ATOM_TABLE
+import configparser
+import astropy.units as u
 N_Xe = 4.6e27*u.count/u.tonne
 
 def get_composite():
@@ -55,6 +58,7 @@ class SN_LightCurve:
                  distance=10,
                  recoil_energies=(0, 20, 50),
                  filename_=None,
+                 storage=None,
                  force=False):
         """
         Parameters
@@ -83,7 +87,18 @@ class SN_LightCurve:
         self.tf = 10
         self.name = filename_ or f'Object_M{self.M}-Z{self.Z}_dist{self.dist}.p'
         self.recoil_en = np.linspace(recoil_energies[0], recoil_energies[1], recoil_energies[2])
+        if storage is None:
+            try:
+                # try to find from the default config
+                config = configparser.ConfigParser()
+                config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
+                self.storage = paths["data"]
+            except:
+                self.storage = os.getcwd()
+        else:
+            self.storage = storage
         self.__version__ = "0.0.5"
+
         if force:
             print('Running.. Saving the Object..\n')
             self._load_light_curve()
@@ -104,14 +119,14 @@ class SN_LightCurve:
         """
         filename = filename or self.name
         if update:
-            with open(f'{paths["data"]}{filename}', 'wb') as output:  # Overwrites any existing file.
+            with open(f'{self.storage}{filename}', 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'Saved at {paths["data"]}{filename}!\n', bg='blue')
+                click.secho(f'Saved at {self.storage}{filename}!\n', bg='blue')
 
     def retrieve_object(self, filename=None):
         filename = filename or self.name
-        with open(f'{paths["data"]}' + filename, 'rb') as handle:
-            click.secho(f'Retrieving object {paths["data"]}{filename}', bg='blue')
+        with open(f'{self.storage}' + filename, 'rb') as handle:
+            click.secho(f'Retrieving object {self.storage}{filename}', bg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
