@@ -1,6 +1,4 @@
 #!/usr/bin/python
-
-
 from scipy.special import spherical_jn
 from scipy.integrate import quad, trapz
 import astropy.units as u
@@ -12,6 +10,7 @@ sin2the = 0.2223
 hbar = 1.0546e-27*u.cm**2 *u.g / u.s
 GF = 8.958e-44 * u.MeV * u.cm**3
 GFnat = (GF/(hbar*c_speed)**3).to(u.keV**-2)
+m_e = 9.109e-31*u.kg
 
 # natural unit conversions
 len_nat = (hbar/(m_e*c_speed)).decompose()

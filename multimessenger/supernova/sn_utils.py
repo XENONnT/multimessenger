@@ -12,10 +12,7 @@ import datetime
 import configparser
 # read in the configurations
 config = configparser.ConfigParser()
-config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
-path_img = config['paths']['imgs']
-path_data = config['paths']['data']
-paths = {'img': path_img, 'data': path_data}
+
 
 def isnotebook():
     """ Tell if the script is running on a notebook
@@ -88,7 +85,7 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     return interpolated
 
 
-def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None):
+def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confpath=None):
     """ Sample from the recoil spectrum in given file
 
         Parameters
@@ -99,8 +96,16 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None):
             The number of samples
         pickled_file : `str`
             Path to pickled file. Expected to have (rates_Er, rates_t, recoil_e, timebins)
+        confpath : `str`
+            Path to configuration file
 
     """
+    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(confpath)
+    path_img = config['paths']['imgs']
+    path_data = config['paths']['data']
+    paths = {'img': path_img, 'data': path_data}
+
     pickled_file = pickled_file or paths['data']+"rates_combined.pickle"
     with open(pickled_file, "rb") as input_file:
         rates_Er, rates_t, recoil_energy_bins, timebins = pickle.load(input_file)
@@ -120,7 +125,7 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None):
 
 
 def instructions_SN(nevents_total, nevent_SN, single=False,
-                    dump_csv=False, filename=None, below_cathode=False):
+                    dump_csv=False, filename=None, below_cathode=False, confpath=None):
     """
         WFSim instructions to simulate Supernova NR peak.
 
@@ -140,6 +145,8 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
             The name of the csv file if the dump_csv is True
         below_cathode : `bool`
             If True, it randomly samples x positions 12 cm beyond cathode
+        confpath : `str`
+            Path to configuration file
 
         Notes
         -----
@@ -148,6 +155,8 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
         - For multiple SN events, the times are shifted by ten seconds to avoid overfilling the chunks
     """
     import wfsim, nestpy
+    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(confpath)
 
     # Xenon Atom
     A, Z = 131.293, 54
@@ -238,7 +247,9 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
     return instructions_df
 
 
-def clean_repos(pattern='*'):
+def clean_repos(pattern='*', confpath=None):
+    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(confpath)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs_path']
     strax_data_path = config['wfsim']['strax_data_path']
@@ -252,7 +263,9 @@ def clean_repos(pattern='*'):
         os.system(f'rm -r {strax_data_path}{pattern}')
 
 
-def see_repos():
+def see_repos(confpath=None):
+    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(confpath)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs_path']
     strax_data_path = config['wfsim']['strax_data_path']
@@ -269,7 +282,9 @@ def see_repos():
     os.system(f'ls -r {strax_data_path}')
 
 
-def display_config():
+def display_config(confpath=None):
+    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(confpath)
     for x in config.sections():
         click.secho(f'{x:^20}', bg='blue')
         for i in config[x]:

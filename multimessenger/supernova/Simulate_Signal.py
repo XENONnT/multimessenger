@@ -1,17 +1,11 @@
 #!/usr/bin/python
-
-## The very first version
-## Absolutely, hideous. Gonna work on it
-##
-# from .constants import *
-# from .libraries import *
 import nestpy
 import functools, click
 import numpy as np
 import scipy.interpolate as itp
 import matplotlib.pyplot as plt
-from libraries import font_small
 from matplotlib.colors import LogNorm
+from .SN_plotter import font_small
 
 # these mean we don't compute photon times. 
 # it's a bit more crude but over 100x faster. 
@@ -20,7 +14,6 @@ use_timing = -1
 output_timing = 0
 wftime = [0, 0, 0]
 wfamp = [0., 0., 0.]
-
 
 class vectorize(np.vectorize):
     def __get__(self, obj, objtype):

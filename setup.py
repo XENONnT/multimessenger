@@ -8,7 +8,7 @@ with open(os.path.join(this_dir, 'README.md'), 'rb') as f:
     long_description = f.read().decode().strip()
 
 # load version
-with open("mma/snx/_version.py", "r") as f:
+with open("multimessenger/_version.py", "r") as f:
     version_file = f.read()
 version_match = re.search(r"^version = ['\"]([^'\"]*)['\"]", version_file, re.M)
 version = version_match.group(1)
@@ -16,12 +16,10 @@ version = version_match.group(1)
 install_requires = []
 
 def read_requirements():
-    with open('doc/requirements.txt') as req:
+    with open('docs/requirements.txt') as req:
         content = req.read()
         requirements = content.split('\n')
     return install_requires.append(requirements)
-    #return install_requires
-
 
 extras_require = {
     'dev': [
@@ -43,7 +41,7 @@ extras_require = {
 }
 
 setup(
-    name='snx',
+    name='multimessenger',
     version=version,
     description='Multimessenger Astronomy Analysis tools for XENONnT',
     long_description=long_description,
@@ -56,13 +54,6 @@ setup(
     pbr=True,
     packages=find_packages(),
     include_package_data=True,
-
-    # entry_points={
-    #     'console_scripts': [
-    #         'snx = mma.__main__:main',
-    #     ],
-    # },
-
     python_requires='>=3.6.*',
     install_requires=read_requirements(),
     extras_require=extras_require,
