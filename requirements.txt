@@ -8,4 +8,4 @@ numpy~=1.22.2
 setuptools~=60.9.3
 click~=8.0.4
 tqdm~=4.63.0
-nestpy~=1.5.1
+nestpy~=1.5.0
