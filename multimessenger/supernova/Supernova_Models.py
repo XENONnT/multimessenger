@@ -301,7 +301,7 @@ class SN_LightCurve:
                          for nu in fluxes.keys()}
         return integ_numbers
 
-    def _get_rate1D(self, energies, t0=None, tf=None, dist=None):
+    def _get_rate1D(self, energies, t0, tf, dist):
         """
         Compute scattering rates at the detector at given
         recoil energies for *time integrated* neutrino fluxes. 
@@ -326,7 +326,6 @@ class SN_LightCurve:
         nu_energies = self.mean_E
         flux_interpolator = {nu: itp.interp1d(nu_energies, fluxes[nu],
                                               kind="cubic", fill_value="extrapolate") for nu in nu_keys}
-
         # For readability
         # Compute rates for each flavor, and for each nuclide
         # convert MeV -> keV, and
@@ -405,7 +404,7 @@ class SN_LightCurve:
         self.save_object(ratename, update=True)
         return None
 
-    def _get_rate2D(self, rec_en=None, dist=None, step=1):
+    def _get_rate2D(self, rec_en, dist, step):
         """
         Compute the 2D recoil rate for all flavors
         In both neutrino energies and times.
@@ -432,10 +431,7 @@ class SN_LightCurve:
         nu_energies = self.mean_E  # Incident neutrino energy NOT the recoil
 
         # Make data. i.e. 2D interpolated flux
-        if rec_en is None:
-            Ebins = self.recoil_en
-        else:
-            Ebins = rec_en
+        Ebins = rec_en
         tbins = self.t[::step]
         # ee, tt = np.meshgrid(Ebins, tbins)
 
@@ -498,9 +494,14 @@ class SN_LightCurve:
         as it computes integrals for len(times)*len(Recoil Energies) times 
         """
         dist = dist or self.dist
-        recoil_energies = rec_en or self.recoil_en
+
+        if rec_en is None:
+            recoil_energies = self.recoil_en
+        else:
+            recoil_energies = rec_en
+
         self.recoil_en = recoil_energies  # update
-        ermin, ermax = recoil_energies.min(), recoil_energies.max()
+        ermin, ermax = np.min(recoil_energies), np.max(recoil_energies)
 
         name_ = self.name.split('.p')[0]
         ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}_step{step}_dist{dist}_2D.p'
