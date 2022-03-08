@@ -307,10 +307,11 @@ class Plotter:
 
     def plot_rate_above_threshold(self, figsize=None):
         try:
-            rate = self.Model.rate1D
+            rate = self.Model.total_rate1D
         except:
             print(f'No rate found \n>Running get_recoil_spectra() with defaults')
-            rate = self.Model.get_recoil_spectra()
+            self.Model.get_recoil_spectra()
+            rate = self.Model.total_rate1D
         recoil_energies = self.Model.recoil_en
         E_thr = np.array([np.trapz(rate[i:], recoil_energies[i:]) for i, foo in enumerate(recoil_energies)])
 

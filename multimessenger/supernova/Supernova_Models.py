@@ -342,7 +342,7 @@ class SN_LightCurve:
         self.get_total_rate(dim=1)
         # truncate all rates at 0
         # this updates, rec_en, rate1D, and total_rates1D 
-        ## NOTE: self.recoil_en is also updated to have same lenght!
+        ## NOTE: self.recoil_en is also updated to have same length!
         self._truncate1D()
         return None
 
@@ -372,7 +372,7 @@ class SN_LightCurve:
         tf = tf or self.tf
         dist = dist or self.dist
         recoil_energies = rec_en or self.recoil_en
-        ermin, ermax = recoil_energies.min(), recoil_energies.max()
+        ermin, ermax = np.min(recoil_energies), np.max(recoil_energies)
         # update these
         self.recoil_en = recoil_energies
         self.t0 = t0
