@@ -255,12 +255,12 @@ class SN_LightCurve:
             axis = 0
         else:
             raise ValueError("Options are: time=VAL or energy=VAL")
-        if val < int_over.min() or val > int_over.max():
-            print(f'{val} is out of bounds ({int_over.min():.1f} {int_over.max():.1f})\n'
+        if val < np.min(int_over) or val > np.max(int_over):
+            print(f'{val} is out of bounds ({np.min(int_over):.1f} {np.max(int_over):.1f})\n'
                   'The number is extrapolated and might be wrong!')
 
         # set the fluxes. If a distance is given. Use fluxes at the detector.
-        if isinstance(dist, NoneType):
+        if dist is None:
             fluxes = self.nu_list
         else:
             fluxes = self.fluxes_at_tpc(dist)
