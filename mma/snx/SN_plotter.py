@@ -12,8 +12,54 @@ Notes
 # extracting data fig_handle.axes[0].lines[0].get_data()
 """
 
-from .constants import *
-from .libraries import *
+# from .constants import *
+# from .libraries import *
+import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+import matplotlib.pylab as pylab
+
+plt.style.use('ggplot')
+
+plt.rcParams['xtick.labelsize'] = 12
+plt.rcParams['ytick.labelsize'] = 12
+plt.rcParams['xtick.direction'] = 'out'
+plt.rcParams['ytick.direction'] = 'out'
+
+plt.rcParams['xtick.major.size'] = 10
+plt.rcParams['ytick.major.size'] = 10
+plt.rcParams['xtick.major.pad'] = 5
+plt.rcParams['ytick.major.pad'] = 5
+
+plt.rcParams['xtick.minor.size'] = 5
+plt.rcParams['ytick.minor.size'] = 5
+plt.rcParams['xtick.minor.pad'] = 5
+plt.rcParams['ytick.minor.pad'] = 5
+plt.rcParams['legend.fontsize'] = 18
+plt.rcParams['font.size'] = 16
+
+font_small = {'family': 'serif',
+              'color': 'darkred',
+              'weight': 'normal',
+              'size': 16,
+              }
+
+font_medium = {'family': 'serif',
+               'color': 'darkred',
+               'weight': 'normal',
+               'size': 20,
+               }
+
+font_large = {'family': 'serif',
+              'color': 'darkred',
+              'weight': 'normal',
+              'size': 24,
+              }
+params = {'xtick.labelsize': 'x-large',
+          'ytick.labelsize': 'x-large',
+          }
+# Updates plots to apply the above formatting to all plots in doc
+pylab.rcParams.update(params)
 
 
 def adjust_xylabels(ftype, axs, xlabel, ylabel, xscale, yscale):
@@ -21,21 +67,21 @@ def adjust_xylabels(ftype, axs, xlabel, ylabel, xscale, yscale):
         axs.set_xlabel(xlabel, fontdict=font_medium)
         axs.set_ylabel(ylabel, fontdict=font_medium)
         axs.legend(ncol=2, fontsize=15)
-        axs.set_xscale(xscale);
+        axs.set_xscale(xscale)
         axs.set_yscale(yscale)
     else:
         if ftype == 'vertical':
-            axs[0].set_xscale(xscale);
+            axs[0].set_xscale(xscale)
             axs[0].set_yscale(yscale)
             axs[1].set_ylabel(ylabel, fontdict=font_medium)
             axs[2].set_xlabel(xlabel, fontdict=font_medium)
         else:
-            axs[0].set_xscale(xscale);
+            axs[0].set_xscale(xscale)
             axs[0].set_yscale(yscale)
             axs[0].set_ylabel(ylabel, fontdict=font_medium)
             for ax in axs:
                 ax.set_xlabel(xlabel, fontdict=font_medium)
-        axs[2].legend(ncol=2, fontsize=15);
+        axs[2].legend(ncol=2, fontsize=15)
     return axs
 
 
@@ -82,7 +128,7 @@ class Plotter:
             ncol, nrow = 1, 1
             sharex, sharey = False, False
         else:
-            return f"ftype is expected to be 'vertical', 'horizontal' or 'single' but got {ftype}"
+            raise KeyError(f"ftype is expected to be 'vertical', 'horizontal' or 'single' but got {ftype}")
         fig, axes = plt.subplots(ncols=ncol, nrows=nrow, figsize=figsize, sharex=sharex, sharey=sharey)
         return fig, axes
 
@@ -204,7 +250,7 @@ class Plotter:
                              total=False,
                              xscale='log',
                              yscale='log', **kwargs):
-        ''' plots the Flux for different energy bins
+        """ plots the Flux for different energy bins
             integrated over given time. All parameters are optional.
             Parameters
             ----------
@@ -219,7 +265,7 @@ class Plotter:
                 so its the total counts
             xscale, yscale : str
                 'log' or 'linear' axis scales.
-        '''
+        """
         xlabel = r'E$_\nu$ [MeV]'
         ylabel = r'$\nu$ number [cts/MeV]'
         number_flux = self.Model.get_integ_fluxes(at_detector, t0, tf)
@@ -248,7 +294,7 @@ class Plotter:
                 spectra = self.Model.rate1D
             except:
                 print(f'No rate found \n>Running get_recoil_spectra() with defaults')
-                spectra = self.get_recoil_spectra()
+                spectra = self.Model.get_recoil_spectra()
 
         for name, data in spectra.items():
             ax.plot(recoil_energies, data, label=name, lw=3)
@@ -264,10 +310,9 @@ class Plotter:
             rate = self.Model.rate1D
         except:
             print(f'No rate found \n>Running get_recoil_spectra() with defaults')
-            rate = self.get_recoil_spectra()
+            rate = self.Model.get_recoil_spectra()
         recoil_energies = self.Model.recoil_en
-        E_thr = np.array(
-            [trapz(self.Model.total_rate1D[i:], recoil_energies[i:]) for i, foo in enumerate(recoil_energies)])
+        E_thr = np.array([np.trapz(rate[i:], recoil_energies[i:]) for i, foo in enumerate(recoil_energies)])
 
         figsize = figsize or self.figsize
         fig, ax = plt.subplots(1, 1, figsize=figsize)

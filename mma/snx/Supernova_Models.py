@@ -12,18 +12,22 @@ Notes
 uses _pickle module, check here https://stackoverflow.com/questions/4529815/saving-an-object-data-persistence
 How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle-yourself
 
-_get_t_int_flux -> sum or integration?
+_get_t_int_flux -> sum or integration? (sum)
 
 ###
 The recoil energies changes after 1D truncation. Thus, the next time it looks for the data, it
 finds the wrong emin, emax values and can confuse.
 
->>> The total_rates1D and the total rates from 2D does NOT give the same
-.... Need to investigate this!
+Todo: The total_rates1D and the total rates from 2D does NOT give the same
+ Need to investigate this! # might be fixed/understood
 
 """
-from .constants import *
-from .libraries import *
+# from .constants import *
+# from .libraries import *
+import numpy as np
+import _pickle as pickle
+import scipy.interpolate as itp
+from .sn_utils import _inverse_transform_sampling
 
 
 def get_composite():
@@ -40,7 +44,6 @@ def get_composite():
              TARGET(ATOM_TABLE["Xe134"], pure=False),
              TARGET(ATOM_TABLE["Xe136"], pure=False)]
     return XeNuc
-
 
 class SN_LightCurve:
     """ Deal with a given SN lightcurve
@@ -70,6 +73,7 @@ class SN_LightCurve:
             tuple with (start, stop, step)
         filename : str, optional
             Filename to save. If None, constructs a name based on properties.
+
         """
         self.XeNuc = get_composite()
         self.M = progenitor_mass
@@ -114,7 +118,8 @@ class SN_LightCurve:
         return None
 
     def _load_light_curve(self):
-        ''' Load data from file;
+        """ The data are taken from http://asphwww.ph.noda.tus.ac.jp/snn/
+        Load data from file;
         File structure is
         `    time_step,\n
              col1 col2 col3 col4 col5 col6 \n
@@ -122,7 +127,7 @@ class SN_LightCurve:
              col1 col2 col3 col4 col5 col6 \n
         `
         This function is way slower than Ricardo Peres's, but more readable
-        '''
+        """
         mass = self.M
         Z = self.Z
         t_revival = self.t_revival
@@ -573,20 +578,6 @@ class SN_LightCurve:
             rates_t['Total'] += rates_t[nu]
         return rates_E, rates_t
 
-    def _inverse_transform_sampling(self, x_vals, y_vals, n_samples):
-        """ Strangely, it does not take self automatically
-            Needs to be called as
-            a = Simulator
-            a._inverse_transform_sampling(a, x, y, N)
-        """
-        cum_values = np.zeros(x_vals.shape)
-        y_mid = (y_vals[1:] + y_vals[:-1]) * 0.5
-        cum_values[1:] = np.cumsum(y_mid * np.diff(x_vals))
-        inv_cdf = itp.interp1d(cum_values / np.max(cum_values), x_vals)
-        r = np.random.rand(n_samples)
-        ### TODO: do-not return zero values
-        return inv_cdf(r)
-
     def sample_from_recoil_spectrum(self, x='energy', N_sample=1):
         if x.lower() == 'energy':
             try:
@@ -608,7 +599,7 @@ class SN_LightCurve:
             xaxis = self.t
         else:
             return print('choose x=time or x=energy')
-        sample = self._inverse_transform_sampling(xaxis, spectrum, N_sample)
+        sample = _inverse_transform_sampling(xaxis, spectrum, N_sample)
         return sample
 
     # This allows accessing relative attributes

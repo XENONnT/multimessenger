@@ -4,7 +4,18 @@ Author: Melih Kara kara@kit.edu
 The auxiliary tools that are used within the SN signal generation, waveform simulation
 
 """
-from .libraries import *
+import numpy as np
+import pandas as pd
+import scipy.interpolate as itp
+import _pickle as pickle
+import datetime
+import configparser
+# read in the configurations
+config = configparser.ConfigParser()
+config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
+path_img = config['paths']['imgs']
+path_data = config['paths']['data']
+paths = {'img': path_img, 'data': path_data}
 
 def isnotebook():
     """ Tell if the script is running on a notebook
@@ -136,6 +147,9 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
         - The number of total events is calculated by nevent_SN * volume in kg
         - For multiple SN events, the times are shifted by ten seconds to avoid overfilling the chunks
     """
+    import wfsim, nestpy
+
+    # Xenon Atom
     A, Z = 131.293, 54
     lxe_density = float(config['xenonnt']['lxe_density'])  # g/cm^3
     drift_field = float(config['xenonnt']['drift_field'])  # V/cm
@@ -146,7 +160,8 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
     neventSN_total = np.ceil(neventSN_total).astype(int)
 
     # if single signal is requested, overwrite the total
-    if single: nevents_total=neventSN_total
+    if single:
+        nevents_total = neventSN_total
 
     # to get nevents_total number of events. We need to sample neventSN_total events for X times
     nr_iterations = np.ceil(nevents_total/ neventSN_total).astype(int)
@@ -184,6 +199,7 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
     t = np.random.uniform(-np.pi, np.pi, n)
     instructions['x'] = np.repeat(r * np.cos(t), 2)
     instructions['y'] = np.repeat(r * np.sin(t), 2)
+
     if below_cathode:
         instructions['z'] = np.repeat(np.random.uniform(-straxen.tpc_z - 12, 0, n), 2)
     else:
