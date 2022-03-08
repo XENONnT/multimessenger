@@ -22,14 +22,12 @@ Todo: The total_rates1D and the total rates from 2D does NOT give the same
  Need to investigate this! # might be fixed/understood
 
 """
-# from .constants import *
-# from .libraries import *
 import numpy as np
 import _pickle as pickle
 import scipy.interpolate as itp
 from .sn_utils import _inverse_transform_sampling
 from .Xenon_Atom import ATOM_TABLE
-
+N_Xe = 4.6e27*u.count/u.tonne
 
 def get_composite():
     """ Get a Xenon nucleus composite
