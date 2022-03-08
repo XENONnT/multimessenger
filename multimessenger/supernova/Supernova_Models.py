@@ -22,7 +22,7 @@ Todo: The total_rates1D and the total rates from 2D does NOT give the same
  Need to investigate this! # might be fixed/understood
 
 """
-import os
+import os, click
 import numpy as np
 import _pickle as pickle
 import scipy.interpolate as itp
@@ -92,7 +92,7 @@ class SN_LightCurve:
                 # try to find from the default config
                 config = configparser.ConfigParser()
                 config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
-                self.storage = paths["data"]
+                self.storage = config['paths']['data']
             except:
                 self.storage = os.getcwd()
         else:
@@ -119,14 +119,16 @@ class SN_LightCurve:
         """
         filename = filename or self.name
         if update:
-            with open(f'{self.storage}{filename}', 'wb') as output:  # Overwrites any existing file.
+            file = os.path.join(self.storage, filename)
+            with open(file, 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'Saved at {self.storage}{filename}!\n', bg='blue')
+                click.secho(f'Saved at {file}!\n', bg='blue')
 
     def retrieve_object(self, filename=None):
         filename = filename or self.name
-        with open(f'{self.storage}' + filename, 'rb') as handle:
-            click.secho(f'Retrieving object {self.storage}{filename}', bg='blue')
+        file = os.path.join(self.storage, filename)
+        with open(file, 'rb') as handle:
+            click.secho(f'Retrieving object {file}', bg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
