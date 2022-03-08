@@ -57,11 +57,11 @@ setup(
     packages=find_packages(),
     include_package_data=True,
 
-    entry_points={
-        'console_scripts': [
-            'snx = mma.__main__:main',
-        ],
-    },
+    # entry_points={
+    #     'console_scripts': [
+    #         'snx = mma.__main__:main',
+    #     ],
+    # },
 
     python_requires='>=3.6.*',
     install_requires=read_requirements(),
