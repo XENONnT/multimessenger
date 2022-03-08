@@ -122,13 +122,13 @@ class SN_LightCurve:
             file = os.path.join(self.storage, filename)
             with open(file, 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'Saved at {file}!\n', bg='blue')
+                click.secho(f'Saved at {file}!\n', fg='blue')
 
     def retrieve_object(self, filename=None):
         filename = filename or self.name
         file = os.path.join(self.storage, filename)
         with open(file, 'rb') as handle:
-            click.secho(f'Retrieving object {file}', bg='blue')
+            click.secho(f'Retrieving object {file}', fg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
@@ -391,7 +391,7 @@ class SN_LightCurve:
         print("\nThis will take a minute")
         self._get_rate1D(recoil_energies, t0, tf, dist)
         # overwrite existing object with the updated version
-        print('Saving...')
+        click.secho(f'Saving {ratename}...', fg='blue')
         self.save_object(ratename, update=True)
         return None
 
@@ -501,7 +501,7 @@ class SN_LightCurve:
         print("\nThis'll take a while")
         self._get_rate2D(recoil_energies, dist, step)
         # overwrite existing object with the updated version
-        print('Saving...')
+        click.secho(f'Saving {ratename}...', fg='blue')
         self.save_object(ratename, update=True)
         return None
 
@@ -569,7 +569,7 @@ class SN_LightCurve:
         try:
             rates2D = self.rates2D
         except:
-            return print('2D rates do not exist!')
+            raise ValueError('2D rates do not exist!')
         # flux = self.nu_list
         times = self.t
         rec_energies = self.recoil_en
@@ -599,8 +599,8 @@ class SN_LightCurve:
             try:
                 spectrum_Er, spectrum_t = self._get_1Drates_from2D()
                 spectrum = spectrum_Er['Total']
-                print('Worked!')
             except:
+                click.secho(f"spectrum does not exist, computing", fg='red')
                 spectrum = self.total_rate1D
             xaxis = self.recoil_en
             ## interpolate
@@ -614,7 +614,7 @@ class SN_LightCurve:
             spectrum = spectrum_t['Total']
             xaxis = self.t
         else:
-            return print('choose x=time or x=energy')
+            raise KeyError('choose x=time or x=energy')
         sample = _inverse_transform_sampling(xaxis, spectrum, N_sample)
         return sample
 
