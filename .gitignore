@@ -10,3 +10,4 @@ scripts/
 notebooks/tmp
 .egg*
 .idea*
+*snx.egg*
