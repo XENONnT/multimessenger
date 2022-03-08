@@ -371,7 +371,11 @@ class SN_LightCurve:
         t0 = t0 or self.t0
         tf = tf or self.tf
         dist = dist or self.dist
-        recoil_energies = rec_en or self.recoil_en
+        if rec_en is None:
+            recoil_energies = self.recoil_en
+        else:
+            recoil_energies = rec_en
+
         ermin, ermax = np.min(recoil_energies), np.max(recoil_energies)
         # update these
         self.recoil_en = recoil_energies
@@ -422,7 +426,10 @@ class SN_LightCurve:
         nu_energies = self.mean_E  # Incident neutrino energy NOT the recoil
 
         # Make data. i.e. 2D interpolated flux
-        Ebins = rec_en or self.recoil_en
+        if rec_en is None:
+            Ebins = self.recoil_en
+        else:
+            Ebins = rec_en
         tbins = self.t[::step]
         # ee, tt = np.meshgrid(Ebins, tbins)
 
@@ -600,7 +607,8 @@ class SN_LightCurve:
                 spectrum_Er, spectrum_t = self._get_1Drates_from2D()
                 spectrum = spectrum_Er['Total']
             except:
-                click.secho(f"spectrum does not exist, computing", fg='red')
+                # click.secho(f"spectrum does not exist, computing", fg='red')
+                # Todo: check here
                 spectrum = self.total_rate1D
             xaxis = self.recoil_en
             ## interpolate
