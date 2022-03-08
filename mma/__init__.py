@@ -1,1 +1,1 @@
-from . import snx
+from .snx import *
