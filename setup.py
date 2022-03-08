@@ -16,7 +16,7 @@ version = version_match.group(1)
 install_requires = []
 
 def read_requirements():
-    with open('docs/requirements.txt') as req:
+    with open('./requirements.txt') as req:
         content = req.read()
         requirements = content.split('\n')
     return install_requires.append(requirements)
