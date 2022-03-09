@@ -38,61 +38,52 @@ if isnotebook():
 else:
     from tqdm import tqdm
 
-def get_composite():
+def get_composite(composite):
     """ Get a Xenon nucleus composite
     """
     from .Recoil_calculations import TARGET
-    XeNuc = [TARGET(ATOM_TABLE["Xe124"], pure=False),
-             TARGET(ATOM_TABLE["Xe126"], pure=False),
-             TARGET(ATOM_TABLE["Xe128"], pure=False),
-             TARGET(ATOM_TABLE["Xe129"], pure=False),
-             TARGET(ATOM_TABLE["Xe130"], pure=False),
-             TARGET(ATOM_TABLE["Xe131"], pure=False),
-             TARGET(ATOM_TABLE["Xe132"], pure=False),
-             TARGET(ATOM_TABLE["Xe134"], pure=False),
-             TARGET(ATOM_TABLE["Xe136"], pure=False)]
-    return XeNuc
+    if composite == "Xenon":
+        Nucleus = [TARGET(ATOM_TABLE["Xe124"], pure=False),
+                 TARGET(ATOM_TABLE["Xe126"], pure=False),
+                 TARGET(ATOM_TABLE["Xe128"], pure=False),
+                 TARGET(ATOM_TABLE["Xe129"], pure=False),
+                 TARGET(ATOM_TABLE["Xe130"], pure=False),
+                 TARGET(ATOM_TABLE["Xe131"], pure=False),
+                 TARGET(ATOM_TABLE["Xe132"], pure=False),
+                 TARGET(ATOM_TABLE["Xe134"], pure=False),
+                 TARGET(ATOM_TABLE["Xe136"], pure=False)]
+    else:
+        raise NotImplementedError(f"{composite} Requested but only 'Xenon' is implemented so far")
+    return Nucleus
 
 class SN_LightCurve:
     """ Deal with a given SN lightcurve
     """
 
     def __init__(self,
-                 # progenitor_mass,
-                 # metallicity,
-                 # time_of_revival,
                  distance=10,
                  recoil_energies=(0, 20, 50),
-                 # filename_=None,
+                 composite="Xenon",
                  storage=None,
-                 # force=False
                  ):
         """
         Parameters
         ----------
-        progenitor_mass : float
-            mass of the progenitor star. Depends on the availability of models.
-        metallicity : float
-            metallicity of the progenitor star.
-        time_of_revival : flat
-            time of the core collapse
         distance : float, optional
             Supernova distance in kpc. Deafult is 10 kpc
         recoil_energies : tuple
             recoil energies to search for interactions
             tuple with (start, stop, step)
-        filename : str, optional
-            Filename to save. If None, constructs a name based on properties.
+        composite : `str`
+            What nucleus to use
+        storage : `str`
+            path of the output folder
 
         """
-        self.XeNuc = get_composite()
-        # self.M = progenitor_mass
-        # self.t_revival = time_of_revival
-        # self.Z = metallicity
+        self.Nucleus = get_composite(composite)
         self.dist = distance
         self.t0 = 0
         self.tf = 10
-        # self.name = filename_ or f'Object_{self.M}-M_-{self.Z}-Z_{self.t_revival}-t_dist{self.dist}.p'
         self.recoil_en = np.linspace(recoil_energies[0], recoil_energies[1], recoil_energies[2])
         if storage is None:
             try:
@@ -105,20 +96,6 @@ class SN_LightCurve:
         else:
             self.storage = storage
         self.__version__ = "0.1.5"
-
-        # if force:
-        #     print('Running.. Saving the Object..\n')
-        #     self._load_light_curve()
-        #     self.save_object(update=True)
-        # else:
-        #     try:
-        #         self.retrieve_object()
-        #         print('Object was found! \n'
-        #               'To save manually: save_object(filename, update=True)\n')
-        #     except:
-        #         print('Running.. Saving the Object..\n')
-        #         self._load_light_curve()
-        #         self.save_object(update=True)
 
     def save_object(self, filename=None, update=False):
         """
@@ -171,7 +148,7 @@ class SN_LightCurve:
         self.M = progenitor_mass
         self.t_revival = time_of_revival
         self.Z = metallicity
-        self.name = filename or f'Object_{self.M}-M_-{self.Z}-Z_{self.t_revival}-t_dist{self.dist}.p'
+        self.name = filename or f'{self.Nucleus}_{self.M}-M_-{self.Z}-Z_{self.t_revival}-t_dist{self.dist}.p'
 
         if force:
             print('Running.. Saving the Object..\n')
@@ -187,74 +164,6 @@ class SN_LightCurve:
                 args = loader(progenitor_mass, metallicity, time_of_revival, path)
         self._make_lc_attributes(*args)
         self.save_object(update=True)
-
-
-    # def _load_light_curve(self, path=None):
-    #     """ The data are taken from http://asphwww.ph.noda.tus.ac.jp/snn/
-    #     Load data from file;
-    #     File structure is
-    #     `    time_step,\n
-    #          col1 col2 col3 col4 col5 col6 \n
-    #     20x  col1 col2 col3 col4 col5 col6 \n
-    #          col1 col2 col3 col4 col5 col6 \n
-    #     `
-    #     This function is way slower than Ricardo Peres's, but more readable
-    #     """
-    #     mass = self.M
-    #     Z = self.Z
-    #     t_revival = self.t_revival
-    #     available_mass = [13, 20, 30, 50]
-    #     available_Z = [0.02, 0.004]
-    #     available_t_revival = [100, 200, 300]
-    #     assert mass in available_mass, "Required mass not in DB."
-    #     assert Z in available_Z, "Required metallicity not in DB."
-    #     assert t_revival in available_t_revival, "Required revival time not in DB."
-    #
-    #     B = 0
-    #     if Z == 0.004:
-    #         B = 1
-    #     C = int(t_revival / 100)
-    #
-    #     default_path = f'/dali/lgrandi/peres/SN/Light_Curve_DB/intpdata/'
-    #     dataname = f"intp{mass}{B}{C}.data"
-    #     if path is not None:
-    #         filepath = os.path.join(path,dataname)
-    #     else:
-    #         filepath = os.path.join(default_path, dataname)
-    #     _f = open(filepath, 'r')
-    #     f = _f.readlines()
-    #     _f.close()
-    #     # The 0th line is the time
-    #     # following 20 lines are the data
-    #     # there is an empty line and a line for next time step after every 20 lines
-    #     skiprows = [0]
-    #     for i in range(int(len(f) / 22)):
-    #         skiprows.append(21 + i * 22)
-    #         skiprows.append(22 + i * 22)
-    #
-    #     # make a file without the empty lines or time lines
-    #     f_filt = [fval for fval in f if f.index(fval) not in skiprows]
-    #     f_new = open('tmp', 'w+')
-    #     f_new.writelines(f_filt)
-    #     f_new.close()
-    #     # remove tmp if you like
-    #
-    #     time = np.array([float(fval.split('\n')[0]) for fval in f if f.index(fval) in skiprows and fval != ' \n'])
-    #     E_bins_left, E_bins_right, N_ve, N_ave, N_vx, L_ve, L_ave, L_vx = np.loadtxt('tmp', unpack=True)
-    #     row_nr = int(len(L_vx) / 20)
-    #     # the energies are same at a given time index
-    #     # self.t = time  # *u.s
-    #     E_bins_left = E_bins_left.reshape(row_nr, 20)[0, :]  # * u.MeV
-    #     E_bins_right = E_bins_right.reshape(row_nr, 20)[0, :]  # * u.MeV
-    #     mean_E = (E_bins_right + E_bins_left) / 2
-    #
-    #     Nve = N_ve.reshape(row_nr, 20)  # * (u.count*u.MeV**-1 * u.s**-1)
-    #     Nave = N_ave.reshape(row_nr, 20)  # * (u.count*u.MeV**-1 * u.s**-1)
-    #     Nvx = 4 * N_vx.reshape(row_nr, 20)  # * (u.count*u.MeV**-1 * u.s**-1)
-    #     Lve = L_ve.reshape(row_nr, 20)  # * (u.erg * u.MeV**-1 * u.s**-1)
-    #     Lave = L_ave.reshape(row_nr, 20)  # * (u.erg * u.MeV**-1 * u.s**-1)
-    #     Lvx = L_vx.reshape(row_nr, 20)  # * (u.erg * u.MeV**-1 * u.s**-1)
-    #     return time, mean_E, Nve, Nave, Nvx, Lve, Lave, Lvx
 
     def _make_lc_attributes(self, time, nu_energies, Nve, Nave, Nvx, Lve, Lave, Lvx):
         """ make object attributes using params
@@ -400,7 +309,7 @@ class SN_LightCurve:
         -------
             Rates as a function of Recoil Energies
         """
-        XeNuc = self.XeNuc
+        XeNuc = self.Nucleus
         fluxes = self.get_integ_fluxes(detector=True, t0=t0, tf=tf, dist=dist)
         nu_keys = list(fluxes.keys())
         nu_energies = self.mean_E
@@ -504,7 +413,7 @@ class SN_LightCurve:
             2D array with interaction rates in both
             time and energies 
         """
-        XeNuc = self.XeNuc
+        XeNuc = self.Nucleus
         fluxes = self.fluxes_at_tpc(dist)
         fluxes = {nu: fluxes[nu][::step, :] for nu in fluxes.keys()}
         nu_keys = list(fluxes.keys())
