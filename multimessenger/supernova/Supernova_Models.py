@@ -65,6 +65,7 @@ class SN_LightCurve:
                  recoil_energies=(0, 20, 50),
                  composite="Xenon",
                  storage=None,
+                 config_file=None,
                  ):
         """
         Parameters
@@ -90,7 +91,8 @@ class SN_LightCurve:
             try:
                 # try to find from the default config
                 config = configparser.ConfigParser()
-                config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
+                self.conf_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+                config.read(self.conf_path)
                 self.storage = config['paths']['data']
             except:
                 self.storage = os.getcwd()
@@ -341,7 +343,7 @@ class SN_LightCurve:
         self._truncate1D()
         return None
 
-    def get_recoil_spectra1D(self, rec_en=None, t0=None, tf=None, dist=None, _force_calc=0):
+    def get_recoil_spectra1D(self, rec_en=None, t0=None, tf=None, dist=None, force=0):
         """
         Compute the 1D recoil spectra for all flavors
         Arguments
@@ -354,7 +356,7 @@ class SN_LightCurve:
             default: 0-10 sec
         dist     :  float, Optional
             SN distance if different than the model
-        _force_calc : bool
+        force : bool
             If the configuration was run and saved, it is retrieved
             unless it is forced to calculate it again
         Returns
@@ -380,12 +382,12 @@ class SN_LightCurve:
         # make a name for this run
         name_ = self.name.split('.p')[0]  # fails if different extension is given
         ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}-{len(recoil_energies)}_t0-{t0}-tf-{tf}_1D.p'
-        if not _force_calc:
+        if not force:
             try:  # check if it is saved
                 self.retrieve_object(ratename)
                 return None
             except:  # if not force to calculate
-                return self.get_recoil_spectra1D(recoil_energies, t0, tf, dist, _force_calc=True)
+                return self.get_recoil_spectra1D(recoil_energies, t0, tf, dist, force=True)
 
         print("\nThis will take a minute")
         self._get_rate1D(recoil_energies, t0, tf, dist)
@@ -461,7 +463,7 @@ class SN_LightCurve:
         # no trimming for 2D data for the moment
         return rates_2D
 
-    def get_recoil_spectra2D(self, dist=None, t_step=1, _force_calc=0):
+    def get_recoil_spectra2D(self, dist=None, t_step=1, force=0):
         """
         Rates will be computed along Neutrino Energies and Time
         Arguments
@@ -471,7 +473,7 @@ class SN_LightCurve:
             SN distance if different than the model
         t_step     :  int, optional
             To decrease the time steps, a step can be given
-        _force_calc : boolean
+        force : boolean
             If the configuration was run and saved, it is retrieved
             unless it is forced to calculate it again
         Returns
@@ -488,12 +490,12 @@ class SN_LightCurve:
 
         name_ = self.name.split('.p')[0]
         ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}-{len(recoil_energies)}_tstep{t_step}_dist{dist}_2D.p'
-        if not _force_calc:
+        if not force:
             try:  # check if it is saved
                 self.retrieve_object(ratename)
                 return None
             except:
-                return self.get_recoil_spectra2D(dist, t_step, _force_calc=True)
+                return self.get_recoil_spectra2D(dist, t_step, force=True)
 
         click.secho("\n This will take a while", bold=True)
         self._get_rate2D(recoil_energies, dist, t_step)

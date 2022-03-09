@@ -9,6 +9,7 @@ import pandas as pd
 import scipy.interpolate as itp
 import _pickle as pickle
 import datetime
+import os, click
 import configparser
 # read in the configurations
 config = configparser.ConfigParser()
@@ -87,7 +88,7 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     return interpolated
 
 
-def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confpath=None):
+def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, config_file=None):
     """ Sample from the recoil spectrum in given file
 
         Parameters
@@ -98,12 +99,12 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confp
             The number of samples
         pickled_file : `str`
             Path to pickled file. Expected to have (rates_Er, rates_t, recoil_e, timebins)
-        confpath : `str`
+        config_file : `str`
             Path to configuration file
 
     """
-    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-    config.read(confpath)
+    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(config_path)
     path_img = config['paths']['imgs']
     path_data = config['paths']['data']
     paths = {'img': path_img, 'data': path_data}
@@ -127,7 +128,7 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confp
 
 
 def instructions_SN(nevents_total, nevent_SN, single=False,
-                    dump_csv=False, filename=None, below_cathode=False, confpath=None):
+                    dump_csv=False, filename=None, below_cathode=False, config_file=None):
     """
         WFSim instructions to simulate Supernova NR peak.
 
@@ -147,7 +148,7 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
             The name of the csv file if the dump_csv is True
         below_cathode : `bool`
             If True, it randomly samples x positions 12 cm beyond cathode
-        confpath : `str`
+        config_file : `str`
             Path to configuration file
 
         Notes
@@ -156,9 +157,14 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
         - The number of total events is calculated by nevent_SN * volume in kg
         - For multiple SN events, the times are shifted by ten seconds to avoid overfilling the chunks
     """
-    import wfsim, nestpy
-    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-    config.read(confpath)
+    import wfsim, nestpy, straxen
+    if isnotebook():
+        from tqdm.notebook import tqdm
+    else:
+        from tqdm import tqdm
+
+    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(config_path)
 
     # Xenon Atom
     A, Z = 131.293, 54
@@ -249,9 +255,9 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
     return instructions_df
 
 
-def clean_repos(pattern='*', confpath=None):
-    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-    config.read(confpath)
+def clean_repos(pattern='*', config_file=None):
+    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs_path']
     strax_data_path = config['wfsim']['strax_data_path']
@@ -265,9 +271,9 @@ def clean_repos(pattern='*', confpath=None):
         os.system(f'rm -r {strax_data_path}{pattern}')
 
 
-def see_repos(confpath=None):
-    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-    config.read(confpath)
+def see_repos(config_file=None):
+    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs_path']
     strax_data_path = config['wfsim']['strax_data_path']
@@ -276,17 +282,17 @@ def see_repos(confpath=None):
         os.mkdir(logs_path)
     if not os.path.isdir(strax_data_path):
         os.mkdir(strax_data_path)
-    click.secho('\n >>Instructions\n', bg='blue', color='white')
+    click.secho('\n >>Instructions\n', bg='blue', fg='white')
     os.system(f'ls -r {inst_path}')
-    click.secho('\n >>Logs\n', bg='blue', color='white')
+    click.secho('\n >>Logs\n', bg='blue', fg='white')
     os.system(f'ls -r {logs_path}')
-    click.secho('\n >>Existing data\n', bg='blue', color='white')
+    click.secho('\n >>Existing data\n', bg='blue', fg='white')
     os.system(f'ls -r {strax_data_path}')
 
 
-def display_config(confpath=None):
-    confpath = confpath or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-    config.read(confpath)
+def display_config(config_file=None):
+    config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(config_file)
     for x in config.sections():
         click.secho(f'{x:^20}', bg='blue')
         for i in config[x]:
