@@ -380,10 +380,10 @@ class SN_LightCurve:
             recoil_energies = self.recoil_en
         else:
             recoil_energies = rec_en
+            self.recoil_en = recoil_energies
 
         ermin, ermax = np.min(recoil_energies), np.max(recoil_energies)
         # update these
-        self.recoil_en = recoil_energies
         self.t0 = t0
         self.tf = tf
 
@@ -395,7 +395,7 @@ class SN_LightCurve:
                 self.retrieve_object(ratename)
                 return None
             except:  # if not force to calculate
-                return self.get_recoil_spectra1D(rec_en, t0, tf, dist, _force_calc=True)
+                return self.get_recoil_spectra1D(recoil_energies, t0, tf, dist, _force_calc=True)
 
         print("\nThis will take a minute")
         self._get_rate1D(recoil_energies, t0, tf, dist)
