@@ -389,7 +389,7 @@ class SN_LightCurve:
 
         # make a name for this run
         name_ = self.name.split('.p')[0]  # fails if different extension is given
-        ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}_t0-{t0}-tf-{tf}_1D.p'
+        ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}-{len(recoil_energies)}_t0-{t0}-tf-{tf}_1D.p'
         if not _force_calc:
             try:  # check if it is saved
                 self.retrieve_object(ratename)
@@ -471,17 +471,15 @@ class SN_LightCurve:
         # no trimming for 2D data for the moment
         return rates_2D
 
-    def get_recoil_spectra2D(self, rec_en=None, dist=None, step=1, _force_calc=0):
+    def get_recoil_spectra2D(self, dist=None, t_step=1, _force_calc=0):
         """
         Rates will be computed along Neutrino Energies and Time
         Arguments
         ---------
-        rec_en   :  array like, optional
-            Recoil energies to compute for
-            default is 50 energies between 0-20 keV
+
         dist     :  float, Optional
             SN distance if different than the model
-        step     :  int, optional
+        t_step     :  int, optional
             To decrease the time steps, a step can be given
         _force_calc : boolean
             If the configuration was run and saved, it is retrieved
@@ -491,29 +489,24 @@ class SN_LightCurve:
         None, saves self.rate2D & self.rate_total2D to the object
     
         CAVEAT: This function can take long, 
-        as it computes integrals for len(times)*len(Recoil Energies) times 
+        as it computes integrals for len(times)*len(Recoil Energies)*nuclide times
         """
         dist = dist or self.dist
+        recoil_energies = self.recoil_en
 
-        if rec_en is None:
-            recoil_energies = self.recoil_en
-        else:
-            recoil_energies = rec_en
-
-        self.recoil_en = recoil_energies  # update
         ermin, ermax = np.min(recoil_energies), np.max(recoil_energies)
 
         name_ = self.name.split('.p')[0]
-        ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}_step{step}_dist{dist}_2D.p'
+        ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}-{len(recoil_energies)}_tstep{t_step}_dist{dist}_2D.p'
         if not _force_calc:
             try:  # check if it is saved
                 self.retrieve_object(ratename)
                 return None
             except:
-                return self.get_recoil_spectra2D(rec_en, dist, step, _force_calc=True)
+                return self.get_recoil_spectra2D(dist, t_step, _force_calc=True)
 
-        print("\nThis'll take a while")
-        self._get_rate2D(recoil_energies, dist, step)
+        click.secho("\n This will take a while", bold=True)
+        self._get_rate2D(recoil_energies, dist, t_step)
         # overwrite existing object with the updated version
         click.secho(f'Saving {ratename}...', fg='blue')
         self.save_object(ratename, update=True)
