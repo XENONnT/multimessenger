@@ -618,10 +618,6 @@ class SN_LightCurve:
         sample = _inverse_transform_sampling(xaxis, spectrum, N_sample)
         return sample
 
-    # This allows accessing relative attributes
-# i.e. when model = SN_lightcurve(a,b,c) is imported
-# model.N_Xe can be called to access N_Xe in constants.py
-
 # import aux_scripts.constants as _constants_attr
 # for name in dir(_constants_attr):
 #     if not name.startswith('__'):
