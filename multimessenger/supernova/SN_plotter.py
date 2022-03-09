@@ -174,13 +174,15 @@ class Plotter:
         for ax, (name, data) in zip(axes, _y.items()):
             if ave_over.lower() == 'time':
                 frac = len(self.Model.mean_E)
-                for i, _ in enumerate(self.Model.mean_E):
+                for i, energy in enumerate(self.Model.mean_E):
                     if i % 2 == 1:
                         continue  # skip every other line to reduce crowd
-                    left_bound = int(self.Model.E_bins_left[i])
-                    right_bound = int(self.Model.E_bins_right[i])
+                    # left_bound = int(self.Model.E_bins_left[i])
+                    # right_bound = int(self.Model.E_bins_right[i])
+                    # ax.loglog(_x, data[:, i], ls='-', c=cmap(i / frac),
+                    #           label=f'[{left_bound}:{right_bound}] MeV')
                     ax.loglog(_x, data[:, i], ls='-', c=cmap(i / frac),
-                              label=f'[{left_bound}:{right_bound}] MeV')
+                              label=f'<{energy:.2f}> MeV')
             else:
                 frac = len(self.Model.t)
                 for i, _ in enumerate(self.Model.t):
