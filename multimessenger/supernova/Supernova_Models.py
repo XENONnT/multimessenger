@@ -80,6 +80,7 @@ class SN_LightCurve:
             path of the output folder
 
         """
+        self.composite = composite
         self.Nucleus = get_composite(composite)
         self.dist = distance
         self.t0 = 0
@@ -148,7 +149,7 @@ class SN_LightCurve:
         self.M = progenitor_mass
         self.t_revival = time_of_revival
         self.Z = metallicity
-        self.name = filename or f'{self.Nucleus}_{self.M}-M_-{self.Z}-Z_{self.t_revival}-t_dist{self.dist}.p'
+        self.name = filename or f'{self.composite}_{self.M}-M_-{self.Z}-Z_{self.t_revival}-t_dist{self.dist}.p'
 
         if force:
             print('Running.. Saving the Object..\n')
