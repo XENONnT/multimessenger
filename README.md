@@ -21,7 +21,7 @@ pip install ./
 ```python
 import multimessenger.supernova as sn 
 sn_model  = sn.Supernova_Models.SN_LightCurve(composite='Xenon', 
-                                              config_file='../multimessenger/simple_config.conf')
+                                              config_file='../simple_config.conf')
 sn_model.load_model_from_db(progenitor_mass = 30,
                             metallicity= 0.02,
                             time_of_revival = 100,)
