@@ -8,6 +8,8 @@ The auxiliary PLOTTING tools that are used within the SN signal generation, wave
 import matplotlib.pyplot as plt
 import numpy as np
 import straxen
+from matplotlib.colors import LogNorm
+import multihist as mh
 
 
 def quality_plot(ev):
