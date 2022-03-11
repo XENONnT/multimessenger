@@ -11,9 +11,11 @@ import _pickle as pickle
 import datetime
 import os, click
 import configparser
-# read in the configurations
-config = configparser.ConfigParser()
 
+# read in the configurations, by default it is the basic conf
+# notice for wfsim related things, there is no field in the basic_conf
+config = configparser.ConfigParser()
+config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
 
 def isnotebook():
     """ Tell if the script is running on a notebook
@@ -103,6 +105,7 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confi
             Path to configuration file
 
     """
+    config = configparser.ConfigParser()
     config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_path)
     path_img = config['paths']['imgs']
@@ -163,6 +166,7 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
     else:
         from tqdm import tqdm
 
+    config = configparser.ConfigParser()
     config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_path)
 
@@ -256,6 +260,7 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
 
 
 def clean_repos(pattern='*', config_file=None):
+    config = configparser.ConfigParser()
     config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
@@ -272,6 +277,7 @@ def clean_repos(pattern='*', config_file=None):
 
 
 def see_repos(config_file=None):
+    config = configparser.ConfigParser()
     config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
@@ -291,6 +297,7 @@ def see_repos(config_file=None):
 
 
 def display_config(config_file=None):
+    config = configparser.ConfigParser()
     config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_file)
     for x in config.sections():
@@ -348,3 +355,8 @@ def compute_rate_within(arr, sampling=1e9, ts=None, tf=None):
         bins = np.arange(ts, tf + sampling, sampling)  # in seconds
     return np.histogram(arr, bins=bins)
 #     return  bins, rates/sampling
+
+def get_config(config_file=None):
+    config = configparser.ConfigParser()
+    config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config.read(config_file)
