@@ -26,7 +26,7 @@ sn_model.load_model_from_db(progenitor_mass = 30,
                             metallicity= 0.02,
                             time_of_revival = 100,)
 ```
-Also see [multimessenger/notebooks](multimessenger/notebooks).
+Also see [notebooks](./notebooks).
 
 By default, the composite is 'Xenon', later, Argon can also be implemented. If running on dali, `SN_LightCurve` can 
 be called with default arguments. In which case, it fetches the basic configuration file from `dali/lgrandi/melih/mma/data/basic_conf.conf`
@@ -38,4 +38,4 @@ can be integrated.
 
 There is a _very basic_ wfsim simulation, and investigation method available. 
 
-For more see [multimessenger/notebooks](multimessenger/notebooks).
+For more see [notebooks](./notebooks).
