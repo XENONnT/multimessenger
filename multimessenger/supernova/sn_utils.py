@@ -200,7 +200,7 @@ def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, 
         to_ = int((i + 1) * sn_pert)
         smpl_e = sample_from_recoil_spectrum(N_sample=sn_pert)
         smpl_t = sample_from_recoil_spectrum(x='time', N_sample=sn_pert) * 1e9 # nanosec
-        mint, maxt = np.min(sample_t), np.max(sample_t)
+        mint, maxt = np.min(smpl_t), np.max(smpl_t)
         # SN signal also has pre-SN neutrino, so if there are negative times boost them
         if mint <= 0: smpl_t -= mint
 
@@ -211,7 +211,7 @@ def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, 
     n = rolled_sample_size
     instructions = np.ones(2 * n, dtype=wfsim.instruction_dtype)
     instructions[:] = -1
-    instructions['time'] = (1e8 * sample_t).repeat(2) + 1000000
+    instructions['time'] = (sample_t).repeat(2) + 1000000
 
     instructions['event_number'] = np.arange(0, n).repeat(2)
     instructions['type'] = np.tile([1, 2], n)
