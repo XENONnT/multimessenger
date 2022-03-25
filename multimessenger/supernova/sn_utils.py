@@ -130,20 +130,22 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confi
     return sample
 
 
-def instructions_SN(nevents_total, nevent_SN, single=False,
+def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, single=False,
                     dump_csv=False, filename=None, below_cathode=False, config_file=None):
     """
         WFSim instructions to simulate Supernova NR peak.
 
         Parameters
         ----------
-        nevents_total : `int`
+        total_events_to_sim : `int`
             total number of events desired
-        nevent_SN: `int`
-            The number of events/kg/(total duration) expected from a single SN.
+        sn_perton_pert: `float`
+            The number of events/tonne/(total duration) expected from a single SN.
             See `sn_utils.get_rates_above_threshold()`
+        single_sn_duration: `float`
+            The "total duration" of a single supernova signal
         single : `bool`
-            True if a single SN signal is desired. In which case the `nevents_total` is
+            True if a single SN signal is desired. In which case the `total_events_to_sim` is
             overwritten with the total nr of events *in the TPC* (not the nevent_SN)
         dump_csv : `bool`
             Whether to dump the csv file in config['wfsim']['instruction_path']
@@ -177,16 +179,16 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
 
     # compute the total expected interactions
     volume = float(config['xenonnt']['volume'])
-    neventSN_total = nevent_SN*volume  # total nr SN events in the whole volume, after SN duration
-    neventSN_total = np.ceil(neventSN_total).astype(int)
+    sn_pert = sn_perton_pert * volume  # total nr SN events in the whole volume, after SN duration
+    sn_pert = np.ceil(sn_pert).astype(int)
 
     # if single signal is requested, overwrite the total
     if single:
-        nevents_total = neventSN_total
+        total_events_to_sim = sn_pert
 
-    # to get nevents_total number of events. We need to sample neventSN_total events for X times
-    nr_iterations = np.ceil(nevents_total/ neventSN_total).astype(int)
-    rolled_sample_size = int(nr_iterations * neventSN_total)
+    # to get total number of events. We need to sample sn_pert events for X times
+    nr_iterations = np.ceil(total_events_to_sim / sn_pert).astype(int)
+    rolled_sample_size = int(nr_iterations * sn_pert)
 
     # we need to sample this many energies and times
     sample_E = np.ones(rolled_sample_size) * - 1
@@ -194,15 +196,15 @@ def instructions_SN(nevents_total, nevent_SN, single=False,
 
     ## shifted time sampling
     for i in range(nr_iterations):
-        from_ = int(i * neventSN_total)
-        to_ = int((i + 1) * neventSN_total)
-        smpl_e = sample_from_recoil_spectrum(N_sample=neventSN_total)
-        smpl_t = sample_from_recoil_spectrum(x='time', N_sample=neventSN_total)
+        from_ = int(i * sn_pert)
+        to_ = int((i + 1) * sn_pert)
+        smpl_e = sample_from_recoil_spectrum(N_sample=sn_pert)
+        smpl_t = sample_from_recoil_spectrum(x='time', N_sample=sn_pert)
         mint, maxt = np.min(sample_t), np.max(sample_t)
         # SN signal also has pre-SN neutrino, so if there are negative times boost them
         if mint <= 0: smpl_t -= mint
 
-        time_shift = i * 10  # add 10 sec to each iteration
+        time_shift = i * single_sn_duration  # add 1 SN duration to each iteration
         sample_E[from_:to_] = smpl_e
         sample_t[from_:to_] = smpl_t + time_shift
 
