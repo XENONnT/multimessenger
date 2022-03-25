@@ -199,12 +199,12 @@ def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, 
         from_ = int(i * sn_pert)
         to_ = int((i + 1) * sn_pert)
         smpl_e = sample_from_recoil_spectrum(N_sample=sn_pert)
-        smpl_t = sample_from_recoil_spectrum(x='time', N_sample=sn_pert)
+        smpl_t = sample_from_recoil_spectrum(x='time', N_sample=sn_pert) * 1e9 # nanosec
         mint, maxt = np.min(sample_t), np.max(sample_t)
         # SN signal also has pre-SN neutrino, so if there are negative times boost them
         if mint <= 0: smpl_t -= mint
 
-        time_shift = i * single_sn_duration  # add 1 SN duration to each iteration
+        time_shift = i * single_sn_duration * 1e9 # add 1 SN duration to each iteration
         sample_E[from_:to_] = smpl_e
         sample_t[from_:to_] = smpl_t + time_shift
 
