@@ -130,7 +130,7 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confi
     return sample
 
 
-def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, single=False,
+def instructions_SN(total_events_to_sim, sn_perton_fullt, single_sn_duration=10, single=False,
                     dump_csv=False, filename=None, below_cathode=False, config_file=None):
     """
         WFSim instructions to simulate Supernova NR peak.
@@ -139,7 +139,7 @@ def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, 
         ----------
         total_events_to_sim : `int`
             total number of events desired
-        sn_perton_pert: `float`
+        sn_perton_fullt: `float`
             The number of events/tonne/(total duration) expected from a single SN.
             See `sn_utils.get_rates_above_threshold()`
         single_sn_duration: `float`
@@ -179,7 +179,7 @@ def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, 
 
     # compute the total expected interactions
     volume = float(config['xenonnt']['volume'])
-    sn_pert = sn_perton_pert * volume  # total nr SN events in the whole volume, after SN duration
+    sn_pert = sn_perton_fullt * volume  # total nr SN events in the whole volume, after SN duration
     sn_pert = np.ceil(sn_pert).astype(int)
 
     # if single signal is requested, overwrite the total
@@ -199,7 +199,7 @@ def instructions_SN(total_events_to_sim, sn_perton_pert, single_sn_duration=10, 
         from_ = int(i * sn_pert)
         to_ = int((i + 1) * sn_pert)
         smpl_e = sample_from_recoil_spectrum(N_sample=sn_pert)
-        smpl_t = sample_from_recoil_spectrum(x='time', N_sample=sn_pert) * 1e9 # nanosec
+        smpl_t = (sample_from_recoil_spectrum(x='time', N_sample=sn_pert) * 1e9).astype(np.int64) # nanosec
         mint, maxt = np.min(smpl_t), np.max(smpl_t)
         # SN signal also has pre-SN neutrino, so if there are negative times boost them
         if mint <= 0: smpl_t -= mint
