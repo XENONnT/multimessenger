@@ -132,6 +132,8 @@ def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, confi
 
 def instructions_SN(total_events_to_sim, sn_perton_fullt, single_sn_duration=10, single=False,
                     dump_csv=False, filename=None, below_cathode=False, config_file=None):
+    # Todo: to study the signal shape, times are not really relevant
+    # and the time sampling makes things hard, maybe we can ignore that and only sample energies
     """
         WFSim instructions to simulate Supernova NR peak.
 

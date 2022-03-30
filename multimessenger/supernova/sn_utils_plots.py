@@ -12,67 +12,87 @@ from matplotlib.colors import LogNorm
 import multihist as mh
 
 
-def quality_plot(ev):
-    """ Quick diagnostics plot
-
+def quality_plot(event_info):
+    """ Quick diagnostics plot for event level data
     """
-    plt.figure(figsize=(15,10))
-    plt.subplots_adjust(wspace=0.2, hspace=0.5)
-    plt.subplot(321); plt.title('s1 area')
-    plt.hist(ev['s1_area'], bins = 200, histtype = 'step')
-    
-    plt.subplot(322); plt.title('s2 area')
-    plt.hist(ev['s2_area'], bins = 200, histtype = 'step')
-    
-    plt.subplot(323); plt.title('s2 width')
-    plt.hist(ev['s2_range_50p_area'], bins = 200, histtype = 'step')
-    
-    plt.subplot(324); plt.title('counts above area threshold')
+    fig, axes = plt.subplots(ncols=3, nrows=3, figsize=(15, 15))
+    plt.subplots_adjust(wspace=0.6, hspace=0.45)
+    axes[0, 0].set_xscale('log')
+    axes[0, 0].hist(event_info['s1_area'], bins=np.logspace(-0.2, 2, 100), histtype='step', color='magenta', lw=3)
+    axes[0, 0].tick_params(axis='x', labelcolor='teal', labelsize=12)
+    axes[0, 0].set_xlabel('S1 Area [P.E.]', color='teal', fontsize=12)
+
+    axes00twin = axes[0, 0].twiny()
+    axes00twin.set_xscale('log')
+    axes00twin.hist(event_info['s2_area'], bins=np.logspace(1, 4, 100), histtype='step', color='teal', lw=3)
+    axes00twin.tick_params(axis='x', labelcolor='magenta', labelsize=12)
+    axes00twin.set_xlabel('S2 Area [P.E.]', color='magenta', fontsize=12)
+
+    axes[0, 1].set_xscale('log')
+    axes[0, 1].hist(event_info['s1_range_50p_area'], bins=np.logspace(1, 4, 100), histtype='step', color='magenta',
+                    lw=3)
+    axes[0, 1].tick_params(axis='x', labelcolor='magenta', labelsize=12)
+    axes[0, 1].set_xlabel('S1 50% width [ns]', color='magenta', fontsize=12)
+
+    axes01twin = axes[0, 1].twiny()
+    axes01twin.set_xscale('log')
+    axes01twin.hist(event_info['s2_range_50p_area'], bins=np.logspace(2, 5, 100), histtype='step', color='teal', lw=3)
+    axes01twin.tick_params(axis='x', labelcolor='teal', labelsize=12)
+    axes01twin.set_xlabel('S2 50% width [ns]', color='teal', fontsize=12)
+
+    axes[1, 0].set_title('area vs 50p width (S1)', color='teal', fontsize=13)
+    axes[1, 0].hist2d(event_info['s1_area'], event_info['s1_range_50p_area'],
+                      bins=(np.logspace(-0.2, 2, 100), np.logspace(1, 4, 100)), cmap='Blues', norm=LogNorm())
+    axes[1, 0].tick_params(axis='both', labelcolor='teal', labelsize=12)
+    axes[1, 0].set_xlabel('S1 area [P.E.]', color='teal', fontsize=12)
+    axes[1, 0].set_ylabel('S1 50% width [ns]', color='teal', fontsize=12)
+    axes[1, 0].set_xscale('log')
+    axes[1, 0].set_yscale('log')
+
+    axes[1, 1].set_title('area vs 50p width (S2)', color='magenta', fontsize=13)
+    axes[1, 1].hist2d(event_info['s2_area'], event_info['s2_range_50p_area'],
+                      bins=(np.logspace(1, 4, 100), np.logspace(1, 5, 100)), cmap='Reds', norm=LogNorm())
+    axes[1, 1].tick_params(axis='both', labelcolor='magenta', labelsize=12)
+    axes[1, 1].set_xlabel('S2 area [P.E.]', color='magenta', fontsize=12)
+    axes[1, 1].set_ylabel('S2 50% width [ns]', color='magenta', fontsize=12)
+    axes[1, 1].set_xscale('log')
+    axes[1, 1].set_yscale('log')
+
+    axes[0, 2].hist2d(event_info['x'], event_info['y'], bins=(np.linspace(-70, 70, 50), np.linspace(-70, 70, 50)),
+                      norm=LogNorm())
+    axes[0, 2].set_aspect('equal')
+    axes[1, 2].hist2d(event_info['r'], event_info['z'],
+                      bins=(np.linspace(-5, 80, 100), np.linspace(-160, 10, 100)), norm=LogNorm())
+    ##
+    axes[2, 0].hist(event_info['s1_area_fraction_top'], bins=np.linspace(-0.1, 1.1, 100), histtype='step',
+                    color='magenta', lw=3, density=True)
+    axes[2, 0].tick_params(axis='x', labelcolor='teal', labelsize=12)
+    axes[2, 0].set_xlabel('S1 Area Fraction Top', color='teal', fontsize=12)
+
+    axes20twin = axes[2, 0].twiny()
+    axes20twin.hist(event_info['s2_area_fraction_top'], bins=np.linspace(-0.1, 1.1, 100), histtype='step', color='teal',
+                    lw=3, density=True)
+    axes20twin.tick_params(axis='x', labelcolor='magenta', labelsize=12)
+    axes20twin.set_xlabel('S2  Fraction Top', color='magenta', fontsize=12)
+    ##
+    axes[2, 1].hist2d(event_info['s1_area'], event_info['s2_area'],
+                      bins=(np.logspace(-0.2, 2, 100), np.logspace(1.8, 3.7, 100)), norm=LogNorm())
+    axes[2, 1].tick_params(axis='x', labelcolor='teal', labelsize=12)
+    axes[2, 1].tick_params(axis='y', labelcolor='magenta', labelsize=12)
+    axes[2, 1].set_xlabel('S1 area [P.E.]', color='teal', fontsize=12)
+    axes[2, 1].set_ylabel('S2 area [P.E.]', color='magenta', fontsize=12)
+    axes[2, 1].set_xscale('log')
+    axes[2, 1].set_yscale('log')
+
+    ##
+    axes[2, 2].set_title('Counts above S2 threshold', fontsize=12)
     counts_above_i = []
-    s2range = np.linspace(ev['s2_area'].min(), 1500, 50)
+    s2range = np.linspace(event_info['s2_area'].min(), 1500, 50)
     for i, thr in enumerate(s2range):
-        counts_above_i.append(len(ev['s2_area'][ev['s2_area']>thr]))
-    plt.semilogy(s2range, counts_above_i)
-    plt.xlabel('S2 area')
-
-    plt.subplot(325); plt.title('z [cm]')
-    plt.hist(ev['z'][ev['z']<0], bins = 200, histtype = 'step')
-    plt.axvline(-straxen.tpc_z, ls = '--', color = 'k')
-    
-    plt.subplot(326)
-    plt.gca().set_aspect('equal')
-    s1 = ev['s1_area']
-    s2 = ev['s2_area']
-    mask = (s1>0) & (s2>0) 
-    kwargs = dict(norm=LogNorm(), bins=100) # range=[[0, 3_000], [0, 20_000]],
-    mh_cut = mh.Histdd(s1[mask], s2[mask]/100, **kwargs)
-    mh_cut.plot(log_scale=True, cblabel='count',
-            cmap=plt.get_cmap('jet'), alpha=0.7,  
-            colorbar_kwargs=dict(orientation="vertical", 
-                                 pad=0.05,
-                                 aspect=30, 
-                                 fraction=0.1))
-    plt.xlabel('s1 area [P.E.]'); plt.ylabel('s2 area [100 P.E.]')
-
-
-def plot_xy_rz(evt):
-    """ Plot events in xy and R-z planes
-
-    """
-    plt.figure(figsize=(12,4))
-    plt.subplots_adjust(wspace=0.9)
-    plt.subplot(121)
-    plt.hist2d(evt['x'],evt['y'], range = ((-70,70),(-70,70)),cmin = 1,bins = 100) # , norm = LogNorm()
-    plt.xlabel('x [cm]')
-    plt.ylabel('y [cm]')
-    plt.gca().set_aspect('equal')
-    plt.colorbar()
-    plt.subplot(122)
-    plt.hist2d(np.power(evt['r'],2),evt['z'], range = ((0,70**2),(-160,10)),cmin = 1,bins = 100) # , norm = LogNorm()
-    plt.colorbar()
-    plt.xlabel('r$^2$ [cm]')
-    plt.ylabel('z [cm]')
-    plt.show()
+        counts_above_i.append(len(event_info['s2_area'][event_info['s2_area'] > thr]))
+    axes[2, 2].loglog(s2range, counts_above_i, lw=3)
+    axes[2, 2].set_xlabel('S2 area [P.E.]')
+    axes[2, 2].set_ylabel('counts')
 
 
 def compare_features(peak_basics, peaks_run):
