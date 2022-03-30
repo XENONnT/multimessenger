@@ -95,57 +95,91 @@ def quality_plot(event_info):
     axes[2, 2].set_ylabel('counts')
 
 
-def compare_features(peak_basics, peaks_run):
-    """ compare peak area, width and aft's
+def compare_peaks(peaks_sim, peaks_data):
+    """ Compare Peaks for Simulation and Data
+        *** S2 Only
 
     """
-    s2_sn = peak_basics[(peak_basics['type']==2)&(peak_basics['area']<2000)]
-    s1_sn = peak_basics[peak_basics['type']==1]
+    s2_sim = peaks_sim[peaks_sim['type'] == 2]
+    s2_data = peaks_data[peaks_data['type'] == 2]
 
-    s2_runs = peaks_run[(peaks_run['type']==2)&(peaks_run['area']<2000)]
-    run_area = s2_runs['area']
-    run_width = s2_runs['range_50p_area']
-    run_aft = s2_runs['area_fraction_top']
-    sn_area = s2_sn['area']
-    sn_width = s2_sn['range_50p_area']
-    sn_aft = s2_sn['area_fraction_top']
+    fig, axes = plt.subplots(ncols=3, nrows=2, figsize=(18, 10))
+    plt.subplots_adjust(wspace=0.5, hspace=0.45)
 
-    fig, ax = plt.subplots(ncols=3, nrows=3, figsize=(17,13))
-    plt.subplots_adjust(wspace=0.2, hspace=0.4)
+    kwargs = dict(bins=np.logspace(1, 4, 100), cumulative=True, histtype='step', lw=3, density=True)
+    axes[0, 0].hist(s2_sim['area'], label='sim', color='red', **kwargs)
+    axes[0, 0].hist(s2_data['area'], label='data', color='blue', **kwargs)
+    axes[0, 0].tick_params(axis='both', labelsize=12)
+    axes[0, 0].set_xlabel(f'S2 Area [P.E.]', fontsize=12)
+    axes[0, 0].set_xscale('log')
+    axes[0, 0].legend(loc='lower right', fontsize=12)
 
-    ax[0,0].hist2d(np.log10(run_area[(run_area>0)&(run_width>0)]), 
-                   np.log10(run_width[(run_area>0)&(run_width>0)]), 
-                   bins=(200,200), norm=LogNorm(), cmap='Reds')
-    ax[0,0].hist2d(np.log10(sn_area), np.log10(sn_width), bins=(200,200), norm=LogNorm(), alpha=0.7)
-    ax[0,0].set_xscale('log') ; ax[0,0].set_yscale('log')
-    ax[0,0].set_xlabel('log(S2 area)'); ax[0,0].set_ylabel('log(S2 width)')
+    #
+    kwargs = dict(bins=np.logspace(1.5, 5, 100), cumulative=True, histtype='step', lw=3, density=True)
+    for ax, p, a in zip([axes[0, 1], axes[0, 1]], ['50', '90'], [0.5, 1]):
+        ax.hist(s2_sim[f'range_{p}p_area'], label=f'sim {p}%', color='red', alpha=a, **kwargs)
+        ax.hist(s2_data[f'range_{p}p_area'], label=f'data {p}%', color='blue', alpha=a, **kwargs)
+        ax.tick_params(axis='both', labelsize=12)
+        ax.set_xlabel(f'S2 width [ns]', fontsize=12)
+        ax.set_xscale('log')
+        ax.legend(loc='upper left', fontsize=12)
 
-    ax[0,1].hist2d(run_area, run_aft, bins=(200,200), norm=LogNorm(), cmap='Reds')
-    ax[0,1].hist2d(sn_area, sn_aft, bins=(200,200), norm=LogNorm(), alpha=0.6)
-    ax[0,1].set_xlabel('S2 Area [P.E.]'); ax[0,1].set_ylabel('S2 AFT')
-    ax[0,1].axhline(0.68)
+    #
+    kwargs = dict(bins=np.linspace(0, 1.1, 100), cumulative=True, histtype='step', lw=3, density=True)
+    axes[0, 2].hist(s2_sim['area_fraction_top'], label='sim', color='red', **kwargs)
+    axes[0, 2].hist(s2_data['area_fraction_top'], label='data', color='blue', **kwargs)
+    axes[0, 2].tick_params(axis='both', labelsize=12)
+    axes[0, 2].set_xlabel(f'S2 area_fraction_top', fontsize=12)
+    axes[0, 2].legend(loc='upper left', fontsize=12)
+    #
+    axes[1, 0].hist2d(s2_data['area'], s2_data['range_50p_area'], bins=(np.logspace(0, 5, 100),
+                                                                        np.logspace(1.5, 5, 100)), norm=LogNorm())
+    axes[1, 0].hist2d(s2_sim['area'], s2_sim['range_50p_area'], bins=(np.logspace(0, 5, 100),
+                                                                      np.logspace(1.5, 5, 100)), norm=LogNorm(),
+                      alpha=0.8, cmap='Reds_r')
+    axes[1, 0].set_xscale('log')
+    axes[1, 0].set_yscale('log')
+    axes[1, 0].set_xlabel('S2 area [P.E.]')
+    axes[1, 0].set_ylabel('S2 width')
+    #
+    axes[1, 1].hist2d(s2_data['range_50p_area'], s2_data['area_fraction_top'],
+                      bins=(np.logspace(1.5, 5, 100), np.linspace(-0.1, 1.1, 100)), norm=LogNorm())
+    axes[1, 1].hist2d(s2_sim['range_50p_area'], s2_sim['area_fraction_top'],
+                      bins=(np.logspace(1.5, 5, 100), np.linspace(-0.1, 1.1, 100)), norm=LogNorm(), alpha=0.8,
+                      cmap='Reds_r')
+    axes[1, 1].set_xscale('log')
+    axes[1, 1].set_xlabel('S2 width [ns]')
+    axes[1, 1].set_ylabel('S2 aft')
+    #
+    axes[1, 2].hist2d(s2_data['area'], s2_data['area_fraction_top'],
+                      bins=(np.logspace(0, 5, 100), np.linspace(-0.1, 1.1, 100)), norm=LogNorm())
+    axes[1, 2].hist2d(s2_sim['area'], s2_sim['area_fraction_top'],
+                      bins=(np.logspace(0, 5, 100), np.linspace(-0.1, 1.1, 100)), norm=LogNorm(), alpha=0.8,
+                      cmap='Reds_r')
+    axes[1, 2].set_xscale('log')
+    axes[1, 2].set_xlabel('S2 area [P.E.]')
+    axes[1, 2].set_ylabel('S2 aft')
 
-    ax[0,2].hist2d(run_width, run_aft, bins=(200,200), norm=LogNorm(), cmap='Reds')
-    ax[0,2].hist2d(sn_width, sn_aft, bins=(200,200), norm=LogNorm(), alpha=0.6)
-    ax[0,2].set_xlabel('width')
-    ax[0,2].set_ylabel('AFT')
+    # random cuts
+    axes[1, 0].axvline(2e3, color='red', lw=3)
+    axes[1, 2].axvline(2e3, color='red', lw=3)
+    axes[1, 0].axvline(15, color='red', lw=3)
+    axes[1, 2].axvline(15, color='red', lw=3)
 
-    ax[1,0].hist(run_area, bins=50, histtype='step', density=True, label='BG')
-    ax[1,0].hist(sn_area, bins=50, histtype='step', density=True, label='SN')
-    ax[1,0].set_xlabel('S2 area')
-    ax[1,0].set_yscale('log')
+    axes[1, 1].axhline(0.35, color='red', lw=3)
+    axes[1, 1].axhline(0.9, color='red', lw=3)
+    axes[1, 2].axhline(0.35, color='red', lw=3)
+    axes[1, 2].axhline(0.9, color='red', lw=3)
+    axes[1, 0].axhline(120, color='red', lw=3)
+    axes[1, 0].axhline(3e4, color='red', lw=3)
+    axes[1, 1].axvline(120, color='red', lw=3)
+    axes[1, 1].axvline(3e4, color='red', lw=3)
 
-    ax[1,1].hist(run_aft, bins=50, histtype='step', density=True, label='BG')
-    ax[1,1].hist(sn_aft, bins=50, histtype='step', density=True, label='SN')
-    ax[1,1].set_xlabel('AFT')
-    ax[1,1].set_yscale('log')
+    axes[0, 0].axvline(15, color='k', lw=3, ls='--')
+    axes[0, 0].axvline(2e3, color='k', lw=3, ls='--')
+    axes[0, 1].axvline(120, color='k', lw=3, ls='--')
+    axes[0, 1].axvline(3e4, color='k', lw=3, ls='--')
+    axes[0, 2].axvline(0.35, color='k', lw=3, ls='--')
+    axes[0, 2].axvline(0.9, color='k', lw=3, ls='--')
 
-    ax[1,2].hist(run_width, bins=50, histtype='step', density=True, label='BG', range=(0,15_000))
-    ax[1,2].hist(sn_width, bins=50, histtype='step', density=True, label='SN', range=(0,15_000))
-    ax[1,2].set_xlabel('width')
-    ax[1,2].set_yscale('log')
-
-    for i in range(3):
-        i = int(i)
-        ax[1,i].legend()
 

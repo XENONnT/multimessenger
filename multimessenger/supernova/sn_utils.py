@@ -347,18 +347,34 @@ def inject_in(small_signal, big_signal):
         click.secho('Something went wrong!', bg='red', bold=True)
 
 
-def compute_rate_within(arr, sampling=1e9, ts=None, tf=None):
+def compute_rate_within(arr, sampling=1, ts=None, tf=None, start_at_zero=True, shift_time=None):
     """ Compute rates for any given sampling interval
         Allows to look for time intervals where the SN signal
         can be maximised
 
+        :param arr: `array` times in nanosec
+        :param sampling: `float` sampling size in sec
+        :param ts, tf: `float` start, finish times in sec
+
     """
-    if ts is None and tf is None:
-        bins = np.arange(arr.min(), arr.max() + sampling, sampling)  # in seconds
+    arr = arr * 1e-9
+    if start_at_zero:
+        # start at zero
+        arr -= np.min(arr)
+    if type(shift_time) == type(None):
+        pass
+    elif type(shift_time) == str:
+        # select a time within half an hour
+        random_sec = np.random.choice(np.linspace(0, 1800))
+        arr += random_sec
+    elif type(shift_time) == float or type(shift_time) == int:
+        arr += shift_time
     else:
-        bins = np.arange(ts, tf + sampling, sampling)  # in seconds
+        raise ValueError('shift time can either be a float, None or \'random\'')
+    ts = ts or 0
+    tf = tf or np.max(arr)
+    bins = np.arange(ts, tf + sampling, sampling)  # in seconds
     return np.histogram(arr, bins=bins)
-#     return  bins, rates/sampling
 
 def get_config(config_file=None):
     config = configparser.ConfigParser()
