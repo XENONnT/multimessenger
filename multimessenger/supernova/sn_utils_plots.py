@@ -95,10 +95,13 @@ def quality_plot(event_info):
     axes[2, 2].set_ylabel('counts')
 
 
-def compare_peaks(peaks_sim, peaks_data):
+def compare_peaks(peaks_sim, peaks_data,
+                  area=(60,2000),
+                  width50p=(120, 30000),
+                  aft=(0.35, 0.9)):
     """ Compare Peaks for Simulation and Data
         *** S2 Only
-
+        :param area, width50p, aft : `tuple` ranges to draw lines
     """
     s2_sim = peaks_sim[peaks_sim['type'] == 2]
     s2_data = peaks_data[peaks_data['type'] == 2]
@@ -161,25 +164,33 @@ def compare_peaks(peaks_sim, peaks_data):
     axes[1, 2].set_ylabel('S2 aft')
 
     # random cuts
-    axes[1, 0].axvline(2e3, color='red', lw=3)
-    axes[1, 2].axvline(2e3, color='red', lw=3)
-    axes[1, 0].axvline(15, color='red', lw=3)
-    axes[1, 2].axvline(15, color='red', lw=3)
+    # area cuts
+    axes[0, 0].axvline(area[0], color='k', lw=3, ls='--')
+    axes[0, 0].axvline(area[1], color='k', lw=3, ls='--')
+    axes[1, 0].axvline(area[0], color='red', lw=3)
+    axes[1, 0].axvline(area[1], color='red', lw=3)
+    axes[1, 2].axvline(area[0], color='red', lw=3)
+    axes[1, 2].axvline(area[1], color='red', lw=3)
 
-    axes[1, 1].axhline(0.35, color='red', lw=3)
-    axes[1, 1].axhline(0.9, color='red', lw=3)
-    axes[1, 2].axhline(0.35, color='red', lw=3)
-    axes[1, 2].axhline(0.9, color='red', lw=3)
-    axes[1, 0].axhline(120, color='red', lw=3)
-    axes[1, 0].axhline(3e4, color='red', lw=3)
-    axes[1, 1].axvline(120, color='red', lw=3)
-    axes[1, 1].axvline(3e4, color='red', lw=3)
+    # width cuts
+    axes[0, 1].axhline(width50p[0], color='red', lw=3, ls='--')
+    axes[0, 1].axhline(width50p[1], color='red', lw=3, ls='--')
+    axes[1, 0].axhline(width50p[0], color='red', lw=3)
+    axes[1, 0].axhline(width50p[1], color='red', lw=3)
+    axes[1, 1].axvline(width50p[0], color='red', lw=3)
+    axes[1, 1].axvline(width50p[1], color='red', lw=3)
 
-    axes[0, 0].axvline(15, color='k', lw=3, ls='--')
-    axes[0, 0].axvline(2e3, color='k', lw=3, ls='--')
-    axes[0, 1].axvline(120, color='k', lw=3, ls='--')
-    axes[0, 1].axvline(3e4, color='k', lw=3, ls='--')
-    axes[0, 2].axvline(0.35, color='k', lw=3, ls='--')
-    axes[0, 2].axvline(0.9, color='k', lw=3, ls='--')
+    # aft cuts
+    axes[0, 2].axvline(aft[0], color='k', lw=3, ls='--')
+    axes[0, 2].axvline(aft[1], color='k', lw=3, ls='--')
+    axes[1, 1].axhline(aft[0], color='red', lw=3)
+    axes[1, 1].axhline(aft[1], color='red', lw=3)
+    axes[1, 2].axhline(aft[0], color='red', lw=3)
+    axes[1, 2].axhline(aft[1], color='red', lw=3)
+
+
+
+
+
 
 
