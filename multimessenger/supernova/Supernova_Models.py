@@ -1,6 +1,6 @@
 #!/usr/bin/python
 """
-Last Update: 31-08-2021
+Last Update: 20-07-2022
 -----------------------
 Supernova Models module.
 Methods to deal with supernova lightcurve and derived properties
@@ -12,25 +12,35 @@ Notes
 uses _pickle module, check here https://stackoverflow.com/questions/4529815/saving-an-object-data-persistence
 How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle-yourself
 
-_get_t_int_flux -> sum or integration? (sum)
-
-###
-The recoil energies changes after 1D truncation. Thus, the next time it looks for the data, it
-finds the wrong emin, emax values and can confuse.
-
-Todo: The total_rates1D and the total rates from 2D does NOT give the same
- Need to investigate this! # might be fixed/understood
-
 """
 import os, click
 import numpy as np
-import _pickle as pickle
-import scipy.interpolate as itp
-from .sn_utils import _inverse_transform_sampling
+try:
+    import cPickle as pickle
+except ModuleNotFoundError:
+    import pickle
+
 from .Xenon_Atom import ATOM_TABLE
 import configparser
+from scipy import interpolate
 import astropy.units as u
-N_Xe = 4.6e27*u.count/u.tonne
+from glob import glob
+
+import snewpy
+from snewpy.neutrino import Flavor
+from snewpy.models.ccsn import Analytic3Species, Bollig_2016, Fornax_2019, Fornax_2021, Kuroda_2020
+from snewpy.models.ccsn import Nakazato_2013, OConnor_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014
+from snewpy.models.ccsn import Walk_2018, Walk_2019, Warren_2020, Zha_2021
+
+models_list = ['Analytic3Species', 'Bollig_2016', 'Fornax_2019', 'Fornax_2021', 'Kuroda_2020', 'Nakazato_2013',
+               'OConnor_2013', 'OConnor_2015', 'Sukhbold_2015', 'Tamborra_2014', 'Walk_2018', 'Walk_2019',
+               'Warren_2020', 'Zha_2021',]
+
+models = [Analytic3Species, Bollig_2016, Fornax_2019, Fornax_2021, Kuroda_2020,
+          Nakazato_2013, OConnor_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014,
+          Walk_2018, Walk_2019, Warren_2020, Zha_2021]
+
+models_dict = dict(zip(models_list, models))
 
 from .sn_utils import isnotebook
 if isnotebook():
@@ -44,25 +54,69 @@ def get_composite(composite):
     from .Recoil_calculations import TARGET
     if composite == "Xenon":
         Nucleus = [TARGET(ATOM_TABLE["Xe124"], pure=False),
-                 TARGET(ATOM_TABLE["Xe126"], pure=False),
-                 TARGET(ATOM_TABLE["Xe128"], pure=False),
-                 TARGET(ATOM_TABLE["Xe129"], pure=False),
-                 TARGET(ATOM_TABLE["Xe130"], pure=False),
-                 TARGET(ATOM_TABLE["Xe131"], pure=False),
-                 TARGET(ATOM_TABLE["Xe132"], pure=False),
-                 TARGET(ATOM_TABLE["Xe134"], pure=False),
-                 TARGET(ATOM_TABLE["Xe136"], pure=False)]
+                   TARGET(ATOM_TABLE["Xe126"], pure=False),
+                   TARGET(ATOM_TABLE["Xe128"], pure=False),
+                   TARGET(ATOM_TABLE["Xe129"], pure=False),
+                   TARGET(ATOM_TABLE["Xe130"], pure=False),
+                   TARGET(ATOM_TABLE["Xe131"], pure=False),
+                   TARGET(ATOM_TABLE["Xe132"], pure=False),
+                   TARGET(ATOM_TABLE["Xe134"], pure=False),
+                   TARGET(ATOM_TABLE["Xe136"], pure=False)]
     else:
         raise NotImplementedError(f"{composite} Requested but only 'Xenon' is implemented so far")
     return Nucleus
 
-class SN_LightCurve:
-    """ Deal with a given SN lightcurve
+def _parse_models(model_name, filename, index):
+    """ Get the selected model, or ask user
+    """
+    snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
+    file_path = os.path.join(snewpy_base, "models", model_name)
+    files_in_model = glob(os.path.join(file_path, '*'))
+    files_in_model = [f for f in files_in_model if not f.endswith('.md') and not f.endswith('.ipynb')]
+
+    if filename is None:
+        _files_in_model_list = [f"[{i}]\t" + f.split("/")[-1] for i, f in enumerate(files_in_model)]
+        _files_in_model = "\n".join(_files_in_model_list) + "\n"
+        if index is None:
+            click.secho("> Available files for this model, please select an index\n\n", fg='blue', bold=True)
+            file_index = input(_files_in_model)
+        else:
+            file_index = index
+        selected_file = files_in_model[int(file_index)]
+        click.secho(f"> You chose ~wisely~ ->\t   {_files_in_model_list[int(file_index)]}", fg='blue', bold=True)
+        return selected_file
+    else:
+        if filename in [f.split("/")[-1] for i, f in enumerate(files_in_model)]:
+            return os.path.join(file_path, filename)
+        else:
+            raise FileNotFoundError(f"{filename} not found in {file_path}")
+
+def get_storage(storage, config):
+    if storage is None:
+        # where the snewpy models saved, ideally we want a single place
+        try:
+            storage = config['paths']['data']
+        except KeyError as e:
+            print(f"> KeyError: {e} \nSetting current directory as the storage, "
+                  f"pass storage=<path-to-your-storage> ")
+            storage = os.getcwd()
+    else:
+        storage = storage
+    return storage
+
+
+class Models:
+    """ Deal with a given SN lightcurve from snewpy
     """
 
     def __init__(self,
-                 distance=10,
-                 recoil_energies=(0, 20, 50),
+                 model_name,
+                 filename=None,
+                 index=None,
+                 model_kwargs=None,
+                 distance=10*u.kpc,
+                 recoil_energies=np.linspace(0,20,100)*u.keV,
+                 neutrino_energies=np.linspace(0, 200, 100)*u.MeV,
                  composite="Xenon",
                  storage=None,
                  config_file=None,
@@ -70,555 +124,216 @@ class SN_LightCurve:
         """
         Parameters
         ----------
-        distance : float, optional
-            Supernova distance in kpc. Deafult is 10 kpc
-        recoil_energies : tuple
-            recoil energies to search for interactions
-            tuple with (start, stop, step)
-        composite : `str`
-            What nucleus to use
-        storage : `str`
-            path of the output folder
-
+        :param model_name: `str`, name of the model e.g. "Nakazato_2013"
+        :param filename: `str` name of the file e.g. "nakazato-shen-z0.02-t_rev100ms-s50.0.fits"
+        :param index: `int` file index, if known
+        :param model_kwargs: `dict` any model-specific parameters
+        :param distance: `float` Supernova distance, default is 10 kpc
+        :param recoil_energies: `array` recoil energies to search for interactions
+        :param neutrino_energies: `array` neutrino energy sampling
+        :param composite: `str` What nucleus to use ("Xenon" only for now)
+        :param storage: `str` path of the output folder
+        :param config_file: `str` config file that contains the default params
         """
+        if model_kwargs is None:
+            model_kwargs = dict()
+        model_file = _parse_models(model_name, filename, index)
+        model = models_dict[model_name](model_file, **model_kwargs)
+        self.__dict__.update(model.__dict__)
+        self.model = model
         self.composite = composite
         self.Nucleus = get_composite(composite)
-        self.dist = distance
-        self.t0 = 0
-        self.tf = 10
-        self.recoil_en = np.linspace(recoil_energies[0], recoil_energies[1], recoil_energies[2])
-        if storage is None:
-            try:
-                # try to find from the default config
-                config = configparser.ConfigParser()
-                self.conf_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-                config.read(self.conf_path)
-                self.storage = config['paths']['data']
-            except:
-                self.storage = os.getcwd()
-        else:
-            self.storage = storage
-        self.__version__ = "0.1.5"
+        self.distance = distance
+        self.recoil_energies = recoil_energies
+        self.neutrino_energies = neutrino_energies
+        self.name = repr(model).split(":")[1].strip().split('\n')[0]+".pickle"
+        # try to find from the default config
+        self.config = configparser.ConfigParser()
+        conf_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+        self.config.read(conf_path)
+        self.storage = get_storage(storage, self.config)
+        self.fluxes = None
+        self.rateper_Er = None
+        self.rateper_t = None
+        self.__version__ = "1.0.0"
+        try:
+            self.retrieve_object()
+        except FileNotFoundError:
+            self.save_object(True)
 
-    def save_object(self, filename=None, update=False):
+    def save_object(self, update=False):
+        """ Save the object for later calls
         """
-        Save the object for later calls
-        """
-        filename = filename or self.name
         if update:
-            file = os.path.join(self.storage, filename)
-            with open(file, 'wb') as output:  # Overwrites any existing file.
+            file = os.path.join(self.storage, self.name)
+            with open(file, 'wb') as output:   # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'Saved at {file}!\n', fg='blue')
+                click.secho(f'> Saved at self.storage/{self.name}!\n', fg='blue')
 
-    def retrieve_object(self, filename=None):
-        filename = filename or self.name
-        file = os.path.join(self.storage, filename)
+    def retrieve_object(self):
+        file = os.path.join(self.storage, self.name)
         with open(file, 'rb') as handle:
-            click.secho(f'Retrieving object {file}', fg='blue')
+            click.secho(f'> Retrieving object self.storage/{self.name}', fg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
 
-    def load_from_X(self, filename=None, *args):
-        """ As long as it returns
-            neutrino_properties = (time, mean_E, Nve, Nave, Nvx, Lve, Lave, Lvx)
-            and afterwards make lightcurve attributes
-        """
-        from .model_loader import _load_from_X
-        neutrino_properties = _load_from_X(*args)
-        # self.name = filename
-        # self._make_lc_attributes(*neutrino_properties)
-        # self.save_object(update=True)
-        pass
+    def delete_object(self):
+        file = os.path.join(self.storage, self.name)
+        if input(f"> Are you sure you want to delete\n"
+                 f"{file}?\n") == 'y':
+            os.remove(file)
 
-    def load_model_from_db(self, progenitor_mass, metallicity, time_of_revival,
-                           filename=None, path=None, force=False):
-        """
-        Parameters:
-        ----------
-            progenitor_mass : Mass of the progenitor
-            metallicity: metallicity of the progenitor
-            time_of_revival : time of revival of the model
-            filename : optional filename, by default it is unique for the model
-            path : model path, optional, default is fetched from config
+    def compute_rates(self, total=True, force=False, leave=False):
+        """ Do it for each composite and scale for their abundance
+            simple scaling won't work as the proton number changes
+            :param total: `bool` if True return total of all isotopes
+            :param force: `bool` whether to recalculate if already exist
+            :param leave: `bool` tqdm arg, whether to leave the progress bar
 
-        Returns
-        -------
-        `tuple` (time, mean_E, Nve, Nave, Nvx, Lve, Lave, Lvx)
+            Returns
+                (dR/dEr, dR/dt) if total is True, else two dictionaries for both
+                containing rates for all isotopes individually
         """
-        from .model_loader import _load_light_curve as loader
-        self.M = progenitor_mass
-        self.t_revival = time_of_revival
-        self.Z = metallicity
-        self.name = filename or f'{self.composite}_{self.M}-M_-{self.Z}-Z_{self.t_revival}-t_dist{self.dist}.p'
+        is_first = True if self.fluxes is None else False
+        # create fluxes attribute for each isotope
+        # only if fluxes doesn't exist or forced
+        for isotope in tqdm(self.Nucleus, total=len(self.Nucleus), desc="Computing for all isotopes", colour="CYAN"):
+            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave)
+        self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
 
-        if force:
-            print('Running.. Saving the Object..\n')
-            args = loader(progenitor_mass, metallicity, time_of_revival, path)
+        self.rateper_Er_iso = {isotope.name: isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies)
+                               for isotope in tqdm(self.Nucleus)}
+        self.rateper_t_iso = {isotope.name: isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies)
+                              for isotope in tqdm(self.Nucleus)}
+
+        self._compute_total_rates()
+        if is_first:
+            self.save_object(update=True)
+        if total:
+            return self.rateper_Er, self.rateper_t
         else:
-            try:
-                self.retrieve_object(self.name)
-                click.secho('Object was found! \n'
-                            'To save manually: save_object(filename, update=True)\n', fg='green')
-                return None
-            except:
-                click.secho('Running.. Saving the Object..\n', fg='blue')
-                args = loader(progenitor_mass, metallicity, time_of_revival, path)
-        self._make_lc_attributes(*args)
-        self.save_object(update=True)
+            return self.rateper_Er_iso, self.rateper_t_iso
 
-    def _make_lc_attributes(self, time, nu_energies, Nve, Nave, Nvx, Lve, Lave, Lvx):
-        """ make object attributes using params
-        Parameters
-        ----------
-        time : `np.array`
-            neutrino arrival times of shape N, unit sec
-        nu_energies : `array`
-            neutrino mean energies of shape M, unit MeV
-        Nve, Nave, Nvx : `array`
-            electron, anti-electron, and other type neutrino fluxes
-            with unit (count*MeV**-1 * s**-1)
-        Lve, Lave, Lvx : `array`
-            electron, anti-electron, and other type neutrino luminosities
-            with unit (erg * MeV**-1 * s**-1)
+    def _compute_total_rates(self):
+        # get the total fluxes and rates
+        f_example = self.isotope_fluxes[self.Nucleus[0].name][Flavor.NU_E]
+        dEr_example = self.rateper_Er_iso[self.Nucleus[0].name][Flavor.NU_E]
+        dt_example = self.rateper_t_iso[self.Nucleus[0].name][Flavor.NU_E]
 
-        Returns
-        -------
-        appends following attributes
-        self.t = time bins of neutrinos of shape (N,)
-        self.mean_E = mean neutrino energies (computed from E_bins_r/l) of shape (M,)
-        self.nu_list = dictionary containing Nve, Nave, Nvx
-        self.L_list = dictionary containing Lve, Lave, Lvx
+        self.fluxes = {f: np.zeros_like(f_example) for f in Flavor}
+        self.rateper_Er = {f: np.zeros_like(dEr_example) for f in Flavor}
+        self.rateper_t = {f: np.zeros_like(dt_example) for f in Flavor}
+        for f in Flavor:
+            for xe in self.Nucleus:
+                self.fluxes[f] += self.isotope_fluxes[xe.name][f]
+                self.rateper_Er[f] += self.rateper_Er_iso[xe.name][f]
+                self.rateper_t[f] += self.rateper_t_iso[xe.name][f]
+        # get Total in all flavors
+        self.rateper_Er["Total"], self.rateper_t["Total"] = 0, 0
+        for f in Flavor:
+            self.rateper_Er["Total"] += self.rateper_Er[f]
+            self.rateper_t["Total"] += self.rateper_t[f]
+        # leave out the totals for individual isotopes for later
+
+
+    def truncate_rates(self):
+        """ Truncate rates and recoil energies and times
+        Returns: rates_Er_tr, rates_t_tr, recen_tr, times_tr
         """
-        self.t = time
-        self.mean_E = nu_energies
-        self.nu_list = {r'$\nu_e$': Nve,
-                        r'$\overline{\nu_e}$': Nave,
-                        r'$\sum\nu_x$': Nvx}
-        self.L_list = {r'L$\nu_e$': Lve,
-                       r'L$\overline{\nu_e}$': Lave,
-                       r'L$\nu_x$': Lvx}
+        recoil_energies = self.recoil_energies
+        rates_Er = self.rateper_Er
+        times = self.model.time
+        rates_t = self.rateper_t
 
-
-
-    def _get_t_indexes(self, t0=None, tf=None):
-        """ find the closest indexes of t0 and tf """
-        times = self.t
-        t0 = t0 or -np.inf
-        tf = tf or np.max(times)
-        t0_idx = np.abs(times - t0).argmin()
-        tf_idx = np.abs(times - tf).argmin() + 1
-        return t0_idx, tf_idx
-
-    def fluxes_at_tpc(self, dist=None, fluxes=None):
-        """ Compute the neutrino flux at the detector
-            Given a distance to the SN
-            Returns counts of (time,energy) size
-            (cts/MeV/cm2 , cts/s/cm2)
-        """
-        dist = dist or self.dist
-        dist = ((dist * u.kpc).to(u.cm)).value  # convert distance to cm
-        strad = (4 * np.pi * np.power(dist, 2))
-        fluxes = fluxes or self.nu_list
-        flux_at_tpc = {nu: fluxes[nu] / strad for nu in fluxes.keys()}
-        return flux_at_tpc
-
-    def get_flux_at_(self, dist=None, **kwargs):
-        """ Returns (interpolated) Neutrino Flux
-            if dist is given (in kpc), scales counts by distance
-            if 'time' is given, it integrates over energy
-                and interpolates time vs fluxes
-            if 'energy' is given it integrates over time
-                and interpolates energy vs fluxes
-            - integrated over all energy bins -
-            at a given time t as a dictionary
-            e.g. {'nu_e':1e55, 'nu_ae':1e54, 'nu_x':1e57}
-        """
-        if 'time' in kwargs:
-            val = kwargs.get('time')
-            flux_for = self.t
-            int_over = self.mean_E
-            axis = 1
-        elif 'energy' in kwargs:
-            val = kwargs.get('energy')
-            flux_for = self.mean_E
-            int_over = self.t
-            axis = 0
-        else:
-            raise ValueError("Options are: time=VAL or energy=VAL")
-        if val < np.min(int_over) or val > np.max(int_over):
-            print(f'{val} is out of bounds ({np.min(int_over):.1f} {np.max(int_over):.1f})\n'
-                  'The number is extrapolated and might be wrong!')
-
-        # set the fluxes. If a distance is given. Use fluxes at the detector.
-        if dist is None:
-            fluxes = self.nu_list
-        else:
-            fluxes = self.fluxes_at_tpc(dist)
-
-        # interpolate and calculate the flux
-        # at a given value
-        nr_at = {nu:
-                     itp.interp1d(flux_for, np.trapz(fluxes, int_over, axis=axis),
-                                  kind="cubic", fill_value="extrapolate")(val)
-                 for nu in self.nu_list.keys()}
-        return nr_at
-
-    def _get_t_int_flux(self, fluxes, t0=None, tf=None):
-        """ Compute the total neutrino flux integrated over t0-tf
-            Returns total count in units of counts/MeV/([tf-t0] sec)
-        """
-        t0_idx, tf_idx = self._get_t_indexes(t0, tf)
-        t_cut = self.t[t0_idx:tf_idx]
-        fluxes_cut = fluxes[t0_idx:tf_idx, :]
-        integrated_numbers = np.sum(fluxes_cut, axis=0)  # sum or integration?
-        # IT NEEDS TO BE SUMMATION.
-        # integrated_numbers = np.trapz(fluxes_cut, t_cut, axis=0)
-        return integrated_numbers
-
-    def get_integ_fluxes(self, detector=True, t0=None, tf=None, dist=None):
-        """ Get integrated number fluxes between t0 and tf
-            as a dictionary for each neutrino type
-            Returns dictionary with time integrated fluxes
-            for each flavour with units (cts/MeV/[tf-t0]sec)
-        """
-        if detector:
-            fluxes = self.fluxes_at_tpc(dist)
-        else:
-            fluxes = self.nu_list
-        t0 = t0 or self.t0
-        tf = tf or self.tf
-        integ_numbers = {nu: self._get_t_int_flux(fluxes[nu], t0, tf)
-                         for nu in fluxes.keys()}
-        return integ_numbers
-
-    def _get_rate1D(self, energies, t0, tf, dist):
-        """
-        Compute scattering rates at the detector at given
-        recoil energies for *time integrated* neutrino fluxes. 
-        See also _get_rate2D, get_recoil_spectra1D
-
-        Parameters
-        ----------
-        energies : ndarray
-            recoil energies to calculate rates for
-        t0,tf : float, optional
-            start and end time of the neutrino signal
-        dist : float, optional
-            supernova distance in units of kpc
-        
-        Returns
-        -------
-            Rates as a function of Recoil Energies
-        """
-        XeNuc = self.Nucleus
-        fluxes = self.get_integ_fluxes(detector=True, t0=t0, tf=tf, dist=dist)
-        nu_keys = list(fluxes.keys())
-        nu_energies = self.mean_E
-        flux_interpolator = {nu: itp.interp1d(nu_energies, fluxes[nu],
-                                              kind="cubic", fill_value="extrapolate") for nu in nu_keys}
-        # For readability
-        # Compute rates for each flavor, and for each nuclide
-        # convert MeV -> keV, and
-        # multiply by the total number of Xe atoms in the TPC
-        _nu1 = [xe.dRatedErecoil_vect(energies, Flux=flux_interpolator[nu_keys[0]]) * 1e-3 * N_Xe.value for xe in
-                XeNuc]
-        _nu2 = [xe.dRatedErecoil_vect(energies, Flux=flux_interpolator[nu_keys[1]]) * 1e-3 * N_Xe.value for xe in
-                XeNuc]
-        _nu3 = [xe.dRatedErecoil_vect(energies, Flux=flux_interpolator[nu_keys[2]]) * 1e-3 * N_Xe.value for xe in
-                XeNuc]
-
-        # sum the rates for each nuclide, 
-        nu1 = np.array([np.sum(_nu1, axis=0)])[0]
-        nu2 = np.array([np.sum(_nu2, axis=0)])[0]
-        nu3 = np.array([np.sum(_nu3, axis=0)])[0]
-        # add to self, and compute the total i.e. nu_e + nu_ae + nu_x
-        self.rate1D = {nu_keys[0]: nu1, nu_keys[1]: nu2, nu_keys[2]: nu3}
-        # call also the total
-        self.get_total_rate(dim=1)
-        # truncate all rates at 0
-        # this updates, rec_en, rate1D, and total_rates1D 
-        ## NOTE: self.recoil_en is also updated to have same length!
-        self._truncate1D()
-        return None
-
-    def get_recoil_spectra1D(self, rec_en=None, t0=None, tf=None, dist=None, force=0):
-        """
-        Compute the 1D recoil spectra for all flavors
-        Arguments
-        ---------
-        rec_en   :  array like, optional
-            Recoil energies to compute for
-            default is 50 energies between 0-20 keV
-        t0,tf    :  float, Optional
-            Time interval for integrating the fluxes, in sec
-            default: 0-10 sec
-        dist     :  float, Optional
-            SN distance if different than the model
-        force : bool
-            If the configuration was run and saved, it is retrieved
-            unless it is forced to calculate it again
-        Returns
-        -------
-        None, saves self.rate1D & self.total_rate1D to the object
-
-        See also plot_recoil_spectra()
-        """
-        t0 = t0 or self.t0
-        tf = tf or self.tf
-        dist = dist or self.dist
-        if rec_en is None:
-            recoil_energies = self.recoil_en
-        else:
-            recoil_energies = rec_en
-            self.recoil_en = recoil_energies
-
-        ermin, ermax = np.min(recoil_energies), np.max(recoil_energies)
-        # update these
-        self.t0 = t0
-        self.tf = tf
-
-        # make a name for this run
-        name_ = self.name.split('.p')[0]  # fails if different extension is given
-        ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}-{len(recoil_energies)}_t0-{t0}-tf-{tf}_1D.p'
-        if not force:
-            try:  # check if it is saved
-                self.retrieve_object(ratename)
-                return None
-            except:  # if not force to calculate
-                return self.get_recoil_spectra1D(recoil_energies, t0, tf, dist, force=True)
-
-        print("\nThis will take a minute")
-        self._get_rate1D(recoil_energies, t0, tf, dist)
-        # overwrite existing object with the updated version
-        click.secho(f'Saving {ratename}...', fg='blue')
-        self.save_object(ratename, update=True)
-        return None
-
-    def _get_rate2D(self, rec_en, dist, step):
-        """
-        Compute the 2D recoil rate for all flavors
-        In both neutrino energies and times.
-
-        Parameters
-        ----------
-        rec_en : ndarray
-            recoil energies to calculate rates for
-        dist : float, optional
-            supernova distance in units of kpc
-        step : int
-            step size in time grid. Finer time sampling
-            results in long computation times.
-        
-        Returns
-        -------
-            2D array with interaction rates in both
-            time and energies 
-        """
-        XeNuc = self.Nucleus
-        fluxes = self.fluxes_at_tpc(dist)
-        fluxes = {nu: fluxes[nu][::step, :] for nu in fluxes.keys()}
-        nu_keys = list(fluxes.keys())
-        nu_energies = self.mean_E  # Incident neutrino energy NOT the recoil
-
-        # Make data. i.e. 2D interpolated flux
-        Ebins = rec_en
-        tbins = self.t[::step]
-        # ee, tt = np.meshgrid(Ebins, tbins)
-
-        # make an interpolator, that, at each time step
-        # generates an interpolator for neutrino energy <-> flux
-        interpolator = {nu:
-                        {t: itp.interp1d(nu_energies, fluxes[nu][ti, :], kind="cubic", fill_value="extrapolate")
-                         for ti, t in enumerate(tbins)}
-                        for nu in nu_keys}
-
-        # rates at each time step, each recoil energy
-        # shape is (time, recoil energies)
-        _rates_2D = np.zeros(shape=(len(tbins), len(Ebins)))
-        rates_2D = {nu: _rates_2D.copy() for nu in nu_keys}
-        # # need 1 dictionary with all flavors for each isotope
-        # rates_list = [rates_2D] * len(XeNuc)
-
-        # times as vectorized, recoil energies are looped
-        for i, _Er in enumerate(tqdm(Ebins)):
-            # at each recoil energy, loop over each isotope
-            # convert MeV->keV + multiply by Nr of Xe atoms
-            raw_rate1 = [xe.dRatedErecoil2D_vect(Er=_Er, Flux=interpolator[nu_keys[0]], t=tbins) * 1e-3 * N_Xe.value for
-                         xe in XeNuc]
-            raw_rate2 = [xe.dRatedErecoil2D_vect(Er=_Er, Flux=interpolator[nu_keys[1]], t=tbins) * 1e-3 * N_Xe.value for
-                         xe in XeNuc]
-            raw_rate3 = [xe.dRatedErecoil2D_vect(Er=_Er, Flux=interpolator[nu_keys[2]], t=tbins) * 1e-3 * N_Xe.value for
-                         xe in XeNuc]
-            # for each isotope the rates are calculated wrt their fraction
-            # Thus, multiplying each with N_Xe makes sense.
-            rates_2D[nu_keys[0]][:, i] = np.sum(raw_rate1, axis=0)
-            rates_2D[nu_keys[1]][:, i] = np.sum(raw_rate2, axis=0)
-            rates_2D[nu_keys[2]][:, i] = np.sum(raw_rate3, axis=0)
-
-        self.rates2D = rates_2D
-        # get also the total
-        self.get_total_rate(dim=2)
-        # no trimming for 2D data for the moment
-        return rates_2D
-
-    def get_recoil_spectra2D(self, dist=None, t_step=1, force=0):
-        """
-        Rates will be computed along Neutrino Energies and Time
-        Arguments
-        ---------
-
-        dist     :  float, Optional
-            SN distance if different than the model
-        t_step     :  int, optional
-            To decrease the time steps, a step can be given
-        force : boolean
-            If the configuration was run and saved, it is retrieved
-            unless it is forced to calculate it again
-        Returns
-        -------
-        None, saves self.rate2D & self.rate_total2D to the object
-    
-        CAVEAT: This function can take long, 
-        as it computes integrals for len(times)*len(Recoil Energies)*nuclide times
-        """
-        dist = dist or self.dist
-        recoil_energies = self.recoil_en
-
-        ermin, ermax = np.min(recoil_energies), np.max(recoil_energies)
-
-        name_ = self.name.split('.p')[0]
-        ratename = f'{name_}_Er{ermin:.1f}-{ermax:.1f}-{len(recoil_energies)}_tstep{t_step}_dist{dist}_2D.p'
-        if not force:
-            try:  # check if it is saved
-                self.retrieve_object(ratename)
-                return None
-            except:
-                return self.get_recoil_spectra2D(dist, t_step, force=True)
-
-        click.secho("\n This will take a while", bold=True)
-        self._get_rate2D(recoil_energies, dist, t_step)
-        # overwrite existing object with the updated version
-        click.secho(f'Saving {ratename}...', fg='blue')
-        self.save_object(ratename, update=True)
-        return None
-
-    def get_total_rate(self, dim=1):
-        """
-        Calculate total rates in 
-        all flavors
-        For 1D data, `self._truncate1D` is
-        called right after this function.
-        """
-        total = 0
-        if dim == 1:
-            data = self.rate1D
-        elif dim == 2:
-            data = self.rates2D
-        else:
-            raise ValueError
-        for name, data_ in data.items():
-            total = total + data_
-        if dim == 1:
-            self.total_rate1D = total
-        if dim == 2:
-            self.total_rate2D = total
-        return None
-
-    def _truncate1D(self):
-        """ 
-            Once truncated, the self.recoil_en is updated
-            Thus, when get_spectra called again, it recalculates
-            for these energies.
-        """
-        flavor_rates = self.rate1D
-        total_rates = self.total_rate1D
-        rec_en = self.recoil_en
         # truncate all at position where total rate becomes 0
-        trunc_here = np.searchsorted(total_rates[::-1], 0, side='right')
-        flavor_tr = {nu: flavor_rates[nu][:-trunc_here] for nu in flavor_rates.keys()}
-        rates_tr = total_rates[:-trunc_here]
-        recen_tr = rec_en[:-trunc_here]
-        # update the existing rates
-        # if there are no zeros, it returns empty array
-        # in this case do not clip any data
-        if not len(rates_tr) == 0:
-            print('Truncating')
-            self.rate1D = flavor_tr
-            self.total_rate1D = rates_tr
-            self.recoil_en = recen_tr
-        return None
+        # rateper_Er
+        trunc_here = np.searchsorted(rates_Er['Total'][::-1], 0, side='right')
+        rates_Er_tr = {nu: rates_Er[nu][:-trunc_here] for nu in rates_Er.keys()}
+        recen_tr = recoil_energies[:-trunc_here]
+        # rateper_t
+        trunc_here = np.searchsorted(rates_t['Total'][::-1], 0, side='right')
+        rates_t_tr = {nu: rates_t[nu][:-trunc_here] for nu in rates_t.keys()}
+        times_tr = times[:-trunc_here]
+        return rates_Er_tr, rates_t_tr, recen_tr, times_tr
 
-    def _get_1Drates_from2D(self, t0=None, tf=None):
+    def scale_fluxes(self,
+                     N_Xe=4.6e27*u.count/u.tonne,
+                     distance=10*u.kpc,
+                     overwrite=False):
+        """ Scale fluxes based on distance and number of atoms
+            Return: scaled fluxes
         """
-        If the 2D rates exists, 1D rates can be 
-        computed by integrating them.
-        Parameters
-        ----------
-        t0, tf : float, optional
-            start and end time of the flux. If None, uses the limits.
-        Returns
-        -------
-            2 dictionaries;
-            1 - for rates for recoil energies integrated along time
-            2 - for rates for times integrated along recoil energies
-            Both dictionaries having 3 flavours + total rate
-        """
+        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
         try:
-            rates2D = self.rates2D
+            fluxes_scaled = {}
+            for f in self.fluxes.keys():
+                if overwrite:
+                    self.fluxes[f] *= scale
+                    return self.fluxes
+                else:
+                    fluxes_scaled[f] = self.fluxes[f] * scale
+                    return fluxes_scaled
         except:
-            raise ValueError('2D rates do not exist!')
-        # flux = self.nu_list
-        times = self.t
-        rec_energies = self.recoil_en
+            raise NotImplementedError("fluxes does not exist\nCreate them by calling `get_fluxes()`")
 
-        # set the time interval
-        first_t_idx, last_t_idx = self._get_t_indexes(t0, tf)
-        times = times[first_t_idx:last_t_idx]
-        rates2D = {nu: rates2D[nu][first_t_idx:last_t_idx, :] for nu in rates2D.keys()}
+    def scale_rates(self,
+                    isotopes=False,
+                    N_Xe=4.6e27*u.count/u.tonne,
+                    distance=10*u.kpc,
+                    overwrite=False):
+        """ Scale rates based on distance, and number of atoms
+            Return: scaled rates (rates_Er, rates_t)
+        """
+        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
+        try:
+            if isotopes:
+                if overwrite:
+                    for f in self.rateper_Er_iso.keys():
+                        self.rateper_Er_iso[f] *= scale
+                        self.rateper_t_iso[f] *= scale
+                    return self.rateper_Er_iso, self.rateper_t_iso
+                else:
+                    rates_Er_iso_scaled = {}
+                    rates_t_iso_scaled = {}
+                    for f in self.rateper_Er_iso.keys():
+                        rates_Er_iso_scaled[f] = self.rateper_Er_iso[f] * scale
+                        rates_t_iso_scaled[f] = self.rateper_t_iso[f] * scale
+                    return rates_Er_iso_scaled, rates_t_iso_scaled
+            else:
+                if overwrite:
+                    for f in self.rateper_Er.keys():
+                        self.rateper_Er[f] *= scale
+                        self.rateper_t[f] *= scale
+                    return self.rateper_Er, self.rateper_t
+                else:
+                    rates_Er_scaled = {}
+                    rates_t_scaled = {}
+                    for f in self.rateper_Er.keys():
+                        rates_Er_scaled[f] = self.rateper_Er[f] * scale
+                        rates_t_scaled[f] = self.rateper_t[f] * scale
+                    return rates_Er_scaled, rates_t_scaled
+        except:
+            raise NotImplementedError("Rates does not exist\nCreate them by calling `compute_rates()`")
 
-        N_E, N_t = len(rec_energies), len(times)
-        rates_E, rates_t = dict(), dict()
+    def _inverse_transform_sampling(self, x_vals, y_vals, n_samples):
+        cum_values = np.zeros(x_vals.shape)
+        y_mid = (y_vals[1:] + y_vals[:-1]) * 0.5
+        cum_values[1:] = np.cumsum(y_mid * np.diff(x_vals))
+        inv_cdf = interpolate.interp1d(cum_values / np.max(cum_values), x_vals)
+        r = np.random.rand(n_samples)
+        return inv_cdf(r)
 
-        for nu in rates2D.keys():
-            # rates_E[nu] = np.array([np.trapz(rates2D[nu][:,i], times) for i in range(N_E)])
-            # rates_t[nu] = np.array([np.trapz(rates2D[nu][i,:], rec_energies) for i in range(N_t)])
-            rates_E[nu] = np.sum(rates2D[nu], axis=0)
-            rates_t[nu] = np.sum(rates2D[nu], axis=1)
-
-        rates_E['Total'], rates_t['Total'] = 0, 0
-        for nu in rates2D.keys():
-            rates_E['Total'] += rates_E[nu]
-            rates_t['Total'] += rates_t[nu]
-        return rates_E, rates_t
-
-    def sample_from_recoil_spectrum(self, x='energy', N_sample=1):
-        if x.lower() == 'energy':
-            try:
-                spectrum_Er, spectrum_t = self._get_1Drates_from2D()
-                spectrum = spectrum_Er['Total']
-            except:
-                # click.secho(f"spectrum does not exist, computing", fg='red')
-                # Todo: check here
-                spectrum = self.total_rate1D
-            xaxis = self.recoil_en
-            ## interpolate
-            intrp_rates = itp.interp1d(xaxis, spectrum, kind="cubic", fill_value="extrapolate")
-            xaxis = np.linspace(xaxis.min(), xaxis.max(), 200)
-            spectrum = intrp_rates(xaxis)
-        elif x.lower() == 'time':
-            # spectrum_Er['Total'] is the same as self.total_rate1D (if run for all time range)
-            # it is a seperate if, in case one wants to plot without having 2D data
-            spectrum_Er, spectrum_t = self._get_1Drates_from2D()
-            spectrum = spectrum_t['Total']
-            xaxis = self.t
+    def sample_data(self, n, dtype='energy', return_xy=False):
+        if dtype=="energy":
+            xaxis = self.recoil_energies
+            yaxis = self.rateper_Er['Total']
         else:
-            raise KeyError('choose x=time or x=energy')
-        sample = _inverse_transform_sampling(xaxis, spectrum, N_sample)
-        return sample
+            xaxis = self.time
+            yaxis = self.rateper_t['Total']
 
-# import aux_scripts.constants as _constants_attr
-# for name in dir(_constants_attr):
-#     if not name.startswith('__'):
-#         setattr(SN_lightcurve, name, getattr(_constants_attr, name))
+        data = self._inverse_transform_sampling(xaxis, yaxis, n)
+        if return_xy:
+            return data, xaxis, yaxis
+        else:
+            return data

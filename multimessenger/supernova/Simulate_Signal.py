@@ -5,7 +5,6 @@ import numpy as np
 import scipy.interpolate as itp
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
-from .SN_plotter import font_small
 
 # these mean we don't compute photon times. 
 # it's a bit more crude but over 100x faster. 
@@ -24,6 +23,31 @@ class Simulator:
     """ Simulate signal based on Recoil Energy rates
         It uses
     """
+
+    # def sample_from_recoil_spectrum(self, x='energy', N_sample=1):
+    #     if x.lower() == 'energy':
+    #         try:
+    #             spectrum_Er, spectrum_t = self._get_1Drates_from2D()
+    #             spectrum = spectrum_Er['Total']
+    #         except:
+    #             # click.secho(f"spectrum does not exist, computing", fg='red')
+    #             # Todo: check here
+    #             spectrum = self.total_rate1D
+    #         xaxis = self.recoil_en
+    #         ## interpolate
+    #         intrp_rates = itp.interp1d(xaxis, spectrum, kind="cubic", fill_value="extrapolate")
+    #         xaxis = np.linspace(xaxis.min(), xaxis.max(), 200)
+    #         spectrum = intrp_rates(xaxis)
+    #     elif x.lower() == 'time':
+    #         # spectrum_Er['Total'] is the same as self.total_rate1D (if run for all time range)
+    #         # it is a seperate if, in case one wants to plot without having 2D data
+    #         spectrum_Er, spectrum_t = self._get_1Drates_from2D()
+    #         spectrum = spectrum_t['Total']
+    #         xaxis = self.t
+    #     else:
+    #         raise KeyError('choose x=time or x=energy')
+    #     sample = _inverse_transform_sampling(xaxis, spectrum, N_sample)
+    #     return sample
 
     def __init__(self, name, detector=None):
         self.name = name
@@ -108,7 +132,7 @@ class Simulator:
             interaction : `nestpy.interaction`, optional
                 The type of interaction. Nuclear Recoil by default.
             energy : `float`, optional
-                Energy in keV of the Recoil. Default is 100
+                Energy in keV of the Recoil. Default is 10
             drift_field : `float`, optional
                 Electric drift field, default os 200 V/cm
 

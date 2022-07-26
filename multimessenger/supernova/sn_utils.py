@@ -19,7 +19,6 @@ config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
 
 def isnotebook():
     """ Tell if the script is running on a notebook
-
     """
     try:
         shell = get_ipython().__class__.__name__
@@ -31,7 +30,6 @@ def isnotebook():
             return False  # Other type (?)
     except NameError:
         return False  # Probably standard Python interpreter
-
 
 
 def _inverse_transform_sampling(x_vals, y_vals, n_samples):

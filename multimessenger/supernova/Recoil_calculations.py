@@ -1,25 +1,36 @@
 #!/usr/bin/python
 from scipy.special import spherical_jn
-from scipy.integrate import quad, trapz
-import astropy.units as u
 import numpy as np
+from astropy import units as u
+from snewpy.neutrino import Flavor
+from .sn_utils import isnotebook
+if isnotebook():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 
-# constants
-c_speed = 2.99792458e10*u.cm/u.s # 299792458*u.m/u.s
-sin2the = 0.2223
 hbar = 1.0546e-27*u.cm**2 *u.g / u.s
-GF = 8.958e-44 * u.MeV * u.cm**3
-GFnat = (GF/(hbar*c_speed)**3).to(u.keV**-2)
+c_speed = 2.99792458e10*u.cm/u.s # 299792458*u.m/u.s
 m_e = 9.109e-31*u.kg
 
-# natural unit conversions
+# these have the units of length
+par_a = 0.52*u.fm
+par_s = 0.9*u.fm
+
+# everything in energy units
+aval = (par_a / hbar / c_speed).to(u.keV ** -1)  # .value # a in keV
+sval = (par_s / hbar / c_speed).to(u.keV ** -1)  # .value # s value in keV
+
+sin2theta = 0.2386
+
+# natural units
 len_nat = (hbar/(m_e*c_speed)).decompose()
 e_nat = (m_e * c_speed**2).to(u.keV)
 t_nat = (len_nat / c_speed).to(u.s)
 
-corrGFmN = (len_nat**2 * e_nat**2).to(u.keV**2 * u.cm**2)
-
-
+GF = 8.958e-44 * u.MeV * u.cm**3
+GFnat = (GF/(hbar*c_speed)**3).to(u.keV**-2)
+corrGFmN = len_nat**2 * e_nat**2
 
 class TARGET:
     def __init__(self, atom, pure = False):
@@ -32,6 +43,7 @@ class TARGET:
                 
         """
         self.target = atom
+        self.name = atom["Type"]
         self.spin = atom["Spin"]
         self.abund = 1 if pure else atom["Fraction"]
         self.A = atom["MassNum"]
@@ -39,108 +51,129 @@ class TARGET:
         self.N = self.A - self.Z
         # the following is in amu
         self.mass = (atom["Mass"] * u.u).decompose()  # in kg
-        self.masskeV = ((self.mass * c_speed**2).to(u.keV)).value
-        self.massMeV = ((self.mass * c_speed**2).to(u.MeV)).value
-        self.Qw = self.N - (1 - 4.0 * sin2the) * self.Z
-        self.dRatedErecoil_vect = np.vectorize(self.dRatedErecoil)
-        self.dRatedErecoil2D_vect = np.vectorize(self.dRatedErecoil2D)
-    
-    def TransMoment(self, Er):
-        """ mass in keV, Er in keV, return in keV
+        self.masskeV = ((self.mass * c_speed**2).to(u.keV))
+        self.massMeV = ((self.mass * c_speed**2).to(u.MeV))
+        self.Qw = self.N - (1 - 4.0 * sin2theta) * self.Z
+        self.rnval, self.term1 = self._get_vals()
+        self.fluxes = None
+
+    def _get_vals(self):
+        # everything in energy units
+        par_c = (1.23 * self.A ** (1. / 3) - 0.6) * u.fm
+        rn = np.sqrt(par_c ** 2 + 7. / 3 * (np.pi * par_a) ** 2 - 5 * par_s ** 2)
+        rnval = (rn / hbar / c_speed).to(u.keV ** -1)  # .value # rn value in keV
+        Q_W = self.N - (1 - 4 * sin2theta) * self.Z
+        term1 = corrGFmN * (GFnat ** 2) * self.masskeV * (Q_W ** 2) / (4 * np.pi)
+        return rnval, term1
+
+    def form_factor(self, Er):
+        """
+        Helms Form Factor
+        Arguments
+        ---------
+        Er : Recoil energy (need units)
+        Returns
+        -------
+        F(E_R) = 3*j_1(q*r_n) / (q*r_n) * exp(-(q*s)^2/2)
 
         """
-        return np.sqrt(2 * self.masskeV * Er)
-    
-    def MinNeutrinoEnergy(self, Er):
-        """ Er in keV, mass in keV, return in keV
+        Er = Er.to(u.keV)  # keV
+        q = np.sqrt(2 * self.masskeV * Er)  # keV
+        # avoid zero division
+        q = np.array([q]) if np.ndim(q) == 0 else q
+        q[q == 0] = np.finfo(float).eps * q.unit
+        qrn = q * self.rnval
 
+        # spherical_jn doesn't accept units, feed values
+        j1 = spherical_jn(1, qrn.value)  # unitless
+        t1 = 3 * j1 * qrn.unit / qrn
+        t2 = np.exp(-0.5 * (q * sval) ** 2)
+        return t1 * t2
+
+    def nN_cross_section(self, Enu, Er):
+        """ neutrino nucleus Cross-Section
+        Arguments
+        ---------
+        Enu : array, Neutrino energies, (needs unit)
+        Er : array, Recoil energies, (needs unit)
+        Returns
+        -------
+        dsigma / dE_r:
+            neutrino-nucleus cross-section in units of m^2 / MeV
+            shape is (len(Enu), len(Er))
         """
-        return (Er + np.sqrt(Er**2 + 2 * self.masskeV * Er)) / 2.0
-    
-    def MaxRecoilEnergy(self, Ev):
-        """ Ev in MeV, convert massMeV to MeV, return in MeV
+        # Avoid division by zero in energy PDF below.
+        _Enu = [Enu.value]*Enu.unit if not np.ndim(Enu) else Enu
+        _Er = [Er.value]*Er.unit if not np.ndim(Er) else Er
+        _Enu[_Enu == 0] = np.finfo(float).eps * _Enu.unit
+        _Er[_Er == 0] = np.finfo(float).eps * _Er.unit
 
+        ffactor = self.form_factor(_Er) ** 2 * self.term1
+        xsec = ffactor[:, np.newaxis] * (1 - 0.5 * self.masskeV * np.outer(_Er, _Enu ** -2.))
+        xsec[xsec < 0] = 0
+        return xsec
+
+    def get_fluxes(self, model, neutrino_energies, force=False, leave=True):
+        if self.fluxes is not None and not force:
+            return None
+        # get fluxes at each time and at each neutrino energy
+        flux_unit = model.get_initial_spectra(1 * u.s, 100 * u.MeV)[Flavor.NU_E].unit
+        _fluxes = np.zeros((len(model.time), len(neutrino_energies))) * flux_unit
+        _fluxes = {f: _fluxes.copy() for f in Flavor}
+        for f in tqdm(Flavor, total=len(Flavor), desc=self.name, leave=leave):
+            for i, sec in tqdm(enumerate(model.time), total=len(model.time), desc=f.to_tex(), leave=False):
+                _fluxes_dict = model.get_initial_spectra(sec, neutrino_energies)
+                _fluxes[f][i, :] = _fluxes_dict[f]
+        self.fluxes = _fluxes
+
+    def dRdEr(self, model, neutrino_energies, recoil_energies):
+        self.get_fluxes(model, neutrino_energies)
+        # get rates per recoil energy after SN duration # integrate over time
+        fluxes_per_Er = {f: np.trapz(self.fluxes[f], model.time, axis=0).to(1 / u.keV) for f in Flavor}
+        # get cross-sections
+        xsecs = self.nN_cross_section(neutrino_energies, recoil_energies)
+        # Rough integration over neutrino energies
+        integ = {f: (xsecs * fluxes_per_Er[f]) for f in Flavor}
+        rates_per_Er = self._get_rates(integ, neutrino_energies)
+        rates_per_Er = {k:v.to(u.m ** 2 / u.keV) for k,v in rates_per_Er.items()}
+        return rates_per_Er
+
+    def dRdt(self, model, neutrino_energies, recoil_energies):
+        self.get_fluxes(model, neutrino_energies)
+        xsecs = self.nN_cross_section(neutrino_energies, recoil_energies)
+        # get rates per time, from all neutrino energies
+        # integrate over recoil energies
+        xsecs_integrated = np.trapz(xsecs, recoil_energies, axis=0)
+        flux_x_xsec = {f: self.fluxes[f] * xsecs_integrated for f in Flavor}
+        # integrate over nu energies
+        rates_per_t = self._get_rates(flux_x_xsec, neutrino_energies)
+        rates_per_t = {k:v.to(u.m ** 2 / u.s) for k,v in rates_per_t.items()}
+        return rates_per_t
+
+    def _get_rates(self, x, neutrino_energies):
+        """ get rates scaled by the abundance
         """
-        return 2 * Ev**2 / (self.massMeV + 2 * Ev)
-    
-    def FormFactor(self, q):
-        """ q in keV, other params converted such that
-            the units of the eq is reasonable
-            returns unitless form factor
+        rates = {f: self.abund * np.trapz(x[f], neutrino_energies, axis=1) for f in Flavor}
+        total_flux = np.zeros_like(rates[Flavor.NU_E])
+        for f in Flavor:
+            if not f.is_electron:
+                _rate = rates[f] * 2  # x-neutrinos are for muon and tau
+            else:
+                _rate = rates[f]
+            total_flux += _rate
+        rates["Total"] = total_flux
+        return rates
 
+    def scale_fluxes(self,
+                     N_Xe=4.6e27*u.count/u.tonne,
+                     distance=10*u.kpc):
+        """ Scale fluxes based on abundances
+            and distance, and number of atoms
         """
-        if q == 0:
-            return 1.0
-        a = 0.52 * u.fm
-        c = (1.23 * self.A**(1.0/3.0) - 0.6) * u.fm
-        s = 0.9 * u.fm
-        ### Natural unit conversions from lengths -> 1/energy
-        aval = (a/hbar/c_speed).to(u.keV**-1).value # a in keV^-1
-        cval = (c/hbar/c_speed).to(u.keV**-1).value # c in keV^-1
-        sval = (s/hbar/c_speed).to(u.keV**-1).value # s in keV^-1
-        
-        rnval = np.sqrt(cval**2 + 7./3 * (np.pi*aval)**2 - 5*sval**2) # rn in keV^-1
-        qval = q #.value # q in keV
-    
-        qrn = qval * rnval   # q*rn UNITLESS
-        return (3 * spherical_jn(1, qrn) / qrn)**2 * np.exp(- (qval * sval)**2)
-
-    def dXsecdErecoil(self, Er, Ev):
-        """ Er in keV, Ev in MeV
-            Gf^2 * mass term needed a correction
-            returns Area / Energy (cm^2/keV)
-
-        """
-        # if Er.to(u.MeV).value > self.MaxRecoilEnergy(Ev).value: # MeV >< Mev
-        Er_mev = Er * 1e-3
-        if Er_mev > self.MaxRecoilEnergy(Ev): # MeV >< Mev
-            return 0 #* u.cm**2 * u.keV**-1
-        q = self.TransMoment(Er) # in keV
-
-        GF_val = GFnat.value          # 1/keV^2
-        corr_val = corrGFmN.value     # keV^2 cm^2
-        first_term = GF_val**2 * self.masskeV * corr_val * (self.Qw**2) / 4. / np.pi # units = cm^2 / keV
-        Ev2_kev = (Ev*1e3) **2
-        sec_term = 1 - (self.masskeV * Er / 2 / Ev2_kev)   # unitless
-        result = first_term * sec_term * self.FormFactor(q)**2
-        return result
-    
-    def Integrator(self, func, xmin, xmax, **kw):
-        result, foo = quad(func, xmin, xmax, **kw)
-        return result
-    
-    def dRatedErecoil(self, Er, Flux):
-        """ Flux: function to return flux in units of counts/(MeV*cm^2) - integrated over 10sec
-            dXsecdErecoil returns cm^2 / keV -> converted into cm^2/MeV
-            so that `dRatedErEv` returns counts (unitless)
-            returns counts integrated over recoil energies
-
-        """
-        def dRatedErdEv(_ev):
-            Flux_at_Ev = Flux(_ev)
-            dXsec_dEr = self.dXsecdErecoil(Er, _ev) * 1e3 # from cm^2/keV => cm^2/MeV
-            # return (dXsec_dEr.to(u.cm**2/u.MeV)).value * Flux_at_Ev
-            return dXsec_dEr * Flux_at_Ev                 # cm^2/MeV  *  counts/(MeV*cm^2) = cts/MeV^2
-
-        evmin = self.MinNeutrinoEnergy(Er)*1e-3     # from keV -> MeV
-        return self.Integrator(dRatedErdEv, evmin, 30) * self.abund / (self.target["Mass"])
-
-    def dRatedErecoil2D(self, Er, Flux, t):
-        """ This time the flux should be sampled from a 2D surface
-
-        """
-        def dRatedErdEv(_ev, t):
-            """
-            Flux[t] : interpolator at t
-            Flux[t](_ev) : interpolated count at t time, and _ev neutrino energy
-            
-            """
-            Flux_at_Ev = Flux[t](_ev)
-            if Flux_at_Ev < 0:
-                Flux_at_Ev = 0
-            dXsec_dEr = self.dXsecdErecoil(Er, _ev) * 1e3
-            return dXsec_dEr * Flux_at_Ev
-
-        evmin = self.MinNeutrinoEnergy(Er)*1e-3
-        return self.Integrator(dRatedErdEv, evmin, 30, args=t) * self.abund / (self.target["Mass"])
-    
+        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
+        try:
+            for f in self.fluxes.keys():
+                self.fluxes[f] *= scale
+            return self.fluxes
+        except:
+            raise NotImplementedError("fluxes does not exist\nCreate them by calling `get_fluxes()`")
