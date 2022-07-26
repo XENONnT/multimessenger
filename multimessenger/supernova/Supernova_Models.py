@@ -66,10 +66,13 @@ def get_composite(composite):
         raise NotImplementedError(f"{composite} Requested but only 'Xenon' is implemented so far")
     return Nucleus
 
-def _parse_models(model_name, filename, index):
+def _parse_models(model_name, filename, index, config):
     """ Get the selected model, or ask user
     """
-    snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
+    try:
+        snewpy_base = config['paths']['snewpy_models']
+    except:
+        snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
     file_path = os.path.join(snewpy_base, "models", model_name)
     files_in_model = glob(os.path.join(file_path, '*'))
     files_in_model = [f for f in files_in_model if not f.endswith('.md') and not f.endswith('.ipynb')]
@@ -95,7 +98,7 @@ def get_storage(storage, config):
     if storage is None:
         # where the snewpy models saved, ideally we want a single place
         try:
-            storage = config['paths']['data']
+            storage = config['paths']['processed_data']
         except KeyError as e:
             print(f"> KeyError: {e} \nSetting current directory as the storage, "
                   f"pass storage=<path-to-your-storage> ")
@@ -135,9 +138,14 @@ class Models:
         :param storage: `str` path of the output folder
         :param config_file: `str` config file that contains the default params
         """
+        # try to find from the default config
+        self.config = configparser.ConfigParser()
+        conf_path = config_file or '../../simple_config.conf'
+        self.config.read(conf_path)
+
         if model_kwargs is None:
             model_kwargs = dict()
-        model_file = _parse_models(model_name, filename, index)
+        model_file = _parse_models(model_name, filename, index, config=self.config)
         model = models_dict[model_name](model_file, **model_kwargs)
         self.__dict__.update(model.__dict__)
         self.model = model
@@ -147,10 +155,6 @@ class Models:
         self.recoil_energies = recoil_energies
         self.neutrino_energies = neutrino_energies
         self.name = repr(model).split(":")[1].strip().split('\n')[0]+".pickle"
-        # try to find from the default config
-        self.config = configparser.ConfigParser()
-        conf_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-        self.config.read(conf_path)
         self.storage = get_storage(storage, self.config)
         self.fluxes = None
         self.rateper_Er = None
