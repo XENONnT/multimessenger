@@ -1,13 +1,29 @@
 # The core is taken from Andrii Terliuk's script
 import numpy as np
-import nestpy
-try:
-    import wfsim
-    WFSIMEXIST = True
-except ImportError as e:
-    WFSIMEXIST = False
+import nestpy, os, click
 
-import wfsim
+WFSIMEXIST = False
+STRAXEXIST = False
+CUTAXEXIST = False
+def try_imports():
+    try:
+        import wfsim
+        WFSIMEXIST = True
+    except ImportError as e:
+        WFSIMEXIST = False
+
+    try:
+        import strax
+        STRAXEXIST = True
+    except ImportError as e:
+        STRAXEXIST = False
+
+    try:
+        import cutax
+        CUTAXEXIST = True
+    except ImportError as e:
+        CUTAXEXIST = False
+    global WFSIMEXIST, STRAXEXIST, CUTAXEXIST
 
 def generate_vertex(r_range=(0, 66.4),
                     z_range=(-148.15, 0), size=1):
@@ -43,6 +59,7 @@ def generator_sn_instruction(en_range=(0, 30.0),
         times = timemode
     else:
         times = generate_times(rate=rate, size=n_tot, timemode=timemode) + time_offset
+    try_imports()
     if not WFSIMEXIST:
         raise ImportError("WFSim is not installed and is required for instructions!")
     instr = np.zeros(2 * n_tot, dtype=wfsim.instruction_dtype)
@@ -89,4 +106,23 @@ def generator_sn_instruction(en_range=(0, 30.0),
         pass
     else:
         raise RuntimeError("Unknown mode: ", mode)
+    # to avoid zero size interactions
+    instr = instr[instr['amp'] > 0]
     return instr
+
+def _simulate_one(df, runid, config):
+    try_imports()
+    if not (WFSIMEXIST and CUTAXEXIST and STRAXEXIST):
+        raise ImportError("WFSim, strax and/or cutax are not installed and is required for simulation!")
+    mc_folder = config["wfsim"]["sim_folder"]
+    csv_folder = config["wfsim"]["instruction_path"]
+    csv_path = os.path.join(csv_folder, runid+".csv")
+    df.to_csv(csv_path, index=False)
+    import cutax, strax
+    stmc = cutax.contexts.xenonnt_sim_SR0v1_cmt_v8(cmt_run_id="026000")
+    stmc.storage = [strax.DataDirectory(os.path.join(mc_folder, "strax_data"), readonly=False)]
+    stmc.set_config(dict(fax_file=csv_path))
+    stmc.make(runid, "truth")
+    stmc.make(runid, "peak_basics")
+    click.secho(f"{runid} is created! Returning context!")
+    return stmc

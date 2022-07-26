@@ -343,3 +343,7 @@ class Models:
             return data, xaxis, yaxis
         else:
             return data
+
+    def simulate_one(self, df, runid):
+        from .Simulate import _simulate_one
+        _simulate_one(df, runid, config=self.config)
