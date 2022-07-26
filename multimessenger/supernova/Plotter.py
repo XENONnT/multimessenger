@@ -128,6 +128,22 @@ class Plotter:
         plt.yticks(ticks=np.arange(0, 150, 10), labels=np.arange(0, 15, 1))
         return plt.gcf(), plt.gca()
 
+    def plot_cross_section_fantastic(self, neutrino_energies=np.linspace(0, 100, 100) * u.MeV,
+                                     recoil_energies=np.linspace(0, 15, 150) * u.keV):
+        fig, axes = plt.subplots(ncols=len(self.model.Nucleus), figsize=(len(self.model.Nucleus)*4, 4))
+        for i, n in enumerate(self.model.Nucleus):
+            cs_test = n.nN_cross_section(neutrino_energies, recoil_energies)
+            cb = axes[i].pcolormesh(cs_test * 1e43, cmap='PuBu')  # ,norm=matplotlib.colors.LogNorm())
+            axes[i].set_xlabel(r'E$_\nu$ [MeV]', fontsize=16)
+            axes[i].set_ylabel(r'E$_r$ [keV]', fontsize=16)
+            axes[i].set_title(n.name)
+            # cbb = plt.colorbar(cb)
+            # cbb.set_label('cross-section\n'
+            #               fr'[x$10^{{43}}$ {cs_test.unit}]', fontsize=16)
+            axes[i].set_xticks(ticks=np.arange(0, 100, 10))
+            axes[i].set_yticks(ticks=np.arange(0, 150, 10), labels=np.arange(0, 15, 1))
+
+
     def plot_mean_cross_section(self, er_vals=np.linspace(0, 20, 150)*u.keV):
         xsec_t = {f: np.zeros((len(er_vals), len(self.model.time))) for f in Flavor}
 

@@ -178,7 +178,7 @@ class Models:
             file = os.path.join(self.storage, self.name)
             with open(file, 'wb') as output:   # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'> Saved at self.storage/{self.name}!\n', fg='blue')
+                click.secho(f'> Saved at <self.storage>/{self.name}!\n', fg='blue')
 
     def retrieve_object(self):
         file = os.path.join(self.storage, self.name)
