@@ -71,9 +71,10 @@ def _parse_models(model_name, filename, index, config):
     """
     try:
         snewpy_base = config['paths']['snewpy_models']
+        file_path = os.path.join(snewpy_base, model_name)
     except:
         snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
-    file_path = os.path.join(snewpy_base, "models", model_name)
+        file_path = os.path.join(snewpy_base, "models", model_name)
     files_in_model = glob(os.path.join(file_path, '*'))
     files_in_model = [f for f in files_in_model if not f.endswith('.md') and not f.endswith('.ipynb')]
 
