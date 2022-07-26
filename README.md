@@ -19,23 +19,17 @@ pip install ./
 
 ## Usage 
 ```python
-import multimessenger.supernova as sn 
-sn_model  = sn.Supernova_Models.SN_LightCurve(composite='Xenon', 
-                                              config_file='../simple_config.conf')
-sn_model.load_model_from_db(progenitor_mass = 30,
-                            metallicity= 0.02,
-                            time_of_revival = 100,)
+from multimessenger.supernova import Supernova_Models as sn
+data = sn.Models(model_name='Fornax_2021')
 ```
 Also see [notebooks](./notebooks).
 
-By default, the composite is 'Xenon', later, Argon can also be implemented. If running on dali, `SN_LightCurve` can 
-be called with default arguments. In which case, it fetches the basic configuration file from `dali/lgrandi/melih/mma/data/basic_conf.conf`
+By default, the composite is 'Xenon', later, Argon can also be implemented.
 
-We are using [this SN database](http://asphwww.ph.noda.tus.ac.jp/snn/) for the supernova models, and 
-they can simply be loaded by specifying the `progenitor_mass, metallicity`, and `time_of_revival`
- when calling `load_model_from_db` function. Later, other models (such as those from [snewpy](https://github.com/SNEWS2/snewpy) 
-can be integrated. 
+We are using [snewpy](https://github.com/SNEWS2/snewpy) for the supernova models, and 
+they can simply be loaded by specifying the model name, and filename (or file index), if neither is given, the software 
+displays your options and asks you to select one of them. Some models might be taking key-word arguments, which can be passed
+by `model_kwargs` argument to the `sn.Models()` function.
 
-There is a _very basic_ wfsim simulation, and investigation method available. 
 
 For more see [notebooks](./notebooks).
