@@ -72,10 +72,13 @@ def _parse_models(model_name, filename, index, config):
     try:
         snewpy_base = config['paths']['snewpy_models']
         file_path = os.path.join(snewpy_base, model_name)
+        files_in_model = glob(os.path.join(file_path, '*'))
+        assert len(files_in_model) > 0
     except:
         snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
         file_path = os.path.join(snewpy_base, "models", model_name)
-    files_in_model = glob(os.path.join(file_path, '*'))
+        files_in_model = glob(os.path.join(file_path, '*'))
+        assert len(files_in_model) > 0
     files_in_model = [f for f in files_in_model if not f.endswith('.md') and not f.endswith('.ipynb')]
 
     if filename is None:
@@ -100,6 +103,7 @@ def get_storage(storage, config):
         # where the snewpy models saved, ideally we want a single place
         try:
             storage = config['paths']['processed_data']
+            os.path.isdir(storage) # check if we are on dali
         except KeyError as e:
             print(f"> KeyError: {e} \nSetting current directory as the storage, "
                   f"pass storage=<path-to-your-storage> ")
@@ -346,4 +350,4 @@ class Models:
 
     def simulate_one(self, df, runid):
         from .Simulate import _simulate_one
-        _simulate_one(df, runid, config=self.config)
+        return _simulate_one(df, runid, config=self.config)

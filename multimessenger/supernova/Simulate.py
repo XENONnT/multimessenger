@@ -2,28 +2,24 @@
 import numpy as np
 import nestpy, os, click
 
-WFSIMEXIST = False
-STRAXEXIST = False
-CUTAXEXIST = False
-def try_imports():
-    try:
-        import wfsim
-        WFSIMEXIST = True
-    except ImportError as e:
-        WFSIMEXIST = False
+try:
+    import wfsim
+    WFSIMEXIST = True
+except ImportError as e:
+    WFSIMEXIST = False
 
-    try:
-        import strax
-        STRAXEXIST = True
-    except ImportError as e:
-        STRAXEXIST = False
+try:
+    import strax
+    STRAXEXIST = True
+except ImportError as e:
+    STRAXEXIST = False
 
-    try:
-        import cutax
-        CUTAXEXIST = True
-    except ImportError as e:
-        CUTAXEXIST = False
-    global WFSIMEXIST, STRAXEXIST, CUTAXEXIST
+try:
+    import cutax
+    CUTAXEXIST = True
+except ImportError as e:
+    CUTAXEXIST = False
+
 
 def generate_vertex(r_range=(0, 66.4),
                     z_range=(-148.15, 0), size=1):
@@ -59,7 +55,6 @@ def generator_sn_instruction(en_range=(0, 30.0),
         times = timemode
     else:
         times = generate_times(rate=rate, size=n_tot, timemode=timemode) + time_offset
-    try_imports()
     if not WFSIMEXIST:
         raise ImportError("WFSim is not installed and is required for instructions!")
     instr = np.zeros(2 * n_tot, dtype=wfsim.instruction_dtype)
@@ -111,7 +106,6 @@ def generator_sn_instruction(en_range=(0, 30.0),
     return instr
 
 def _simulate_one(df, runid, config):
-    try_imports()
     if not (WFSIMEXIST and CUTAXEXIST and STRAXEXIST):
         raise ImportError("WFSim, strax and/or cutax are not installed and is required for simulation!")
     mc_folder = config["wfsim"]["sim_folder"]
