@@ -13,7 +13,7 @@ uses _pickle module, check here https://stackoverflow.com/questions/4529815/savi
 How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle-yourself
 
 """
-import os, click
+import os, click, sys
 import numpy as np
 try:
     import cPickle as pickle
@@ -141,6 +141,7 @@ class Models:
         """
         # try to find from the default config
         self.config = configparser.ConfigParser()
+        self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
         conf_path = config_file or '../../simple_config.conf'
         self.config.read(conf_path)
 
