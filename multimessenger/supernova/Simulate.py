@@ -47,7 +47,8 @@ def generate_times(rate, size, timemode='realistic'):
 def generator_sn_instruction(en_range=(0, 30.0),
                              recoil=7,
                              energy_deposition=np.arange(1000),
-                             n_tot=1000, rate=20., fmap=None, nc=None,
+                             n_tot=1000, rate=20., fmap=None, field=None,
+                             nc=None,
                              r_range=(0, 66.4), z_range=(-148.15, 0),
                              mode="all",
                              timemode="realistic", time_offset=0):
@@ -72,14 +73,12 @@ def generator_sn_instruction(en_range=(0, 30.0),
     instr['e_dep'][:] = energy_deposition.repeat(2) #ens.repeat(2)
     # getting local field from field map
     if fmap is not None:
-        if np.ndim(fmap)==1:
-            instr['local_field'] = fmap(np.array([np.sqrt(x ** 2 + y ** 2), z]).T).repeat(2)
-        elif np.ndim(fmap)==0:
+        instr['local_field'] = fmap(np.array([np.sqrt(x ** 2 + y ** 2), z]).T).repeat(2)
+    else:
+        if field is not None:
             instr['local_field'] = fmap
         else:
-            raise TypeError('fmap can be an array or a single value!')
-    else:
-        raise TypeError('Provide a field, either a map or a single value')
+            raise TypeError('Provide a field, either a map or a single value')
     if nc is None:
         raise KeyError("You need to provide a nest instance")
     # And generating quantas from nest
