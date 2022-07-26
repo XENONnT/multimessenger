@@ -142,7 +142,7 @@ class Models:
         # try to find from the default config
         self.config = configparser.ConfigParser()
         self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
-        conf_path = config_file or '../../simple_config.conf'
+        conf_path = config_file or self.default_conf_path
         self.config.read(conf_path)
 
         if model_kwargs is None:
