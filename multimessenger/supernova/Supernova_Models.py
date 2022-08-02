@@ -348,6 +348,6 @@ class Models:
         else:
             return data
 
-    def simulate_one(self, df, runid):
+    def simulate_one(self, df, runid, context=None):
         from .Simulate import _simulate_one
-        return _simulate_one(df, runid, config=self.config)
+        return _simulate_one(df, runid, config=self.config, context=context)
