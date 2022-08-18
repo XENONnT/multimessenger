@@ -120,10 +120,12 @@ def add_strax_folder(config):
     """
     mc_folder = config["wfsim"]["sim_folder"]
     try:
+        click.secho("Checking to see if you have strax already!", fg='blue')
         import strax, cutax
         st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000")
         st.storage += [strax.DataDirectory(os.path.join(mc_folder, "strax_data"), readonly=False)]
     except ImportError:
+        click.secho("You don't have strax/cutax, won't be able to simulate", fg='red')
         pass
 
 class Models:
