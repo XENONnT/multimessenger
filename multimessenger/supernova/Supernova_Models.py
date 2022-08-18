@@ -194,7 +194,7 @@ class Models:
     def _repr_markdown_(self):
         """Markdown representation of the model, for Jupyter notebooks.
         """
-        _repr = self.model.__repr_markdown_
+        _repr = self.model._repr_markdown_
         executed = True if self.rateper_Er is not None else False
         s = [_repr, '']
         s += [f"| composite | {self.composite}|"]
