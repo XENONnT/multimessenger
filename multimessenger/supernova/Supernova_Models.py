@@ -225,7 +225,7 @@ class Models:
                  f"{file}?\n") == 'y':
             os.remove(file)
 
-    def compute_rates(self, total=True, force=False, leave=False):
+    def compute_rates(self, total=True, force=False, leave=False, return_vals=False):
         """ Do it for each composite and scale for their abundance
             simple scaling won't work as the proton number changes
             :param total: `bool` if True return total of all isotopes
@@ -251,10 +251,13 @@ class Models:
         self._compute_total_rates()
         if is_first:
             self.save_object(update=True)
-        if total:
-            return self.rateper_Er, self.rateper_t
-        else:
-            return self.rateper_Er_iso, self.rateper_t_iso
+        if return_vals:
+            if total:
+                print(f"Returning the -total- rates at the source for 1 atom (scale_rates() method)")
+                return self.rateper_Er, self.rateper_t
+            else:
+                print(f"Returning the rates -per isotope- at the source for 1 atom (scale_rates() method)")
+                return self.rateper_Er_iso, self.rateper_t_iso
 
     def _compute_total_rates(self):
         # get the total fluxes and rates
