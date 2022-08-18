@@ -196,10 +196,10 @@ class Models:
         """
         _repr = self.model._repr_markdown_()
         executed = True if self.rateper_Er is not None else False
-        s = [_repr, '']
-        s += [f"| composite | {self.composite}|"]
-        s += [f"| distance | {self.distance}|"]
-        s += [f"| executed | {executed}|"]
+        s = [_repr]
+        s += [f"|composite | {self.composite}|"]
+        s += [f"|distance | {self.distance}|"]
+        s += [f"|executed | {executed}|"]
         return '\n'.join(s)
 
     def save_object(self, update=False):
