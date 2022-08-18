@@ -379,6 +379,7 @@ class Models:
         else:
             return data
 
-    def simulate_one(self, df, runid, context=None, config=self.config):
+    def simulate_one(self, df, runid, context=None, config=None):
+        config = config or self.config
         from .Simulate import _simulate_one
         return _simulate_one(df, runid, config=config, context=context)
