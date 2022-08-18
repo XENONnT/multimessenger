@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """
-Last Update: 20-07-2022
------------------------
+Last Update: 17-08-2022
+------------------------d
 Supernova Models module.
 Methods to deal with supernova lightcurve and derived properties
 
@@ -113,6 +113,19 @@ def get_storage(storage, config):
     return storage
 
 
+def add_strax_folder(config):
+    """ This appends the SN MC folder to your directories
+        So the simulations created by others are accessible to you
+
+    """
+    mc_folder = config["wfsim"]["sim_folder"]
+    try:
+        import strax, cutax
+        st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000")
+        st.storage += [strax.DataDirectory(os.path.join(mc_folder, "strax_data"), readonly=False)]
+    except ImportError:
+        pass
+
 class Models:
     """ Deal with a given SN lightcurve from snewpy
     """
@@ -165,11 +178,29 @@ class Models:
         self.fluxes = None
         self.rateper_Er = None
         self.rateper_t = None
-        self.__version__ = "1.0.0"
+        self.__version__ = "1.1.0"
         try:
             self.retrieve_object()
         except FileNotFoundError:
             self.save_object(True)
+        add_strax_folder(self.config)
+
+    def __repr__(self):
+        """Default representation of the model.
+        """
+        _repr = self.model.__repr__
+        return _repr
+
+    def _repr_markdown_(self):
+        """Markdown representation of the model, for Jupyter notebooks.
+        """
+        _repr = self.model.__repr_markdown_
+        executed = True if self.rateper_Er is not None else False
+        s = [_repr, '']
+        s += [f"| composite | {self.composite}|"]
+        s += [f"| distance | {self.distance}|"]
+        s += [f"| executed | {executed}|"]
+        return '\n'.join(s)
 
     def save_object(self, update=False):
         """ Save the object for later calls
@@ -348,6 +379,6 @@ class Models:
         else:
             return data
 
-    def simulate_one(self, df, runid, context=None):
+    def simulate_one(self, df, runid, context=None, config=self.config):
         from .Simulate import _simulate_one
-        return _simulate_one(df, runid, config=self.config, context=context)
+        return _simulate_one(df, runid, config=config, context=context)

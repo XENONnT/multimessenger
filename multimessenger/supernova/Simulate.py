@@ -81,7 +81,7 @@ def generator_sn_instruction(en_range=(0, 30.0),
             raise TypeError('Provide a field, either a map or a single value')
     if nc is None:
         raise KeyError("You need to provide a nest instance")
-    # And generating quantas from nest
+    # And generating quanta from nest
     for i in range(0, n_tot):
         y = nc.GetYields(
             interaction=nestpy.INTERACTION_TYPE(instr['recoil'][2 * i]),
