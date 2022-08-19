@@ -189,7 +189,7 @@ class Models:
             self.retrieve_object()
         except FileNotFoundError:
             self.save_object(True)
-        add_strax_folder(self.config)
+        # add_strax_folder(self.config)
 
     def __repr__(self):
         """Default representation of the model.
