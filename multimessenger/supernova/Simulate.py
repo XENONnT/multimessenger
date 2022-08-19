@@ -152,7 +152,7 @@ def _simulate_one(df, runid, config, context=None):
     df.to_csv(csv_path, index=False)
     import cutax, strax
     stmc = context or cutax.contexts.xenonnt_sim_SR0v1_cmt_v8(cmt_run_id="026000")
-    stmc.storage = [strax.DataDirectory(os.path.join(mc_folder, "strax_data"), readonly=False)]
+    stmc.storage += [strax.DataDirectory(os.path.join(mc_folder, "strax_data"), readonly=False)]
     stmc.set_config(dict(fax_file=csv_path))
     stmc.make(runid, "truth")
     stmc.make(runid, "peak_basics")
