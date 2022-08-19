@@ -261,7 +261,10 @@ class Plotter:
         ax.xaxis.set_label_position('top')
         ax.set_ylabel("Distance [kpc]", weight='bold')
 
+        for j, v in enumerate(volumes):
+            ax.axvline(j - 0.5)
         for i, d in enumerate(distances):
+            ax.axhline(i - 0.5)
             for j, v in enumerate(volumes):
                 c = total_counts[i, j]
                 ax.text(j, i, f"{int(c.value)}", va='center', ha='center', weight='bold')
