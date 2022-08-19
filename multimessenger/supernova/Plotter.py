@@ -73,10 +73,8 @@ class Plotter:
         self.__version__ = "0.1.2"
 
     def plot_recoil_spectrum(self, isotopes=False,
-                             N_Xe=4.6e27*u.count/u.tonne,
                              distance=10*u.kpc):
         rateEr, ratet = self.model.scale_rates(isotopes=isotopes,
-                                               N_Xe=N_Xe,
                                                distance=distance,
                                                overwrite=False)
         if rateEr is None or ratet is None:

@@ -165,12 +165,12 @@ class TARGET:
         return rates
 
     def scale_fluxes(self,
-                     N_Xe=4.6e27*u.count/u.tonne,
                      distance=10*u.kpc):
         """ Scale fluxes based on abundances
             and distance, and number of atoms
         """
-        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
+        N_Xe = 4.6e27 * u.count / u.tonne,
+        scale = (N_Xe / (4 * np.pi * distance ** 2)).to(u.m ** 2)
         try:
             for f in self.fluxes.keys():
                 self.fluxes[f] *= scale
