@@ -243,7 +243,7 @@ class Plotter:
         return data
 
     def plot_counts(self, volumes=np.linspace(3,50,10),
-                    distances=(2,60,10),
+                    distances=np.linspace(2,60,10),
                     figsize=(10,10)):
         volumes = volumes * u.tonne
         distances = distances * u.kpc
@@ -255,7 +255,7 @@ class Plotter:
                 total_counts[i, j] = np.trapz(rates_scaled_Er['Total'] * v, self.model.recoil_energies)
 
         fig, ax = plt.subplots(figsize=figsize)
-
+        ax.title(f"Counts for {self.model.name}")
         ax.matshow(total_counts, cmap=plt.cm.Greens, origin='lower', norm=LogNorm())
         ax.set_xlabel("Volumes [t]", weight='bold')
         ax.xaxis.set_label_position('top')
