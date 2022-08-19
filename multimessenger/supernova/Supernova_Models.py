@@ -167,8 +167,8 @@ class Models:
 
         if model_kwargs is None:
             model_kwargs = dict()
-        model_file = _parse_models(model_name, filename, index, config=self.config)
-        model = models_dict[model_name](model_file, **model_kwargs)
+        self.model_file = _parse_models(model_name, filename, index, config=self.config)
+        model = models_dict[model_name](self.model_file, **model_kwargs)
         self.__dict__.update(model.__dict__)
         self.model = model
         self.composite = composite
@@ -177,7 +177,8 @@ class Models:
         self.distance = distance
         self.recoil_energies = recoil_energies
         self.neutrino_energies = neutrino_energies
-        self.name = repr(model).split(":")[1].strip().split('\n')[0]+".pickle"
+        # self.name = repr(model).split(":")[1].strip().split('\n')[0]+".pickle"
+        self.name = ("-".join(self.model_file.split("/")[-2:])).replace('.', '_')+".pickle"
         self.storage = get_storage(storage, self.config)
         self.fluxes = None
         self.rateper_Er = None

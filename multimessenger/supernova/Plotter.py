@@ -255,7 +255,7 @@ class Plotter:
                 total_counts[i, j] = np.trapz(rates_scaled_Er['Total'] * v, self.model.recoil_energies)
 
         fig, ax = plt.subplots(figsize=figsize)
-        ax.title(f"Counts for {self.model.name}")
+        ax.set_title(f"Counts for {self.model.name}")
         ax.matshow(total_counts, cmap=plt.cm.Greens, origin='lower', norm=LogNorm())
         ax.set_xlabel("Volumes [t]", weight='bold')
         ax.xaxis.set_label_position('top')
