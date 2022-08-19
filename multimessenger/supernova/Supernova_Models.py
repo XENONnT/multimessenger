@@ -119,11 +119,12 @@ def add_strax_folder(config):
 
     """
     mc_folder = config["wfsim"]["sim_folder"]
+    mc_data_folder = os.path.join(mc_folder, "strax_data")
     try:
         click.secho("> Checking to see if you have strax already!", fg='blue')
         import strax, cutax
-        st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000")
-        st.storage += [strax.DataDirectory(os.path.join(mc_folder, "strax_data"), readonly=False)]
+        st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000", output_folder=mc_data_folder)
+        st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
     except ImportError:
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
         pass
@@ -204,7 +205,7 @@ class Models:
         s = [_repr]
         s += [f"|composite | {self.composite}|"]
         s += [f"|distance | {self.distance}|"]
-        s += [f"|duration | {np.ptp(self.model.time)}|"]
+        s += [f"|duration | {np.round(np.ptp(self.model.time), 2)}|"]
         s += [f"|executed | {executed}|"]
         return '\n'.join(s)
 
@@ -418,5 +419,6 @@ class Models:
 
     def simulate_one(self, df, runid, context=None, config=None):
         config = config or self.config
+        add_strax_folder(config)
         from .Simulate import _simulate_one
         return _simulate_one(df, runid, config=config, context=context)
