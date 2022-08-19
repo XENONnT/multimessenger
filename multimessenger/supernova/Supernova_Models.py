@@ -404,8 +404,8 @@ class Models:
                               volume=7*u.tonne
                               ):
         _locals = locals()
-        _locals.pop(distance)
-        _locals.pop(volume)
+        _locals.pop("distance")
+        _locals.pop("volume")
         # need the rates in single SN for shifted time sampling
         scaled_total_rate_Er, scaled_total_rate_t = self.scale_rates(distance=distance)
         rate_in_oneSN = np.trapz(scaled_total_rate_Er['Total'] * volume, self.recoil_energies)
