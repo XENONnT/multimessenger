@@ -2,6 +2,7 @@
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
 import astropy.units as u
 import pandas as pd
 import plotly.express as px
@@ -72,10 +73,8 @@ class Plotter:
         self.__version__ = "0.1.2"
 
     def plot_recoil_spectrum(self, isotopes=False,
-                             N_Xe=4.6e27*u.count/u.tonne,
                              distance=10*u.kpc):
         rateEr, ratet = self.model.scale_rates(isotopes=isotopes,
-                                               N_Xe=N_Xe,
                                                distance=distance,
                                                overwrite=False)
         if rateEr is None or ratet is None:
@@ -240,3 +239,35 @@ class Plotter:
         xl = f'Time [{_xaxis.unit}]' if type == 'time' else f'Recoil Energy [{_xaxis.unit}]'
         ax.set_xlabel(xl)
         return data
+
+    def plot_counts(self, volumes=np.linspace(3,50,10),
+                    distances=np.linspace(2,60,10),
+                    figsize=(10,10)):
+        volumes = volumes * u.tonne
+        distances = distances * u.kpc
+        total_counts = np.zeros((len(distances), len(volumes))) * u.ct
+
+        for i, d in enumerate(distances):
+            rates_scaled_Er, _ = self.model.scale_rates(distance=d)
+            for j, v in enumerate(volumes):
+                total_counts[i, j] = np.trapz(rates_scaled_Er['Total'] * v, self.model.recoil_energies)
+
+        fig, ax = plt.subplots(figsize=figsize)
+        ax.set_title(f"Counts for {self.model.name}")
+        ax.matshow(total_counts, cmap=plt.cm.Greens, origin='lower', norm=LogNorm())
+        ax.set_xlabel("Volumes [t]", weight='bold')
+        ax.xaxis.set_label_position('top')
+        ax.set_ylabel("Distance [kpc]", weight='bold')
+
+        for j, v in enumerate(volumes):
+            ax.axvline(j - 0.5)
+        for i, d in enumerate(distances):
+            ax.axhline(i - 0.5)
+            for j, v in enumerate(volumes):
+                c = total_counts[i, j]
+                ax.text(j, i, f"{int(c.value)}", va='center', ha='center', weight='bold')
+
+        ax.set_xticks(np.arange(len(volumes)), np.round(volumes.value).astype(int))
+        ax.set_yticks(np.arange(len(distances)), np.round(distances.value).astype(int))
+        ax.set_aspect('auto')
+        ax.grid(False)
