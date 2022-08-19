@@ -11,6 +11,7 @@ import _pickle as pickle
 import datetime
 import os, click
 import configparser
+from scipy import interpolate
 
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
@@ -32,24 +33,33 @@ def isnotebook():
         return False  # Probably standard Python interpreter
 
 
+
 def _inverse_transform_sampling(x_vals, y_vals, n_samples):
-    """ Inverse transform sampling
-
-        Parameters
-        ---------
-        x_vals, y_vals : `array-like`
-            The arrays to sample from
-        n_samples : `int`
-            The number of sample
-
-    """
-    n_samples = int(n_samples)
     cum_values = np.zeros(x_vals.shape)
-    y_mid = (y_vals[1:]+y_vals[:-1])*0.5
-    cum_values[1:] = np.cumsum(y_mid*np.diff(x_vals))
-    inv_cdf = itp.interp1d(cum_values/np.max(cum_values), x_vals)
+    y_mid = (y_vals[1:] + y_vals[:-1]) * 0.5
+    cum_values[1:] = np.cumsum(y_mid * np.diff(x_vals))
+    inv_cdf = interpolate.interp1d(cum_values / np.max(cum_values), x_vals)
     r = np.random.rand(n_samples)
     return inv_cdf(r)
+
+# def _inverse_transform_sampling(x_vals, y_vals, n_samples):
+#     """ Inverse transform sampling
+#
+#         Parameters
+#         ---------
+#         x_vals, y_vals : `array-like`
+#             The arrays to sample from
+#         n_samples : `int`
+#             The number of sample
+#
+#     """
+#     n_samples = int(n_samples)
+#     cum_values = np.zeros(x_vals.shape)
+#     y_mid = (y_vals[1:]+y_vals[:-1])*0.5
+#     cum_values[1:] = np.cumsum(y_mid*np.diff(x_vals))
+#     inv_cdf = itp.interp1d(cum_values/np.max(cum_values), x_vals)
+#     r = np.random.rand(n_samples)
+#     return inv_cdf(r)
 
 
 def get_rates_above_threshold(y_vals, rec_bins):
