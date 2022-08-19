@@ -21,8 +21,8 @@ except ModuleNotFoundError:
     import pickle
 
 from .Xenon_Atom import ATOM_TABLE
+from .sn_utils import _inverse_transform_sampling
 import configparser
-from scipy import interpolate
 import astropy.units as u
 from glob import glob
 
@@ -120,13 +120,14 @@ def add_strax_folder(config):
     """
     mc_folder = config["wfsim"]["sim_folder"]
     try:
-        click.secho("Checking to see if you have strax already!", fg='blue')
+        click.secho("> Checking to see if you have strax already!", fg='blue')
         import strax, cutax
         st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000")
         st.storage += [strax.DataDirectory(os.path.join(mc_folder, "strax_data"), readonly=False)]
     except ImportError:
-        click.secho("You don't have strax/cutax, won't be able to simulate", fg='red')
+        click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
         pass
+
 
 class Models:
     """ Deal with a given SN lightcurve from snewpy
@@ -171,6 +172,7 @@ class Models:
         self.__dict__.update(model.__dict__)
         self.model = model
         self.composite = composite
+        self.N_Xe = 4.6e27 * u.count / u.tonne
         self.Nucleus = get_composite(composite)
         self.distance = distance
         self.recoil_energies = recoil_energies
@@ -233,6 +235,7 @@ class Models:
             :param total: `bool` if True return total of all isotopes
             :param force: `bool` whether to recalculate if already exist
             :param leave: `bool` tqdm arg, whether to leave the progress bar
+            :param return_vals: `bool` whether to return rates or just create attributes
 
             Returns
                 (dR/dEr, dR/dt) if total is True, else two dictionaries for both
@@ -253,13 +256,16 @@ class Models:
         self._compute_total_rates()
         if is_first:
             self.save_object(update=True)
+
+        _str = "(use scale_rates() for distance & volume)"
         if return_vals:
             if total:
-                print(f"Returning the -total- rates at the source for 1 atom (scale_rates() method)")
+                click.secho(f"> Returning the -total- rates at the source for 1 atom {_str}", fg='blue')
                 return self.rateper_Er, self.rateper_t
             else:
-                print(f"Returning the rates -per isotope- at the source for 1 atom (scale_rates() method)")
+                click.secho(f"> Returning the rates -per isotope- at the source for 1 atom {_str}", fg='blue')
                 return self.rateper_Er_iso, self.rateper_t_iso
+        click.secho(f"> Rates are computed at the source for 1 atom see rateper_Er/t attr {_str}", fg='green')
 
     def _compute_total_rates(self):
         # get the total fluxes and rates
@@ -304,13 +310,13 @@ class Models:
         return rates_Er_tr, rates_t_tr, recen_tr, times_tr
 
     def scale_fluxes(self,
-                     N_Xe=4.6e27*u.count/u.tonne,
-                     distance=10*u.kpc,
+                     distance=None,
                      overwrite=False):
         """ Scale fluxes based on distance and number of atoms
             Return: scaled fluxes
         """
-        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
+        distance = distance or self.distance
+        scale = self.N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
         try:
             fluxes_scaled = {}
             for f in self.fluxes.keys():
@@ -325,13 +331,16 @@ class Models:
 
     def scale_rates(self,
                     isotopes=False,
-                    N_Xe=4.6e27*u.count/u.tonne,
-                    distance=10*u.kpc,
+                    distance=None,
                     overwrite=False):
         """ Scale rates based on distance, and number of atoms
+            :param isotopes: `bool` whether to scale isotope rates or total
+            :param distance: `float*unit` default is self.distance
+            :param overwrite: `bool` if True overwrites the default attributes i.e. rates at the source
             Return: scaled rates (rates_Er, rates_t)
         """
-        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
+        distance = distance or self.distance
+        scale = self.N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
         try:
             if isotopes:
                 if overwrite:
@@ -362,23 +371,15 @@ class Models:
         except:
             raise NotImplementedError("Rates does not exist\nCreate them by calling `compute_rates()`")
 
-    def _inverse_transform_sampling(self, x_vals, y_vals, n_samples):
-        cum_values = np.zeros(x_vals.shape)
-        y_mid = (y_vals[1:] + y_vals[:-1]) * 0.5
-        cum_values[1:] = np.cumsum(y_mid * np.diff(x_vals))
-        inv_cdf = interpolate.interp1d(cum_values / np.max(cum_values), x_vals)
-        r = np.random.rand(n_samples)
-        return inv_cdf(r)
-
     def sample_data(self, n, dtype='energy', return_xy=False):
         if dtype=="energy":
             xaxis = self.recoil_energies
             yaxis = self.rateper_Er['Total']
         else:
-            xaxis = self.time
+            xaxis = self.model.time
             yaxis = self.rateper_t['Total']
 
-        data = self._inverse_transform_sampling(xaxis, yaxis, n)
+        data = _inverse_transform_sampling(xaxis, yaxis, n)
         if return_xy:
             return data, xaxis, yaxis
         else:
@@ -388,3 +389,32 @@ class Models:
         config = config or self.config
         from .Simulate import _simulate_one
         return _simulate_one(df, runid, config=config, context=context)
+
+    def generate_instructions(self, energy_deposition,
+                              n_tot=1000,
+                              rate=20.,
+                              fmap=None, field=None,
+                              nc=None,
+                              r_range=(0, 66.4), z_range=(-148.15, 0),
+                              mode="all",
+                              timemode="realistic",
+                              time_offset=0,
+                              distance=10 * u.kpc,
+                              volume=7*u.tonne
+                              ):
+        _locals = locals()
+        _locals.pop(distance)
+        _locals.pop(volume)
+        # need the rates in single SN for shifted time sampling
+        scaled_total_rate_Er, scaled_total_rate_t = self.scale_rates(distance=distance)
+        rate_in_oneSN = np.trapz(scaled_total_rate_Er['Total'] * volume, self.recoil_energies)
+        kwargs = dict(recoil_energies=self.recoil_energies,
+                      times=self.model.time,
+                      rates_per_Er=self.rateper_Er['Total'],
+                      rates_per_t=self.rateper_t['Total'],
+                      total=n_tot,
+                      rate_in_oneSN=rate_in_oneSN)
+
+        from .Simulate import generate_sn_instructions
+        generate_sn_instructions(**_locals, **kwargs)
+
