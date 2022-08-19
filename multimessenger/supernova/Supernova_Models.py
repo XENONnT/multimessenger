@@ -417,5 +417,5 @@ class Models:
                       rate_in_oneSN=rate_in_oneSN)
 
         from .Simulate import generate_sn_instructions
-        generate_sn_instructions(**_locals, **kwargs)
+        return generate_sn_instructions(**_locals, **kwargs)
 
