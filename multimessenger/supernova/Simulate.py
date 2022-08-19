@@ -58,6 +58,7 @@ def generate_sn_instructions(energy_deposition,
         times = timemode
     else:
         if timemode=="shifted":
+            kwargs.pop("self")
             energy_deposition, times = shifted_times(**kwargs)
         else:
             times = generate_times(rate=rate, size=n_tot, timemode=timemode) + time_offset
@@ -110,13 +111,13 @@ def generate_sn_instructions(energy_deposition,
 
 def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate_in_oneSN):
     from .sn_utils import _inverse_transform_sampling
-    xaxis_er = recoil_energies
-    yaxis_er = rates_per_Er
-    xaxis_t = times
-    yaxis_t = rates_per_t
+    xaxis_er = recoil_energies.value
+    yaxis_er = rates_per_Er.value
+    xaxis_t = times.value
+    yaxis_t = rates_per_t.value
 
-    single_sn_duration = np.ptp(times)
-    rate_in_oneSN = int(rate_in_oneSN)
+    single_sn_duration = np.ptp(times.value)
+    rate_in_oneSN = int(rate_in_oneSN.value)
     nr_iterations, remainder = divmod(total, rate_in_oneSN)
     nr_iterations, remainder = int(nr_iterations), np.floor(remainder).astype(int)
 
