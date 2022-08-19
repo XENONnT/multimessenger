@@ -121,7 +121,7 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     nr_iterations, remainder = divmod(total, rate_in_oneSN)
     nr_iterations, remainder = int(nr_iterations), np.floor(remainder).astype(int)
 
-    sampled_er = np.zeros(total, dtype=np.int64)
+    sampled_er = np.zeros(total)
     sampled_t = np.zeros(total, dtype=np.int64)
     for i in range(nr_iterations):
         _sampled_Er_local = _inverse_transform_sampling(xaxis_er, yaxis_er, rate_in_oneSN)
