@@ -13,8 +13,10 @@ uses _pickle module, check here https://stackoverflow.com/questions/4529815/savi
 How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle-yourself
 
 """
-import os, click, sys
+import os, click
 import numpy as np
+import pandas as pd
+
 try:
     import cPickle as pickle
 except ModuleNotFoundError:
@@ -25,6 +27,7 @@ from .sn_utils import _inverse_transform_sampling
 import configparser
 import astropy.units as u
 from glob import glob
+from datetime import datetime
 
 import snewpy
 from snewpy.neutrino import Flavor
@@ -135,6 +138,12 @@ def add_strax_folder(config, context=None):
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
         pass
 
+def make_history(history, input_str, user=None, fmt='%Y/%m/%d - %H:%M UTC'):
+    user = user or ""
+    now = datetime.utcnow().strftime(fmt)
+    new_df = pd.DataFrame({"date":now, "history":input_str, "user":user}, columns=['history', 'date', 'user'], index=[0])
+    history = pd.concat([history, new_df], ignore_index=True)
+    return history
 
 class Models:
     """ Deal with a given SN lightcurve from snewpy
@@ -166,6 +175,7 @@ class Models:
         :param storage: `str` path of the output folder
         :param config_file: `str` config file that contains the default params
         """
+        self.user = os.environ['USER']
         # try to find from the default config
         self.config = configparser.ConfigParser()
         self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
@@ -184,18 +194,18 @@ class Models:
         self.distance = distance
         self.recoil_energies = recoil_energies
         self.neutrino_energies = neutrino_energies
-        # self.name = repr(model).split(":")[1].strip().split('\n')[0]+".pickle"
         self.name = ("-".join(self.model_file.split("/")[-2:])).replace('.', '_')+".pickle"
         self.storage = get_storage(storage, self.config)
         self.fluxes = None
         self.rateper_Er = None
         self.rateper_t = None
+        self.history = pd.DataFrame(columns=['date', 'history', 'user'])
         self.__version__ = "1.1.0"
         try:
             self.retrieve_object()
         except FileNotFoundError:
             self.save_object(True)
-        # add_strax_folder(self.config)
+
 
     def __repr__(self):
         """Default representation of the model.
@@ -223,6 +233,7 @@ class Models:
             with open(file, 'wb') as output:   # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
                 click.secho(f'> Saved at <self.storage>/{self.name}!\n', fg='blue')
+            self.history = make_history(self.history, "Data Saved!", self.user)
 
     def retrieve_object(self):
         file = os.path.join(self.storage, self.name)
@@ -256,7 +267,6 @@ class Models:
         for isotope in tqdm(self.Nucleus, total=len(self.Nucleus), desc="Computing for all isotopes", colour="CYAN"):
             isotope.get_fluxes(self.model, self.neutrino_energies, force, leave)
         self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
-
         self.rateper_Er_iso = {isotope.name: isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies)
                                for isotope in tqdm(self.Nucleus)}
         self.rateper_t_iso = {isotope.name: isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies)
@@ -264,6 +274,7 @@ class Models:
 
         self._compute_total_rates()
         if is_first:
+            self.history = make_history(self.history, "Fluxes computed!", self.user)
             self.save_object(update=True)
 
         _str = "(use scale_rates() for distance & volume)"
@@ -331,6 +342,7 @@ class Models:
             for f in self.fluxes.keys():
                 if overwrite:
                     self.fluxes[f] *= scale
+                    self.history = make_history(self.history, "Scaled fluxes overwritten the self.fluxes!", self.user)
                     return self.fluxes
                 else:
                     fluxes_scaled[f] = self.fluxes[f] * scale
@@ -356,6 +368,7 @@ class Models:
                     for f in self.rateper_Er_iso.keys():
                         self.rateper_Er_iso[f] *= scale
                         self.rateper_t_iso[f] *= scale
+                    self.history = make_history(self.history, "Scaled rates overwritten the self.rateper_Er(t)_iso!", self.user)
                     return self.rateper_Er_iso, self.rateper_t_iso
                 else:
                     rates_Er_iso_scaled = {}
@@ -369,6 +382,8 @@ class Models:
                     for f in self.rateper_Er.keys():
                         self.rateper_Er[f] *= scale
                         self.rateper_t[f] *= scale
+                    self.history = make_history(self.history,
+                                                "Scaled rates overwritten the self.rateper_Er(t)!", self.user)
                     return self.rateper_Er, self.rateper_t
                 else:
                     rates_Er_scaled = {}
@@ -424,7 +439,13 @@ class Models:
 
 
     def simulate_one(self, df, runid, context=None, config=None):
+        self.history = make_history(self.history,
+                                    f"simulation {runid} is requested!")
         config = config or self.config
         _context = add_strax_folder(config, context)
         from .Simulate import _simulate_one
         return _simulate_one(df, runid, config=config, context=_context)
+
+    @property
+    def display_history(self):
+        return self.history
