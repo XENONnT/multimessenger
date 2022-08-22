@@ -440,7 +440,7 @@ class Models:
 
     def simulate_one(self, df, runid, context=None, config=None):
         self.history = make_history(self.history,
-                                    f"simulation {runid} is requested!")
+                                    f"simulation {runid} is requested!", self.user)
         config = config or self.config
         _context = add_strax_folder(config, context)
         from .Simulate import _simulate_one
