@@ -141,7 +141,7 @@ def add_strax_folder(config, context=None):
 def make_history(history, input_str, user=None, fmt='%Y/%m/%d - %H:%M UTC'):
     user = user or ""
     now = datetime.utcnow().strftime(fmt)
-    new_df = pd.DataFrame({"date":now, "history":input_str, "user":user}, columns=['history', 'date', 'user'], index=[0])
+    new_df = pd.DataFrame({"date":now, "user":user, "history":input_str}, columns=['history', 'user', 'date'], index=[0])
     history = pd.concat([history, new_df], ignore_index=True)
     return history
 
@@ -155,6 +155,7 @@ class Models:
                  index=None,
                  model_kwargs=None,
                  distance=10*u.kpc,
+                 volume=5.9*u.tonne,
                  recoil_energies=np.linspace(0,20,100)*u.keV,
                  neutrino_energies=np.linspace(0, 200, 100)*u.MeV,
                  composite="Xenon",
@@ -192,6 +193,7 @@ class Models:
         self.N_Xe = 4.6e27 * u.count / u.tonne
         self.Nucleus = get_composite(composite)
         self.distance = distance
+        self.volume = volume
         self.recoil_energies = recoil_energies
         self.neutrino_energies = neutrino_energies
         self.name = ("-".join(self.model_file.split("/")[-2:])).replace('.', '_')+".pickle"
@@ -199,7 +201,9 @@ class Models:
         self.fluxes = None
         self.rateper_Er = None
         self.rateper_t = None
-        self.history = pd.DataFrame(columns=['date', 'history', 'user'])
+        self.single_rate = None
+        self.history = pd.DataFrame(columns=['date', 'user', 'history'])
+        self.simulation_history = {}
         self.__version__ = "1.1.0"
         try:
             self.retrieve_object()
@@ -223,6 +227,8 @@ class Models:
         s += [f"|distance | {self.distance}|"]
         s += [f"|duration | {np.round(np.ptp(self.model.time), 2)}|"]
         s += [f"|executed | {executed}|"]
+        if executed:
+            s += [f"|SN rate {self.distance}, {self.volume} | {self.single_rate}|"]
         return '\n'.join(s)
 
     def save_object(self, update=False):
@@ -307,6 +313,10 @@ class Models:
             self.rateper_Er["Total"] += self.rateper_Er[f]
             self.rateper_t["Total"] += self.rateper_t[f]
         # leave out the totals for individual isotopes for later
+
+        # once the total rates computed, also store the expected event rate at default distance
+        scaled_total_rate_Er, scaled_total_rate_t = self.scale_rates(distance=self.distance)
+        self.single_rate = np.trapz(scaled_total_rate_Er['Total'] * self.volume, self.recoil_energies)
 
 
     def truncate_rates(self):
@@ -418,34 +428,62 @@ class Models:
                               mode="all",
                               timemode="realistic",
                               time_offset=0,
-                              distance=10 * u.kpc,
-                              volume=7*u.tonne
+                              distance=None,
+                              volume=None
                               ):
+        volume = volume or self.volume
+        distance = distance or self.distance
         _locals = locals()
         _locals.pop("distance")
         _locals.pop("volume")
         # need the rates in single SN for shifted time sampling
         scaled_total_rate_Er, scaled_total_rate_t = self.scale_rates(distance=distance)
-        rate_in_oneSN = np.trapz(scaled_total_rate_Er['Total'] * volume, self.recoil_energies)
+        # total interactions expected from single SN
+        _single_rate = np.trapz(scaled_total_rate_Er['Total'] * volume, self.recoil_energies)
         kwargs = dict(recoil_energies=self.recoil_energies,
                       times=self.model.time,
                       rates_per_Er=self.rateper_Er['Total'],
                       rates_per_t=self.rateper_t['Total'],
                       total=n_tot,
-                      rate_in_oneSN=rate_in_oneSN)
+                      rate_in_oneSN=_single_rate)
 
         from .Simulate import generate_sn_instructions
         return generate_sn_instructions(**_locals, **kwargs)
 
 
     def simulate_one(self, df, runid, context=None, config=None):
-        self.history = make_history(self.history,
-                                    f"simulation {runid} is requested!", self.user)
+        self.history = make_history(self.history, f"simulation {runid} is requested!", self.user)
         config = config or self.config
         _context = add_strax_folder(config, context)
         from .Simulate import _simulate_one
+        self._make_simulation_history(context, runid, len(df))
         return _simulate_one(df, runid, config=config, context=_context)
+
+
+    def _make_simulation_history(self,  st, runid, size, fmt='%Y/%m/%d - %H:%M UTC'):
+        import strax, cutax, straxen, wfsim
+        _vers = f"strax:{strax.__version__} straxen:{straxen.__version__} cutax:{cutax.__version__} wfsim:{wfsim.__version__}"
+
+        cols = ['context hash', 'runid', 'date', 'user', 'model', 'single SN events', 'size']
+        curr_sim = self.simulation_history.get(_vers, pd.DataFrame(columns=cols))
+
+        new_dict = {'context hash': st._context_hash(),
+                    'runid': runid,
+                    'date': datetime.utcnow().strftime(fmt),
+                    'user': self.user,
+                    'model': self.name,
+                    'single SN events': self.single_rate,
+                    'size': size,}
+        new_df = pd.DataFrame(new_dict, columns=cols, index=[0])
+        curr_sim = pd.concat([curr_sim, new_df], ignore_index=True)
+        curr_sim.set_index('context hash', inplace=True)
+        self.simulation_history[_vers] = curr_sim
+
+    def display_simulation_history(self):
+        versions, data = self.simulation_history.items()
+        df = pd.concat([data], keys={"versions": versions}, names=('version', 'context hash'))
+        return df
 
     @property
     def display_history(self):
-        return self.history
+        return self.history.copy()
