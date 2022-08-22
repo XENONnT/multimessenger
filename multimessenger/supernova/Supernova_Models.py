@@ -113,7 +113,7 @@ def get_storage(storage, config):
     return storage
 
 
-def add_strax_folder(config):
+def add_strax_folder(config, context=None):
     """ This appends the SN MC folder to your directories
         So the simulations created by others are accessible to you
 
@@ -121,9 +121,11 @@ def add_strax_folder(config):
     mc_folder = config["wfsim"]["sim_folder"]
     mc_data_folder = os.path.join(mc_folder, "strax_data")
     try:
-        click.secho("> Checking to see if you have strax already!", fg='blue')
         import strax, cutax
-        st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000", output_folder=mc_data_folder)
+        st = context or cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000",
+                                                                output_folder=mc_data_folder)
+        _str = f"xenonnt_sim_SR0v2_cmt_v8" if context is None else "your context"
+        click.secho(f"> Adding {mc_data_folder} to st.storage in context: {_str}", fg='blue')
         st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
     except ImportError:
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
@@ -419,6 +421,6 @@ class Models:
 
     def simulate_one(self, df, runid, context=None, config=None):
         config = config or self.config
-        add_strax_folder(config)
+        add_strax_folder(config, context)
         from .Simulate import _simulate_one
         return _simulate_one(df, runid, config=config, context=context)
