@@ -481,10 +481,10 @@ class Models:
         self.simulation_history[_vers] = curr_sim
         self.save_object(update=True)
 
+    @property
     def display_simulation_history(self):
-        ### needs a bit more work!
-        versions, data = self.simulation_history.items()
-        df = pd.concat([data], keys={"versions": versions}, names=('version', 'context hash'))
+        versions, data = list(self.simulation_history.items())[0]
+        df = pd.concat([data], keys=[versions], names=('versions', 'context hash'))
         return df
 
     @property
