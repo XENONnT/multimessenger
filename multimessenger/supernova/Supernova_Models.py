@@ -77,7 +77,8 @@ def _parse_models(model_name, filename, index, config):
         file_path = os.path.join(snewpy_base, model_name)
         files_in_model = glob(os.path.join(file_path, '*'))
         assert len(files_in_model) > 0
-    except:
+    except Exception as e:
+        print(f"{e} looking at snewpy installation")
         snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
         file_path = os.path.join(snewpy_base, "models", model_name)
         files_in_model = glob(os.path.join(file_path, '*'))
