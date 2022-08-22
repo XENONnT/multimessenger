@@ -319,7 +319,6 @@ class Models:
         scaled_total_rate_Er, scaled_total_rate_t = self.scale_rates(distance=self.distance)
         self.single_rate = np.trapz(scaled_total_rate_Er['Total'] * self.volume, self.recoil_energies)
 
-
     def truncate_rates(self):
         """ Truncate rates and recoil energies and times
         Returns: rates_Er_tr, rates_t_tr, recen_tr, times_tr
@@ -479,6 +478,7 @@ class Models:
         curr_sim = pd.concat([curr_sim, new_df], ignore_index=True)
         curr_sim.set_index('context hash', inplace=True)
         self.simulation_history[_vers] = curr_sim
+        self.save_object(update=True)
 
     def display_simulation_history(self):
         ### needs a bit more work!
