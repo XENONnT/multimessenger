@@ -147,10 +147,18 @@ def _simulate_one(df, runid, config, context):
     if not (WFSIMEXIST and CUTAXEXIST and STRAXEXIST):
         raise ImportError("WFSim, strax and/or cutax are not installed and is required for simulation!")
     csv_folder = config["wfsim"]["instruction_path"]
-    csv_path = os.path.join(csv_folder, runid+".csv")
-    df.to_csv(csv_path, index=False)
-    context.set_config(dict(fax_file=csv_path))
-    context.make(runid, "truth")
-    context.make(runid, "peak_basics")
-    click.secho(f"{runid} is created! Returning context!")
+    csv_path = os.path.join(csv_folder, runid + ".csv")
+    if not context.is_stored(runid, "truth"):
+        df.to_csv(csv_path, index=False)
+        context.set_config(dict(fax_file=csv_path))
+        context.make(runid, "truth")
+        # context.make(runid, "peak_basics")
+        click.secho(f"{runid} is created! Returning context!", fg='blue')
+    else:
+        click.secho(f"{runid} already exists!", fg='green')
+        if not os.path.isfile(csv_path):
+            click.secho(f"{runid} exists in straxen storage, but the {csv_path} does not!"
+                        f" Maybe manually deleted? Returning the simulation anyway", fg='red')
+        context.make(runid, "truth")
+        click.secho(f"{runid} is fetched! Returning context!", fg='green')
     return context

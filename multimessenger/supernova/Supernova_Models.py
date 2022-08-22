@@ -124,9 +124,12 @@ def add_strax_folder(config, context=None):
         import strax, cutax
         st = context or cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000",
                                                                 output_folder=mc_data_folder)
-        _str = f"xenonnt_sim_SR0v2_cmt_v8" if context is None else "your context"
-        click.secho(f"> Adding {mc_data_folder} to st.storage in context: {_str}", fg='blue')
-        # st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
+        output_folder_exists = False
+        for i, stores in enumerate(st.storage):
+            if mc_data_folder in stores.path:
+                output_folder_exists = True
+        if not output_folder_exists:
+            st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
         return st
     except ImportError:
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
