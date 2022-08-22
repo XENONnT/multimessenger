@@ -224,11 +224,12 @@ class Models:
         executed = True if self.rateper_Er is not None else False
         s = [_repr]
         s += [f"|composite | {self.composite}|"]
-        s += [f"|distance | {self.distance}|"]
         s += [f"|duration | {np.round(np.ptp(self.model.time), 2)}|"]
+        s += [f"|distance | {self.distance}|"]
+        s += [f"|volume | {self.volume}|"]
         s += [f"|executed | {executed}|"]
         if executed:
-            s += [f"|SN rate {self.distance}, {self.volume} | {self.single_rate}|"]
+            s += [f"|SN rate | {int(self.single_rate.value)} ct|"]
         return '\n'.join(s)
 
     def save_object(self, update=False):
@@ -472,7 +473,7 @@ class Models:
                     'date': datetime.utcnow().strftime(fmt),
                     'user': self.user,
                     'model': self.name,
-                    'single SN events': self.single_rate,
+                    'single SN events':int(self.single_rate.value),
                     'size': size,}
         new_df = pd.DataFrame(new_dict, columns=cols, index=[0])
         curr_sim = pd.concat([curr_sim, new_df], ignore_index=True)
@@ -480,6 +481,7 @@ class Models:
         self.simulation_history[_vers] = curr_sim
 
     def display_simulation_history(self):
+        ### needs a bit more work!
         versions, data = self.simulation_history.items()
         df = pd.concat([data], keys={"versions": versions}, names=('version', 'context hash'))
         return df
