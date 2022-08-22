@@ -143,19 +143,18 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     # te remaining 10 will just confuse more.
     return sampled_er, sampled_t
 
-def _simulate_one(df, runid, config, context=None):
+def _simulate_one(df, runid, config, context):
     if not (WFSIMEXIST and CUTAXEXIST and STRAXEXIST):
         raise ImportError("WFSim, strax and/or cutax are not installed and is required for simulation!")
-    mc_folder = config["wfsim"]["sim_folder"]
-    mc_data_folder = os.path.join(mc_folder, "strax_data")
+    # mc_folder = config["wfsim"]["sim_folder"]
+    # mc_data_folder = os.path.join(mc_folder, "strax_data")
     csv_folder = config["wfsim"]["instruction_path"]
     csv_path = os.path.join(csv_folder, runid+".csv")
     df.to_csv(csv_path, index=False)
-    import cutax, strax
-    stmc = context or cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000", output_folder=mc_data_folder)
-    stmc.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
-    stmc.set_config(dict(fax_file=csv_path))
-    stmc.make(runid, "truth")
-    stmc.make(runid, "peak_basics")
+    # stmc = context #or cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000", output_folder=mc_data_folder)
+    # stmc.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
+    context.set_config(dict(fax_file=csv_path))
+    context.make(runid, "truth")
+    context.make(runid, "peak_basics")
     click.secho(f"{runid} is created! Returning context!")
-    return stmc
+    return context

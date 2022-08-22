@@ -127,6 +127,7 @@ def add_strax_folder(config, context=None):
         _str = f"xenonnt_sim_SR0v2_cmt_v8" if context is None else "your context"
         click.secho(f"> Adding {mc_data_folder} to st.storage in context: {_str}", fg='blue')
         st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
+        return st
     except ImportError:
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
         pass
@@ -421,6 +422,6 @@ class Models:
 
     def simulate_one(self, df, runid, context=None, config=None):
         config = config or self.config
-        add_strax_folder(config, context)
+        _context = add_strax_folder(config, context)
         from .Simulate import _simulate_one
-        return _simulate_one(df, runid, config=config, context=context)
+        return _simulate_one(df, runid, config=config, context=_context)
