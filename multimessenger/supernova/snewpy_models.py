@@ -126,3 +126,4 @@ def _parse_models(model_name, filename, index, config):
 def fetch_model(model_name, filename, index, config, **model_kwargs):
     file = _parse_models(model_name, filename, index, config)
     model = models_dict[model_name](file, **model_kwargs)
+    return file, model
