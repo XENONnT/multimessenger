@@ -59,7 +59,7 @@ def generate_sn_instructions(energy_deposition,
     else:
         if timemode=="shifted":
             kwargs.pop("self")
-            energy_deposition, times = shifted_times(**kwargs)
+            energy_deposition, times, n_tot = shifted_times(**kwargs)
         else:
             times = generate_times(rate=rate, size=n_tot, timemode=timemode) + time_offset
     if not WFSIMEXIST:
@@ -139,11 +139,11 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
         sampled_t[_from:_to]  = _sampled_t_local + time_shift
         sampled_er[_from:_to] = _sampled_Er_local
 
-    sampled_t += 1e9
+    # sampled_t += 1000000000
     # add the remainder
     # Not needed for now. If a single SN has 30 evt, and 100 requested. Just simulate 90 for 3 SNs.
     # te remaining 10 will just confuse more.
-    return sampled_er, sampled_t
+    return sampled_er, sampled_t, rolled_total
 
 def _simulate_one(df, runid, config, context):
     if not (WFSIMEXIST and CUTAXEXIST and STRAXEXIST):
