@@ -130,6 +130,7 @@ class Models:
         :param config_file: `str` config file that contains the default params
         """
         self.user = os.environ['USER']
+        self.model_name = model_name
         # try to find from the default config
         self.config = configparser.ConfigParser()
         self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
@@ -138,8 +139,11 @@ class Models:
 
         if model_kwargs is None:
             model_kwargs = dict()
-
-        self.model_file, self.model = fetch_model(model_name, filename, index, self.config, **model_kwargs)
+        self.model_input = dict(model_name=self.model_name,
+                                filename=filename,
+                                index=index,
+                                config=self.config, **model_kwargs)
+        self.model_file, self.model = fetch_model(**self.model_input)
         # self.model_file = _parse_models(model_name, filename, index, config=self.config)
         # model = models_dict[model_name](self.model_file, **model_kwargs)
         self.__dict__.update(self.model.__dict__)
@@ -159,7 +163,7 @@ class Models:
         self.single_rate = None
         self.history = pd.DataFrame(columns=['date', 'user', 'history'])
         self.simulation_history = {}
-        self.__version__ = "1.1.0"
+        self.__version__ = "1.2.0"
         try:
             self.retrieve_object()
         except FileNotFoundError:
@@ -190,6 +194,9 @@ class Models:
     def save_object(self, update=False):
         """ Save the object for later calls
         """
+        if self.model_name == "Fornax_2019":
+            self._handle_fornax19('save', update=update)
+            return None
         if update:
             file = os.path.join(self.storage, self.name)
             with open(file, 'wb') as output:   # Overwrites any existing file.
@@ -198,12 +205,38 @@ class Models:
             self.history = make_history(self.history, "Data Saved!", self.user)
 
     def retrieve_object(self):
+        if self.model_name == "Fornax_2019":
+            self._handle_fornax19('retrieve')
+            return None
         file = os.path.join(self.storage, self.name)
         with open(file, 'rb') as handle:
             click.secho(f'> Retrieving object self.storage/{self.name}', fg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
+
+    def _handle_fornax19(self, mode, update=False):
+        """ Fornax 2019, has hdf5 file which cannot be pickled
+        Thu, I remove the model attr first and store, and while retrieving
+        I append the model attr back
+        """
+        file = os.path.join(self.storage, self.name)
+        if mode == 'save':
+            if update:
+                self.model = None
+                with open(file, 'wb') as output:  # Overwrites any existing file.
+                    pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
+                    click.secho(f'> Saved at <self.storage>/{self.name}!\n', fg='blue')
+                self.history = make_history(self.history, "Data Saved!", self.user)
+        elif mode == 'retrieve':
+            with open(file, 'rb') as handle:
+                click.secho(f'> Retrieving object self.storage/{self.name}', fg='blue')
+                tmp_dict = pickle.load(handle)
+            self.__dict__.update(tmp_dict.__dict__)
+            self.model_file, self.model = fetch_model(**self.model_input)
+            return None
+
+
 
     def delete_object(self):
         file = os.path.join(self.storage, self.name)
