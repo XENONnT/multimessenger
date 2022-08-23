@@ -144,10 +144,6 @@ class Models:
             self.model_kwargs = model_kwargs
         self.model_input = dict(model_name=self.model_name, filename=filename, index=index, config=self.config)
         self.model_file = fetch_model_name(**self.model_input)
-        # self.model_file = _parse_models(model_name, filename, index, config=self.config)
-        # model = models_dict[model_name](self.model_file, **model_kwargs)
-        # self.__dict__.update(self.model.__dict__)
-        # self.model = model
         self.composite = composite
         self.N_Xe = 4.6e27 * u.count / u.tonne
         self.Nucleus = get_composite(composite)
@@ -239,7 +235,6 @@ class Models:
             return None
         else:
             raise FileNotFoundError(f"mode={mode} passed, but what even is it?")
-
 
 
     def delete_object(self):
@@ -450,7 +445,7 @@ class Models:
         config = config or self.config
         _context = add_strax_folder(config, context)
         from .Simulate import _simulate_one
-        self._make_simulation_history(context, runid, len(df))
+        self._make_simulation_history(_context, runid, len(df))
         return _simulate_one(df, runid, config=config, context=_context)
 
 
