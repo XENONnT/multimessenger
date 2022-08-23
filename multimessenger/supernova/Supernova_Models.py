@@ -465,7 +465,7 @@ class Models:
                     'size': size,}
         new_df = pd.DataFrame(new_dict, columns=cols, index=[0])
         curr_sim = pd.concat([curr_sim, new_df], ignore_index=True)
-        curr_sim.set_index('context hash', inplace=True)
+        curr_sim.set_index('runid', inplace=True)
         self.simulation_history[_vers] = curr_sim
         self.save_object(update=True)
 
@@ -474,7 +474,7 @@ class Models:
         if len(self.simulation_history)==0:
             return pd.DataFrame()
         versions, data = list(self.simulation_history.items())[0]
-        df = pd.concat([data], keys=[versions], names=('versions', 'context hash'))
+        df = pd.concat([data], keys=[versions], names=('versions', 'runid'))
         return df
 
     @property
