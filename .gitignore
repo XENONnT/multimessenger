@@ -6,8 +6,8 @@ multimessenger/supernova/*test*
 snx/*.csv
 multimessenger/supernova/Supernova_Signal-WFSim-2.ipynb
 *.ipynb_checkpoints*
-scripts/
 notebooks/tmp
 .egg*
 .idea*
 *snx.egg*
+*__pycache__*
