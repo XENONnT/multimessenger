@@ -24,26 +24,12 @@ except ModuleNotFoundError:
 
 from .Xenon_Atom import ATOM_TABLE
 from .sn_utils import _inverse_transform_sampling
+from .snewpy_models import fetch_model
+from .snewpy_models import models_list
 import configparser
 import astropy.units as u
-from glob import glob
 from datetime import datetime
-
-import snewpy
 from snewpy.neutrino import Flavor
-from snewpy.models.ccsn import Analytic3Species, Bollig_2016, Fornax_2019, Fornax_2021, Kuroda_2020
-from snewpy.models.ccsn import Nakazato_2013, OConnor_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014
-from snewpy.models.ccsn import Walk_2018, Walk_2019, Warren_2020, Zha_2021
-
-models_list = ['Analytic3Species', 'Bollig_2016', 'Fornax_2019', 'Fornax_2021', 'Kuroda_2020', 'Nakazato_2013',
-               'OConnor_2013', 'OConnor_2015', 'Sukhbold_2015', 'Tamborra_2014', 'Walk_2018', 'Walk_2019',
-               'Warren_2020', 'Zha_2021',]
-
-models = [Analytic3Species, Bollig_2016, Fornax_2019, Fornax_2021, Kuroda_2020,
-          Nakazato_2013, OConnor_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014,
-          Walk_2018, Walk_2019, Warren_2020, Zha_2021]
-
-models_dict = dict(zip(models_list, models))
 
 from .sn_utils import isnotebook
 if isnotebook():
@@ -69,39 +55,6 @@ def get_composite(composite):
         raise NotImplementedError(f"{composite} Requested but only 'Xenon' is implemented so far")
     return Nucleus
 
-def _parse_models(model_name, filename, index, config):
-    """ Get the selected model, or ask user
-    """
-    try:
-        snewpy_base = config['paths']['snewpy_models']
-        file_path = os.path.join(snewpy_base, model_name)
-        files_in_model = glob(os.path.join(file_path, '*'))
-        assert len(files_in_model) > 0
-    except Exception as e:
-        print(f"{e} looking at snewpy installation")
-        snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
-        file_path = os.path.join(snewpy_base, "models", model_name)
-        files_in_model = glob(os.path.join(file_path, '*'))
-        assert len(files_in_model) > 0
-    files_in_model = [f for f in files_in_model if not f.endswith('.md') and not f.endswith('.ipynb')]
-
-    if filename is None:
-        _files_in_model_list = [f"[{i}]\t" + f.split("/")[-1] for i, f in enumerate(files_in_model)]
-        _files_in_model = "\n".join(_files_in_model_list) + "\n"
-        if index is None:
-            click.secho("> Available files for this model, please select an index\n\n", fg='blue', bold=True)
-            file_index = input(_files_in_model)
-        else:
-            file_index = index
-        selected_file = files_in_model[int(file_index)]
-        click.secho(f"> You chose ~wisely~ ->\t   {_files_in_model_list[int(file_index)]}", fg='blue', bold=True)
-        return selected_file
-    else:
-        if filename in [f.split("/")[-1] for i, f in enumerate(files_in_model)]:
-            return os.path.join(file_path, filename)
-        else:
-            raise FileNotFoundError(f"{filename} not found in {file_path}")
-
 def get_storage(storage, config):
     if storage is None:
         # where the snewpy models saved, ideally we want a single place
@@ -115,7 +68,6 @@ def get_storage(storage, config):
     else:
         storage = storage
     return storage
-
 
 def add_strax_folder(config, context=None):
     """ This appends the SN MC folder to your directories
@@ -186,10 +138,12 @@ class Models:
 
         if model_kwargs is None:
             model_kwargs = dict()
-        self.model_file = _parse_models(model_name, filename, index, config=self.config)
-        model = models_dict[model_name](self.model_file, **model_kwargs)
-        self.__dict__.update(model.__dict__)
-        self.model = model
+
+        self.model_file, self.model = fetch_model(model_name, filename, index, self.config, **model_kwargs)
+        # self.model_file = _parse_models(model_name, filename, index, config=self.config)
+        # model = models_dict[model_name](self.model_file, **model_kwargs)
+        self.__dict__.update(self.model.__dict__)
+        # self.model = model
         self.composite = composite
         self.N_Xe = 4.6e27 * u.count / u.tonne
         self.Nucleus = get_composite(composite)
@@ -483,6 +437,8 @@ class Models:
 
     @property
     def display_simulation_history(self):
+        if len(self.simulation_history)==0:
+            return pd.DataFrame()
         versions, data = list(self.simulation_history.items())[0]
         df = pd.concat([data], keys=[versions], names=('versions', 'context hash'))
         return df
