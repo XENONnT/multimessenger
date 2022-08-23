@@ -99,7 +99,10 @@ def make_history(history, input_str, version, user=None, fmt='%Y/%m/%d - %H:%M U
     history = pd.concat([history, new_df], ignore_index=True)
     return history
 
-class Models:
+self.model_input = dict(model_name=self.model_name, filename=filename, index=index, config=self.config)
+        self.model_file = fetch_model_name(**self.model_input)
+        self.composite = composite
+        class Models:
     """ Deal with a given SN lightcurve from snewpy
     """
 
@@ -137,14 +140,7 @@ class Models:
         self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
         conf_path = config_file or self.default_conf_path
         self.config.read(conf_path)
-
-        if model_kwargs is None:
-            self.model_kwargs = dict()
-        else:
-            self.model_kwargs = model_kwargs
-        self.model_input = dict(model_name=self.model_name, filename=filename, index=index, config=self.config)
-        self.model_file = fetch_model_name(**self.model_input)
-        self.composite = composite
+        self.model_kwargs = model_kwargs or dict()
         self.N_Xe = 4.6e27 * u.count / u.tonne
         self.Nucleus = get_composite(composite)
         self.distance = distance
