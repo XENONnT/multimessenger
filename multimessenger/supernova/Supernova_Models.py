@@ -91,10 +91,11 @@ def add_strax_folder(config, context=None):
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
         pass
 
-def make_history(history, input_str, user=None, fmt='%Y/%m/%d - %H:%M UTC'):
+def make_history(history, input_str, version, user=None, fmt='%Y/%m/%d - %H:%M UTC'):
     user = user or ""
     now = datetime.utcnow().strftime(fmt)
-    new_df = pd.DataFrame({"date":now, "user":user, "history":input_str}, columns=['history', 'user', 'date'], index=[0])
+    new_df = pd.DataFrame({"date":now, "version":version, "user":user, "history":input_str},
+    columns=['date', 'version', 'user', 'history'], index=[0])
     history = pd.concat([history, new_df], ignore_index=True)
     return history
 
@@ -160,7 +161,7 @@ class Models:
         self.rateper_Er = None
         self.rateper_t = None
         self.single_rate = None
-        self.history = pd.DataFrame(columns=['date', 'user', 'history'])
+        self.history = pd.DataFrame(columns=['date', 'version', 'user', 'history'])
         self.simulation_history = {}
         self.__version__ = "1.2.0"
         try:
@@ -202,7 +203,7 @@ class Models:
             with open(file, 'wb') as output:   # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
                 click.secho(f'> Saved at <self.storage>/{self.name}!\n', fg='blue')
-            self.history = make_history(self.history, "Data Saved!", self.user)
+            self.history = make_history(self.history, "Data Saved!", self.__version__, self.user)
 
     def retrieve_object(self):
         if self.model_name == "Fornax_2019":
@@ -227,14 +228,14 @@ class Models:
                 with open(file, 'wb') as output:  # Overwrites any existing file.
                     pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
                     click.secho(f'> Saved at <self.storage>/{self.name}!\n', fg='blue')
-                self.history = make_history(self.history, "Data Saved!", self.user)
+                self.history = make_history(self.history, "Data Saved!", self.__version__, self.user)
         elif mode == 'retrieve':
             with open(file, 'rb') as handle:
                 click.secho(f'> Retrieving object self.storage/{self.name}', fg='blue')
                 tmp_dict = pickle.load(handle)
             self.__dict__.update(tmp_dict.__dict__)
             self.model = fetch_model(self.model_name, self.model_file, **self.model_kwargs)
-            self.__dict__.update(self.model.__dict__)
+            # self.__dict__.update(self.model.__dict__)
             return None
         else:
             raise FileNotFoundError(f"mode={mode} passed, but what even is it?")
@@ -272,7 +273,7 @@ class Models:
 
         self._compute_total_rates()
         if is_first:
-            self.history = make_history(self.history, "Fluxes computed!", self.user)
+            self.history = make_history(self.history, "Fluxes computed!", self.__version__, self.user)
             self.save_object(update=True)
 
         _str = "(use scale_rates() for distance & volume)"
@@ -343,7 +344,8 @@ class Models:
             for f in self.fluxes.keys():
                 if overwrite:
                     self.fluxes[f] *= scale
-                    self.history = make_history(self.history, "Scaled fluxes overwritten the self.fluxes!", self.user)
+                    self.history = make_history(self.history, "Scaled fluxes overwritten the self.fluxes!",
+                                                self.__version__, self.user)
                     return self.fluxes
                 else:
                     fluxes_scaled[f] = self.fluxes[f] * scale
@@ -369,7 +371,8 @@ class Models:
                     for f in self.rateper_Er_iso.keys():
                         self.rateper_Er_iso[f] *= scale
                         self.rateper_t_iso[f] *= scale
-                    self.history = make_history(self.history, "Scaled rates overwritten the self.rateper_Er(t)_iso!", self.user)
+                    self.history = make_history(self.history, "Scaled rates overwritten the self.rateper_Er(t)_iso!",
+                                                self.__version__, self.user)
                     return self.rateper_Er_iso, self.rateper_t_iso
                 else:
                     rates_Er_iso_scaled = {}
@@ -383,8 +386,8 @@ class Models:
                     for f in self.rateper_Er.keys():
                         self.rateper_Er[f] *= scale
                         self.rateper_t[f] *= scale
-                    self.history = make_history(self.history,
-                                                "Scaled rates overwritten the self.rateper_Er(t)!", self.user)
+                    self.history = make_history(self.history,"Scaled rates overwritten the self.rateper_Er(t)!",
+                                                self.__version__, self.user)
                     return self.rateper_Er, self.rateper_t
                 else:
                     rates_Er_scaled = {}
@@ -443,7 +446,7 @@ class Models:
 
 
     def simulate_one(self, df, runid, context=None, config=None):
-        self.history = make_history(self.history, f"simulation {runid} is requested!", self.user)
+        self.history = make_history(self.history, f"simulation {runid} is requested!", self.__version__, self.user)
         config = config or self.config
         _context = add_strax_folder(config, context)
         from .Simulate import _simulate_one
