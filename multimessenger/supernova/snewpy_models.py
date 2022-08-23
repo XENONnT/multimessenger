@@ -124,7 +124,10 @@ def _parse_models(model_name, filename, index, config):
             raise FileNotFoundError(f"{filename} not found in {file_path}")
 
 
-def fetch_model(model_name, filename, index, config, **model_kwargs):
+def fetch_model_name(model_name, filename, index, config):
     file = _parse_models(model_name, filename, index, config)
+    return file
+
+def fetch_model(model_name, file, **model_kwargs):
     model = models_dict[model_name](file, **model_kwargs)
-    return file, model
+    return model

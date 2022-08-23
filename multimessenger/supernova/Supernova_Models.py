@@ -24,7 +24,7 @@ except ModuleNotFoundError:
 
 from .Xenon_Atom import ATOM_TABLE
 from .sn_utils import _inverse_transform_sampling
-from .snewpy_models import fetch_model
+from .snewpy_models import fetch_model_name, fetch_model
 from .snewpy_models import models_list
 import configparser
 import astropy.units as u
@@ -138,15 +138,14 @@ class Models:
         self.config.read(conf_path)
 
         if model_kwargs is None:
-            model_kwargs = dict()
-        self.model_input = dict(model_name=self.model_name,
-                                filename=filename,
-                                index=index,
-                                config=self.config, **model_kwargs)
-        self.model_file, self.model = fetch_model(**self.model_input)
+            self.model_kwargs = dict()
+        else:
+            self.model_kwargs = model_kwargs
+        self.model_input = dict(model_name=self.model_name, filename=filename, index=index, config=self.config)
+        self.model_file = fetch_model_name(**self.model_input)
         # self.model_file = _parse_models(model_name, filename, index, config=self.config)
         # model = models_dict[model_name](self.model_file, **model_kwargs)
-        self.__dict__.update(self.model.__dict__)
+        # self.__dict__.update(self.model.__dict__)
         # self.model = model
         self.composite = composite
         self.N_Xe = 4.6e27 * u.count / u.tonne
@@ -167,6 +166,7 @@ class Models:
         try:
             self.retrieve_object()
         except FileNotFoundError:
+            self.model = fetch_model(self.model_name, self.model_file, **model_kwargs)
             self.save_object(True)
 
 
@@ -233,8 +233,11 @@ class Models:
                 click.secho(f'> Retrieving object self.storage/{self.name}', fg='blue')
                 tmp_dict = pickle.load(handle)
             self.__dict__.update(tmp_dict.__dict__)
-            self.model_file, self.model = fetch_model(**self.model_input)
+            self.model = fetch_model(self.model_name, self.model_file, **self.model_kwargs)
+            self.__dict__.update(self.model.__dict__)
             return None
+        else:
+            raise FileNotFoundError(f"mode={mode} passed, but what even is it?")
 
 
 
