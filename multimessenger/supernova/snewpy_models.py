@@ -126,6 +126,14 @@ def _parse_models(model_name, filename, index, config):
 
 def fetch_model_name(model_name, filename, index, config):
     file = _parse_models(model_name, filename, index, config)
+    if model_name == "Fornax_2019":
+        example = "theta = 23.55*u.degree\n" \
+                  "phi = 22.5*u.degree\n" \
+                  "A.compute_rates(phi=phi, theta=theta)"
+        link = click.style("https://github.com/SNEWS2/snewpy/blob/main/models/Fornax_2019/Fornax_2019.ipynb", fg='blue')
+        click.secho(f"This model requires angular info when computing fluxes e.g.\n"
+                    f"{example}\n"
+                    f"See {link}", bold=True)
     return file
 
 def fetch_model(model_name, file, **model_kwargs):
