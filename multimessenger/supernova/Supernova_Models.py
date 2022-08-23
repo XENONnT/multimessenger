@@ -166,7 +166,7 @@ class Models:
         try:
             self.retrieve_object()
         except FileNotFoundError:
-            self.model = fetch_model(self.model_name, self.model_file, **model_kwargs)
+            self.model = fetch_model(self.model_name, self.model_file, **self.model_kwargs)
             self.save_object(True)
 
 
@@ -247,7 +247,7 @@ class Models:
                  f"{file}?\n") == 'y':
             os.remove(file)
 
-    def compute_rates(self, total=True, force=False, leave=False, return_vals=False):
+    def compute_rates(self, total=True, force=False, leave=False, return_vals=False, **kw):
         """ Do it for each composite and scale for their abundance
             simple scaling won't work as the proton number changes
             :param total: `bool` if True return total of all isotopes
@@ -263,7 +263,7 @@ class Models:
         # create fluxes attribute for each isotope
         # only if fluxes doesn't exist or forced
         for isotope in tqdm(self.Nucleus, total=len(self.Nucleus), desc="Computing for all isotopes", colour="CYAN"):
-            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave)
+            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave, **kw)
         self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
         self.rateper_Er_iso = {isotope.name: isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies)
                                for isotope in tqdm(self.Nucleus)}
