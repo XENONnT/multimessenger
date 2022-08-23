@@ -24,26 +24,12 @@ except ModuleNotFoundError:
 
 from .Xenon_Atom import ATOM_TABLE
 from .sn_utils import _inverse_transform_sampling
+from .snewpy_models import fetch_model_name, fetch_model
+from .snewpy_models import models_list
 import configparser
 import astropy.units as u
-from glob import glob
 from datetime import datetime
-
-import snewpy
 from snewpy.neutrino import Flavor
-from snewpy.models.ccsn import Analytic3Species, Bollig_2016, Fornax_2019, Fornax_2021, Kuroda_2020
-from snewpy.models.ccsn import Nakazato_2013, OConnor_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014
-from snewpy.models.ccsn import Walk_2018, Walk_2019, Warren_2020, Zha_2021
-
-models_list = ['Analytic3Species', 'Bollig_2016', 'Fornax_2019', 'Fornax_2021', 'Kuroda_2020', 'Nakazato_2013',
-               'OConnor_2013', 'OConnor_2015', 'Sukhbold_2015', 'Tamborra_2014', 'Walk_2018', 'Walk_2019',
-               'Warren_2020', 'Zha_2021',]
-
-models = [Analytic3Species, Bollig_2016, Fornax_2019, Fornax_2021, Kuroda_2020,
-          Nakazato_2013, OConnor_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014,
-          Walk_2018, Walk_2019, Warren_2020, Zha_2021]
-
-models_dict = dict(zip(models_list, models))
 
 from .sn_utils import isnotebook
 if isnotebook():
@@ -69,39 +55,6 @@ def get_composite(composite):
         raise NotImplementedError(f"{composite} Requested but only 'Xenon' is implemented so far")
     return Nucleus
 
-def _parse_models(model_name, filename, index, config):
-    """ Get the selected model, or ask user
-    """
-    try:
-        snewpy_base = config['paths']['snewpy_models']
-        file_path = os.path.join(snewpy_base, model_name)
-        files_in_model = glob(os.path.join(file_path, '*'))
-        assert len(files_in_model) > 0
-    except Exception as e:
-        print(f"{e} looking at snewpy installation")
-        snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
-        file_path = os.path.join(snewpy_base, "models", model_name)
-        files_in_model = glob(os.path.join(file_path, '*'))
-        assert len(files_in_model) > 0
-    files_in_model = [f for f in files_in_model if not f.endswith('.md') and not f.endswith('.ipynb')]
-
-    if filename is None:
-        _files_in_model_list = [f"[{i}]\t" + f.split("/")[-1] for i, f in enumerate(files_in_model)]
-        _files_in_model = "\n".join(_files_in_model_list) + "\n"
-        if index is None:
-            click.secho("> Available files for this model, please select an index\n\n", fg='blue', bold=True)
-            file_index = input(_files_in_model)
-        else:
-            file_index = index
-        selected_file = files_in_model[int(file_index)]
-        click.secho(f"> You chose ~wisely~ ->\t   {_files_in_model_list[int(file_index)]}", fg='blue', bold=True)
-        return selected_file
-    else:
-        if filename in [f.split("/")[-1] for i, f in enumerate(files_in_model)]:
-            return os.path.join(file_path, filename)
-        else:
-            raise FileNotFoundError(f"{filename} not found in {file_path}")
-
 def get_storage(storage, config):
     if storage is None:
         # where the snewpy models saved, ideally we want a single place
@@ -115,7 +68,6 @@ def get_storage(storage, config):
     else:
         storage = storage
     return storage
-
 
 def add_strax_folder(config, context=None):
     """ This appends the SN MC folder to your directories
@@ -139,14 +91,18 @@ def add_strax_folder(config, context=None):
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
         pass
 
-def make_history(history, input_str, user=None, fmt='%Y/%m/%d - %H:%M UTC'):
+def make_history(history, input_str, version, user=None, fmt='%Y/%m/%d - %H:%M UTC'):
     user = user or ""
     now = datetime.utcnow().strftime(fmt)
-    new_df = pd.DataFrame({"date":now, "user":user, "history":input_str}, columns=['history', 'user', 'date'], index=[0])
+    new_df = pd.DataFrame({"date":now, "version":version, "user":user, "history":input_str},
+    columns=['date', 'version', 'user', 'history'], index=[0])
     history = pd.concat([history, new_df], ignore_index=True)
     return history
 
-class Models:
+self.model_input = dict(model_name=self.model_name, filename=filename, index=index, config=self.config)
+        self.model_file = fetch_model_name(**self.model_input)
+        self.composite = composite
+        class Models:
     """ Deal with a given SN lightcurve from snewpy
     """
 
@@ -178,19 +134,13 @@ class Models:
         :param config_file: `str` config file that contains the default params
         """
         self.user = os.environ['USER']
+        self.model_name = model_name
         # try to find from the default config
         self.config = configparser.ConfigParser()
         self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
         conf_path = config_file or self.default_conf_path
         self.config.read(conf_path)
-
-        if model_kwargs is None:
-            model_kwargs = dict()
-        self.model_file = _parse_models(model_name, filename, index, config=self.config)
-        model = models_dict[model_name](self.model_file, **model_kwargs)
-        self.__dict__.update(model.__dict__)
-        self.model = model
-        self.composite = composite
+        self.model_kwargs = model_kwargs or dict()
         self.N_Xe = 4.6e27 * u.count / u.tonne
         self.Nucleus = get_composite(composite)
         self.distance = distance
@@ -203,12 +153,13 @@ class Models:
         self.rateper_Er = None
         self.rateper_t = None
         self.single_rate = None
-        self.history = pd.DataFrame(columns=['date', 'user', 'history'])
+        self.history = pd.DataFrame(columns=['date', 'version', 'user', 'history'])
         self.simulation_history = {}
-        self.__version__ = "1.1.0"
+        self.__version__ = "1.2.0"
         try:
             self.retrieve_object()
         except FileNotFoundError:
+            self.model = fetch_model(self.model_name, self.model_file, **self.model_kwargs)
             self.save_object(True)
 
 
@@ -236,14 +187,20 @@ class Models:
     def save_object(self, update=False):
         """ Save the object for later calls
         """
+        if self.model_name == "Fornax_2019":
+            self._handle_fornax19('save', update=update)
+            return None
         if update:
             file = os.path.join(self.storage, self.name)
             with open(file, 'wb') as output:   # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
                 click.secho(f'> Saved at <self.storage>/{self.name}!\n', fg='blue')
-            self.history = make_history(self.history, "Data Saved!", self.user)
+            self.history = make_history(self.history, "Data Saved!", self.__version__, self.user)
 
     def retrieve_object(self):
+        if self.model_name == "Fornax_2019":
+            self._handle_fornax19('retrieve')
+            return None
         file = os.path.join(self.storage, self.name)
         with open(file, 'rb') as handle:
             click.secho(f'> Retrieving object self.storage/{self.name}', fg='blue')
@@ -251,13 +208,38 @@ class Models:
         self.__dict__.update(tmp_dict.__dict__)
         return None
 
+    def _handle_fornax19(self, mode, update=False):
+        """ Fornax 2019, has hdf5 file which cannot be pickled
+        Thu, I remove the model attr first and store, and while retrieving
+        I append the model attr back
+        """
+        file = os.path.join(self.storage, self.name)
+        if mode == 'save':
+            if update:
+                self.model = None
+                with open(file, 'wb') as output:  # Overwrites any existing file.
+                    pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
+                    click.secho(f'> Saved at <self.storage>/{self.name}!\n', fg='blue')
+                self.history = make_history(self.history, "Data Saved!", self.__version__, self.user)
+        elif mode == 'retrieve':
+            with open(file, 'rb') as handle:
+                click.secho(f'> Retrieving object self.storage/{self.name}', fg='blue')
+                tmp_dict = pickle.load(handle)
+            self.__dict__.update(tmp_dict.__dict__)
+            self.model = fetch_model(self.model_name, self.model_file, **self.model_kwargs)
+            # self.__dict__.update(self.model.__dict__)
+            return None
+        else:
+            raise FileNotFoundError(f"mode={mode} passed, but what even is it?")
+
+
     def delete_object(self):
         file = os.path.join(self.storage, self.name)
         if input(f"> Are you sure you want to delete\n"
                  f"{file}?\n") == 'y':
             os.remove(file)
 
-    def compute_rates(self, total=True, force=False, leave=False, return_vals=False):
+    def compute_rates(self, total=True, force=False, leave=False, return_vals=False, **kw):
         """ Do it for each composite and scale for their abundance
             simple scaling won't work as the proton number changes
             :param total: `bool` if True return total of all isotopes
@@ -273,7 +255,7 @@ class Models:
         # create fluxes attribute for each isotope
         # only if fluxes doesn't exist or forced
         for isotope in tqdm(self.Nucleus, total=len(self.Nucleus), desc="Computing for all isotopes", colour="CYAN"):
-            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave)
+            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave, **kw)
         self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
         self.rateper_Er_iso = {isotope.name: isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies)
                                for isotope in tqdm(self.Nucleus)}
@@ -282,7 +264,7 @@ class Models:
 
         self._compute_total_rates()
         if is_first:
-            self.history = make_history(self.history, "Fluxes computed!", self.user)
+            self.history = make_history(self.history, "Fluxes computed!", self.__version__, self.user)
             self.save_object(update=True)
 
         _str = "(use scale_rates() for distance & volume)"
@@ -353,7 +335,8 @@ class Models:
             for f in self.fluxes.keys():
                 if overwrite:
                     self.fluxes[f] *= scale
-                    self.history = make_history(self.history, "Scaled fluxes overwritten the self.fluxes!", self.user)
+                    self.history = make_history(self.history, "Scaled fluxes overwritten the self.fluxes!",
+                                                self.__version__, self.user)
                     return self.fluxes
                 else:
                     fluxes_scaled[f] = self.fluxes[f] * scale
@@ -379,7 +362,8 @@ class Models:
                     for f in self.rateper_Er_iso.keys():
                         self.rateper_Er_iso[f] *= scale
                         self.rateper_t_iso[f] *= scale
-                    self.history = make_history(self.history, "Scaled rates overwritten the self.rateper_Er(t)_iso!", self.user)
+                    self.history = make_history(self.history, "Scaled rates overwritten the self.rateper_Er(t)_iso!",
+                                                self.__version__, self.user)
                     return self.rateper_Er_iso, self.rateper_t_iso
                 else:
                     rates_Er_iso_scaled = {}
@@ -393,8 +377,8 @@ class Models:
                     for f in self.rateper_Er.keys():
                         self.rateper_Er[f] *= scale
                         self.rateper_t[f] *= scale
-                    self.history = make_history(self.history,
-                                                "Scaled rates overwritten the self.rateper_Er(t)!", self.user)
+                    self.history = make_history(self.history,"Scaled rates overwritten the self.rateper_Er(t)!",
+                                                self.__version__, self.user)
                     return self.rateper_Er, self.rateper_t
                 else:
                     rates_Er_scaled = {}
@@ -453,11 +437,11 @@ class Models:
 
 
     def simulate_one(self, df, runid, context=None, config=None):
-        self.history = make_history(self.history, f"simulation {runid} is requested!", self.user)
+        self.history = make_history(self.history, f"simulation {runid} is requested!", self.__version__, self.user)
         config = config or self.config
         _context = add_strax_folder(config, context)
         from .Simulate import _simulate_one
-        self._make_simulation_history(context, runid, len(df))
+        self._make_simulation_history(_context, runid, len(df))
         return _simulate_one(df, runid, config=config, context=_context)
 
 
@@ -477,14 +461,16 @@ class Models:
                     'size': size,}
         new_df = pd.DataFrame(new_dict, columns=cols, index=[0])
         curr_sim = pd.concat([curr_sim, new_df], ignore_index=True)
-        curr_sim.set_index('context hash', inplace=True)
+        # curr_sim.set_index('runid', inplace=True)
         self.simulation_history[_vers] = curr_sim
         self.save_object(update=True)
 
     @property
     def display_simulation_history(self):
+        if len(self.simulation_history)==0:
+            return pd.DataFrame()
         versions, data = list(self.simulation_history.items())[0]
-        df = pd.concat([data], keys=[versions], names=('versions', 'context hash'))
+        df = pd.concat([data], keys=[versions], names=('versions', 'runid'))
         return df
 
     @property
