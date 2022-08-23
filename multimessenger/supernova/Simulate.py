@@ -121,8 +121,9 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     nr_iterations, remainder = divmod(total, rate_in_oneSN)
     nr_iterations, remainder = int(nr_iterations), np.floor(remainder).astype(int)
 
-    sampled_er = np.zeros(total)
-    sampled_t = np.zeros(total, dtype=np.int64)
+    rolled_total = int(nr_iterations * rate_in_oneSN)
+    sampled_er = np.zeros(rolled_total)
+    sampled_t = np.zeros(rolled_total, dtype=np.int64)
     for i in range(nr_iterations):
         _sampled_Er_local = _inverse_transform_sampling(xaxis_er, yaxis_er, rate_in_oneSN)
         # sample times for one
@@ -138,6 +139,7 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
         sampled_t[_from:_to]  = _sampled_t_local + time_shift
         sampled_er[_from:_to] = _sampled_Er_local
 
+    sampled_t += 1e9
     # add the remainder
     # Not needed for now. If a single SN has 30 evt, and 100 requested. Just simulate 90 for 3 SNs.
     # te remaining 10 will just confuse more.
