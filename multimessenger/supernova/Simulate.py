@@ -127,7 +127,7 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     for i in range(nr_iterations):
         _sampled_Er_local = _inverse_transform_sampling(xaxis_er, yaxis_er, rate_in_oneSN)
         # sample times for one
-        _sampled_t_local = _inverse_transform_sampling(xaxis_t, yaxis_t, rate_in_oneSN) * 1e9
+        _sampled_t_local = (_inverse_transform_sampling(xaxis_t, yaxis_t, rate_in_oneSN)+1) * 1e9
         mint, maxt = np.min(_sampled_t_local), np.max(_sampled_t_local)
         #     # SN signal also has pre-SN neutrino, so if there are negative times boost them
         if mint <= 0:
@@ -139,7 +139,6 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
         sampled_t[_from:_to]  = _sampled_t_local + time_shift
         sampled_er[_from:_to] = _sampled_Er_local
 
-    # sampled_t += 1000000000
     # add the remainder
     # Not needed for now. If a single SN has 30 evt, and 100 requested. Just simulate 90 for 3 SNs.
     # te remaining 10 will just confuse more.
