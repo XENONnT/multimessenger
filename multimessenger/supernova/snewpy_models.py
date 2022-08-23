@@ -114,6 +114,7 @@ def _parse_models(model_name, filename, index, config):
             file_index = index
 
         selected_file = files_in_model[int(file_index)]
+        selected_file = _select_shorter_name(model_name, selected_file)
         click.secho(f"> You chose ~wisely~ ->\t   {_files_in_model_list[int(file_index)]}", fg='blue', bold=True)
         return selected_file
     else:
