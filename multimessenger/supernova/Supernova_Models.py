@@ -149,6 +149,8 @@ class Models:
         self.recoil_energies = recoil_energies
         self.neutrino_energies = neutrino_energies
         self.name = ("-".join(self.model_file.split("/")[-2:])).replace('.', '_')+".pickle"
+        if self.model_name == "Warren_2020":
+            self.name = "Warren_2020_"+self.name
         self.storage = get_storage(storage, self.config)
         self.fluxes = None
         self.rateper_Er = None
@@ -156,7 +158,7 @@ class Models:
         self.single_rate = None
         self.history = pd.DataFrame(columns=['date', 'version', 'user', 'history'])
         self.simulation_history = {}
-        self.__version__ = "1.2.0"
+        self.__version__ = "1.2.1"
         try:
             self.retrieve_object()
         except FileNotFoundError:
