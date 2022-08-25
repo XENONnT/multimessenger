@@ -51,10 +51,10 @@ runid = args.runid
 
 def main():
     
-    A = sn.Models(model_name=model_name, index=model_index)
+    A = sn.Models(model_name=model_name, index=model_index, distance=distance*u.kpc, volume=volume*u.t)
     A.compute_rates(); #fetches the already existing sim
     
-    _rate, _ = A.scale_rates(distance=distance*u.kpc)
+    # _rate, _ = A.scale_rates(distance=distance*u.kpc)
     nevents = int(A.single_rate.value) #int(np.trapz(_rate['Total'] * volume*u.t, A.recoil_energies).value)
     
     field_file="fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
