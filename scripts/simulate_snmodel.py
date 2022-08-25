@@ -1,5 +1,10 @@
 import argparse
 from multimessenger.supernova import Supernova_Models as sn
+import numpy as np
+import nestpy
+import pandas as pd
+import straxen
+import astropy.units as u
 
 parser = argparse.ArgumentParser(
     description=('Script to run a SN simulation of a given model.')
@@ -33,14 +38,7 @@ parser.add_argument('-id', '--runid',
 
 args = parser.parse_args()
 
-import os
-import numpy as np
-
-import nestpy
-import pandas as pd
-import straxen
-import astropy.units as u
-import cutax
+downloader = straxen.MongoDownloader()
 
 model_name = args.model
 model_index = args.model_index
@@ -52,10 +50,9 @@ runid = args.runid
 def main():
     
     A = sn.Models(model_name=model_name, index=model_index, distance=distance*u.kpc, volume=volume*u.t)
-    A.compute_rates(); #fetches the already existing sim
-    
-    # _rate, _ = A.scale_rates(distance=distance*u.kpc)
-    nevents = int(A.single_rate.value) #int(np.trapz(_rate['Total'] * volume*u.t, A.recoil_energies).value)
+    A.compute_rates() #fetches the already existing sim
+
+    nevents = int(A.single_rate.value)
     
     field_file="fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
     field_map = straxen.InterpolatingMap(
@@ -82,11 +79,8 @@ def main():
                                     nc=nc, 
                                     fmap=field_map)
     df = pd.DataFrame(instr)
-    print(f"Total duration {np.ptp(df['time'])*1e-9:.2f} seconds")    
-    # st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000", 
-    #     output_folder=os.path.join(A.config['wfsim']['sim_folder'], "strax_data"))
-    
-    st = A.simulate_one(df, runid) # , context=st
+    print(f"Total duration {np.ptp(df['time'])*1e-9:.2f} seconds")
+    st = A.simulate_one(df, runid)
     
 if __name__ == "__main__":
     main()

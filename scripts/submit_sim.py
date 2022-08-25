@@ -1,7 +1,7 @@
 import argparse
 import os
 #from multimessenger.supernova import Supernova_Models as sn
-models_list = ['Analytic3Species',
+models_list = [
  'Bollig_2016',
  'Fornax_2019',
  'Fornax_2021',
