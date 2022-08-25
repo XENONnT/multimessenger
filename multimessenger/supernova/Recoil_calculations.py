@@ -113,16 +113,16 @@ class TARGET:
         xsec[xsec < 0] = 0
         return xsec
 
-    def get_fluxes(self, model, neutrino_energies, force=False, leave=True):
+    def get_fluxes(self, model, neutrino_energies, force=False, leave=True, **kw):
         if self.fluxes is not None and not force:
             return None
         # get fluxes at each time and at each neutrino energy
-        flux_unit = model.get_initial_spectra(1 * u.s, 100 * u.MeV)[Flavor.NU_E].unit
+        flux_unit = model.get_initial_spectra(1 * u.s, 100 * u.MeV, **kw)[Flavor.NU_E].unit
         _fluxes = np.zeros((len(model.time), len(neutrino_energies))) * flux_unit
         _fluxes = {f: _fluxes.copy() for f in Flavor}
         for f in tqdm(Flavor, total=len(Flavor), desc=self.name, leave=leave):
             for i, sec in tqdm(enumerate(model.time), total=len(model.time), desc=f.to_tex(), leave=False):
-                _fluxes_dict = model.get_initial_spectra(sec, neutrino_energies)
+                _fluxes_dict = model.get_initial_spectra(sec, neutrino_energies, **kw)
                 _fluxes[f][i, :] = _fluxes_dict[f]
         self.fluxes = _fluxes
 

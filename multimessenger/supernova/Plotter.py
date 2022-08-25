@@ -88,7 +88,7 @@ class Plotter:
         rateEr["Total"] = _rateErtotal
         ratet["Total"] = _ratettotal
         rateEr["Recoil Energies"] = self.model.recoil_energies
-        ratet["Time"] = self.model.time
+        ratet["Time"] = self.model.model.time
         er_unit = str(_rateErtotal.unit)
         t_unit = str(_ratettotal.unit)
 
@@ -100,7 +100,7 @@ class Plotter:
         fig.show()
         fig = px.line(df_t, x="Time", y=df_t.columns[:-1], title=f"Recoil spectrum at {distance}")
         fig.update_layout(yaxis_title=f'Rates [{t_unit}]',
-                          xaxis_title=f"Time [{str(self.model.time.unit)}]")
+                          xaxis_title=f"Time [{str(self.model.model.time.unit)}]")
         fig.show()
 
 
@@ -144,24 +144,24 @@ class Plotter:
 
 
     def plot_mean_cross_section(self, er_vals=np.linspace(0, 20, 150)*u.keV):
-        xsec_t = {f: np.zeros((len(er_vals), len(self.model.time))) for f in Flavor}
+        xsec_t = {f: np.zeros((len(er_vals), len(self.model.model.time))) for f in Flavor}
 
         for f in Flavor:
-            xsec_t[f] = self.model.Nucleus[0].nN_cross_section(self.model.meanE[f], er_vals)
+            xsec_t[f] = self.model.Nucleus[0].nN_cross_section(self.model.model.meanE[f], er_vals)
 
         from mpl_toolkits.axes_grid1 import make_axes_locatable
         fig, axes = plt.subplots(ncols=4, nrows=1, figsize=(20, 4))
         plt.subplots_adjust(wspace=0.45, hspace=0.3)
         plt.suptitle("Mean Cross Section at different times", y=0.98)
         for j, f in enumerate(Flavor):
-            im = axes[j].imshow(xsec_t[f], extent=(np.amin(self.model.time.value), np.amax(self.model.time.value),
+            im = axes[j].imshow(xsec_t[f], extent=(np.amin(self.model.model.time.value), np.amax(self.model.model.time.value),
                                                    np.amin(er_vals.value), np.amax(er_vals.value),),
                                 cmap='jet', aspect='auto', origin='lower')
             divider = make_axes_locatable(axes[j])
             cax = divider.append_axes('right', size='5%', pad=0.05)
             fig.colorbar(im, cax=cax, orientation='vertical', label=f'cross-section {xsec_t[Flavor.NU_E].unit}')
             axes[j].set_title(f.to_tex())
-            axes[j].set_xlabel(f'Times [{self.model.time.unit}]')
+            axes[j].set_xlabel(f'Times [{self.model.model.time.unit}]')
             axes[j].tick_params(axis='both', which='major', labelsize=12)
         axes[0].set_ylabel(f'Recoil Energy [{er_vals.unit}]')
         return fig, axes
@@ -175,9 +175,9 @@ class Plotter:
         for flavor in Flavor:
             kwargs = dict(label=flavor.to_tex(), color='C0' if flavor.is_electron else 'C1',
                           ls='-' if flavor.is_neutrino else ':', lw=2, alpha=0.7)
-            ax1.plot(self.model.time, self.model.luminosity[flavor] / 1e51, **kwargs)
-            ax2.plot(self.model.time, self.model.meanE[flavor], **kwargs)
-            ax3.plot(self.model.time, self.model.pinch[flavor], **kwargs)
+            ax1.plot(self.model.model.time, self.model.model.luminosity[flavor] / 1e51, **kwargs)
+            ax2.plot(self.model.model.time, self.model.model.meanE[flavor], **kwargs)
+            ax3.plot(self.model.model.time, self.model.model.pinch[flavor], **kwargs)
 
         for a in [ax1, ax2, ax3]:
             a.set_xscale('log')
@@ -192,14 +192,14 @@ class Plotter:
         fluxunit = ispec_t[Flavor.NU_E].unit
 
         # construct a dictionary containing each {flavorname-array} pairs for each flavor
-        ispec_E = {f: np.zeros(len(self.model.time)) * fluxunit for f in Flavor}
-        for i, t in tqdm(enumerate(self.model.time), total=len(self.model.time)):
+        ispec_E = {f: np.zeros(len(self.model.model.time)) * fluxunit for f in Flavor}
+        for i, t in tqdm(enumerate(self.model.model.time), total=len(self.model.model.time)):
             temp = self.model.model.get_initial_spectra(t, neutrino_energy)
             for f in Flavor:
                 ispec_E[f][i] = temp[f]
 
         neutrino_energies = self.model.neutrino_energies
-        times = self.model.time
+        times = self.model.model.time
         fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(15, 5))
         plt.subplots_adjust(wspace=0.25, hspace=0.3)
         for f in Flavor:
@@ -208,14 +208,17 @@ class Plotter:
             ax1.plot(neutrino_energies, ispec_t[f], **kwargs)
             ax2.plot(times, ispec_E[f], **kwargs)
 
-        ax1.set(xlabel=fr'$E$ [{neutrino_energies.unit}]', title=fr'{self.model.EOS}: '
-                                                                 fr'{self.model.progenitor_mass.value} $M_\odot$\ ' 
-                                                                 fr' Initial Spectra: t=50 ms',
-                ylabel=fr'flux [{ispec_t[Flavor.NU_E].unit}]')
-        ax2.set(xlabel=fr'$t$ [{times.unit}]', title=fr'{self.model.EOS}: '
-                                                     fr'{self.model.progenitor_mass.value} $M_\odot$\ '
-                                                     'Initial Spectra: E=10 MeV',
-                ylabel=fr'flux [{ispec_E[Flavor.NU_E].unit}]')
+        try:
+            ax1.set(xlabel=fr'$E$ [{neutrino_energies.unit}]', title=fr'{self.model.model.EOS}: '
+                                                                     fr'{self.model.model.progenitor_mass.value} $M_\odot$\ ' 
+                                                                     fr' Initial Spectra: t=50 ms',
+                    ylabel=fr'flux [{ispec_t[Flavor.NU_E].unit}]')
+            ax2.set(xlabel=fr'$t$ [{times.unit}]', title=fr'{self.model.model.EOS}: '
+                                                         fr'{self.model.model.progenitor_mass.value} $M_\odot$\ '
+                                                         'Initial Spectra: E=10 MeV',
+                    ylabel=fr'flux [{ispec_E[Flavor.NU_E].unit}]')
+        except:
+            pass
         ax1.grid(True); ax2.grid(True)
         ax2.set_xscale('log')
         ax2.legend(loc='upper right', ncol=2, fontsize=16)

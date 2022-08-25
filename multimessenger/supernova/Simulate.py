@@ -59,7 +59,7 @@ def generate_sn_instructions(energy_deposition,
     else:
         if timemode=="shifted":
             kwargs.pop("self")
-            energy_deposition, times = shifted_times(**kwargs)
+            energy_deposition, times, n_tot = shifted_times(**kwargs)
         else:
             times = generate_times(rate=rate, size=n_tot, timemode=timemode) + time_offset
     if not WFSIMEXIST:
@@ -121,12 +121,13 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     nr_iterations, remainder = divmod(total, rate_in_oneSN)
     nr_iterations, remainder = int(nr_iterations), np.floor(remainder).astype(int)
 
-    sampled_er = np.zeros(total)
-    sampled_t = np.zeros(total, dtype=np.int64)
+    rolled_total = int(nr_iterations * rate_in_oneSN)
+    sampled_er = np.zeros(rolled_total)
+    sampled_t = np.zeros(rolled_total, dtype=np.int64)
     for i in range(nr_iterations):
         _sampled_Er_local = _inverse_transform_sampling(xaxis_er, yaxis_er, rate_in_oneSN)
         # sample times for one
-        _sampled_t_local = _inverse_transform_sampling(xaxis_t, yaxis_t, rate_in_oneSN) * 1e9
+        _sampled_t_local = (_inverse_transform_sampling(xaxis_t, yaxis_t, rate_in_oneSN)+1) * 1e9
         mint, maxt = np.min(_sampled_t_local), np.max(_sampled_t_local)
         #     # SN signal also has pre-SN neutrino, so if there are negative times boost them
         if mint <= 0:
@@ -141,7 +142,7 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     # add the remainder
     # Not needed for now. If a single SN has 30 evt, and 100 requested. Just simulate 90 for 3 SNs.
     # te remaining 10 will just confuse more.
-    return sampled_er, sampled_t
+    return sampled_er, sampled_t, rolled_total
 
 def _simulate_one(df, runid, config, context):
     if not (WFSIMEXIST and CUTAXEXIST and STRAXEXIST):
