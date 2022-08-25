@@ -38,6 +38,10 @@ parser.add_argument('-d', '--distance',
                     help='Distance to SN in kpc.',
                     default = 10,
                     type=float)
+parser.add_argument('-v', '--volume',
+                    help='Volume in tons.',
+                    default = 5.9,
+                    type=float)
 parser.add_argument('-id', '--runid',
                     help='runid to consider.',
                     type=str,
@@ -49,9 +53,10 @@ model_name = args.model
 model_index = args.model_index
 ntotal = args.ntotal
 distance = args.distance
+volume = args.volume
 runid = args.runid
 
-def make_batch_script(model_name,model_index,ntotal,distance,runid):
+def make_batch_script(model_name,model_index,ntotal,distance,volume,runid):
     main_str = f'''#!/bin/bash
 #SBATCH --qos=xenon1t
 #SBATCH --partition=xenon1t
@@ -71,7 +76,7 @@ singularity shell \\
     --bind /scratch/midway2/$USER \\
     --bind /dali \\
     /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
-python simulate_snmodel.py -m {model_name} -i {model_index} -N {ntotal} -id {runid}
+python simulate_snmodel.py -m {model_name} -i {model_index} -N {ntotal} -d {distance} -v {volume} -id {runid}
 EOF''' 
     with open(f'SN_sim_{runid}_wfsim.job', 'w') as F:
         F.write(main_str)  
@@ -80,6 +85,6 @@ EOF'''
 
 if __name__ == "__main__":
     print('Making .job file:')
-    make_batch_script(model_name,model_index,ntotal,distance,runid)
+    make_batch_script(model_name,model_index,ntotal,distance,volume,runid)
     print('Launching batch job:')
     os.system(f"sbatch SN_sim_{runid}_wfsim.job")
