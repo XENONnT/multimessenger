@@ -22,6 +22,10 @@ parser.add_argument('-d', '--distance',
                     help='Distance to SN in kpc.',
                     default = 10,
                     type=float)
+parser.add_argument('-v', '--volume',
+                    help='Volume in tons.',
+                    default = 5.9,
+                    type=float)
 parser.add_argument('-id', '--runid',
                     help='runid to consider.',
                     type=str,
@@ -42,6 +46,7 @@ model_name = args.model
 model_index = args.model_index
 ntotal = args.ntotal
 distance = args.distance
+volume = args.volume
 runid = args.runid
 
 def main():
@@ -50,10 +55,7 @@ def main():
     A.compute_rates(); #fetches the already existing sim
     
     _rate, _ = A.scale_rates(distance=distance*u.kpc)
-    nevents = int(np.trapz(_rate['Total'] * 5.9*u.t, A.recol_energies).value)
-
-    sampled_Er = A.sample_data(nevents)
-    #sampled_t = A.sample_data(nevents, dtype='time')
+    nevents = int(A.single_rate.value) #int(np.trapz(_rate['Total'] * volume*u.t, A.recoil_energies).value)
     
     field_file="fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
     field_map = straxen.InterpolatingMap(
@@ -68,21 +70,23 @@ def main():
     
     if ntotal == -1:
         N_events = nevents
+        sampled_t = A.sample_data(nevents, dtype='time')
     else:
         N_events = ntotal
+        sampled_t = "shifted"
         
+    sampled_Er = A.sample_data(N_events)
     instr = A.generate_instructions(energy_deposition=sampled_Er, 
-                                    timemode="shifted", 
+                                    timemode=sampled_t, 
                                     n_tot=N_events, 
                                     nc=nc, 
                                     fmap=field_map)
     df = pd.DataFrame(instr)
-    print(f"Total duration {np.ptp(df['time'])*1e-9:.2f} seconds")
+    print(f"Total duration {np.ptp(df['time'])*1e-9:.2f} seconds")    
+    # st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000", 
+    #     output_folder=os.path.join(A.config['wfsim']['sim_folder'], "strax_data"))
     
-    st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000", 
-        output_folder=os.path.join(A.config['wfsim']['sim_folder'], "strax_data"))
-    
-    st = A.simulate_one(df, runid, context=st)
+    st = A.simulate_one(df, runid) # , context=st
     
 if __name__ == "__main__":
     main()
