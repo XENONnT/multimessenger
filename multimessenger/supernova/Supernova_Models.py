@@ -176,7 +176,10 @@ class Models:
     def _repr_markdown_(self):
         """Markdown representation of the model, for Jupyter notebooks.
         """
-        _repr = self.model._repr_markdown_()
+        try:
+            _repr = self.model._repr_markdown_()
+        except AttributeError:
+            _repr = f"**{self.model_name}**"
         executed = True if self.rateper_Er is not None else False
         s = [_repr]
         s += [f"|composite | {self.composite}|"]
@@ -191,7 +194,7 @@ class Models:
     def save_object(self, update=False):
         """ Save the object for later calls
         """
-        if self.model_name == "Fornax_2019":
+        if self.model_name in ["Fornax_2019","OConnor_2013"]:
             self._handle_fornax19('save', update=update)
             return None
         if update:
