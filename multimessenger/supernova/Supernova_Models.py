@@ -195,7 +195,7 @@ class Models:
         """ Save the object for later calls
         """
         if self.model_name in ["Fornax_2019","OConnor_2013"]:
-            self._handle_fornax19('save', update=update)
+            self._handle_h5files('save', update=update)
             return None
         if update:
             file = os.path.join(self.storage, self.name)
@@ -206,7 +206,7 @@ class Models:
 
     def retrieve_object(self):
         if self.model_name in ["Fornax_2019","OConnor_2013"]:
-            self._handle_fornax19('retrieve')
+            self._handle_h5files('retrieve')
             return None
         file = os.path.join(self.storage, self.name)
         with open(file, 'rb') as handle:
@@ -215,7 +215,7 @@ class Models:
         self.__dict__.update(tmp_dict.__dict__)
         return None
 
-    def _handle_fornax19(self, mode, update=False):
+    def _handle_h5files(self, mode, update=False):
         """ Fornax 2019, has hdf5 file which cannot be pickled
         Thu, I remove the model attr first and store, and while retrieving
         I append the model attr back
@@ -238,7 +238,6 @@ class Models:
             return None
         else:
             raise FileNotFoundError(f"mode={mode} passed, but what even is it?")
-
 
     def delete_object(self):
         file = os.path.join(self.storage, self.name)
