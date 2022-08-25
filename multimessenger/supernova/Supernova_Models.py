@@ -200,7 +200,7 @@ class Models:
             self.history = make_history(self.history, "Data Saved!", self.__version__, self.user)
 
     def retrieve_object(self):
-        if self.model_name == "Fornax_2019":
+        if self.model_name in ["Fornax_2019","OConnor_2013"]:
             self._handle_fornax19('retrieve')
             return None
         file = os.path.join(self.storage, self.name)
