@@ -11,3 +11,4 @@ notebooks/tmp
 .idea*
 *snx.egg*
 *__pycache__*
+*.job
