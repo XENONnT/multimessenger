@@ -32,6 +32,15 @@ GF = 8.958e-44 * u.MeV * u.cm**3
 GFnat = (GF/(hbar*c_speed)**3).to(u.keV**-2)
 corrGFmN = len_nat**2 * e_nat**2
 
+
+def get_clipped_times(times, time_lower=None, time_upper=None):
+    time_lower = time_lower or np.min(times)
+    time_upper = time_upper or np.max(times)
+    argmin = np.argmin(np.abs(times - time_lower))
+    argmax = np.argmin(np.abs(times - time_upper)) + 1
+    return times[argmin:argmax]
+
+
 class TARGET:
     def __init__(self, atom, pure = False):
         """ Set a Target Atom
@@ -113,23 +122,31 @@ class TARGET:
         xsec[xsec < 0] = 0
         return xsec
 
-    def get_fluxes(self, model, neutrino_energies, force=False, leave=True, **kw):
+    def get_fluxes(self, model, neutrino_energies, force=False, leave=True, time_lower=None, time_upper=None, **kw):
         if self.fluxes is not None and not force:
             return None
         # get fluxes at each time and at each neutrino energy
         flux_unit = model.get_initial_spectra(1 * u.s, 100 * u.MeV, **kw)[Flavor.NU_E].unit
-        _fluxes = np.zeros((len(model.time), len(neutrino_energies))) * flux_unit
+        time = get_clipped_times(model.time, time_lower=time_lower, time_upper=time_upper)
+
+        _fluxes = np.zeros((len(time), len(neutrino_energies))) * flux_unit
         _fluxes = {f: _fluxes.copy() for f in Flavor}
         for f in tqdm(Flavor, total=len(Flavor), desc=self.name, leave=leave):
-            for i, sec in tqdm(enumerate(model.time), total=len(model.time), desc=f.to_tex(), leave=False):
+            for i, sec in tqdm(enumerate(time), total=len(time), desc=f.to_tex(), leave=False):
                 _fluxes_dict = model.get_initial_spectra(sec, neutrino_energies, **kw)
                 _fluxes[f][i, :] = _fluxes_dict[f]
         self.fluxes = _fluxes
 
-    def dRdEr(self, model, neutrino_energies, recoil_energies):
-        self.get_fluxes(model, neutrino_energies)
+    def dRdEr(self, model, neutrino_energies, recoil_energies, time_lower=None, time_upper=None):
+        """ Return rates per given recoil energies
+            time range can be specified
+        """
+        self.get_fluxes(model, neutrino_energies, time_lower=time_lower, time_upper=time_upper)
+        # constrain the time and fluxes to selected time interval
+        time = get_clipped_times(model.time, time_lower=time_lower, time_upper=time_upper)
+
         # get rates per recoil energy after SN duration # integrate over time
-        fluxes_per_Er = {f: np.trapz(self.fluxes[f], model.time, axis=0).to(1 / u.keV) for f in Flavor}
+        fluxes_per_Er = {f: np.trapz(self.fluxes[f], time, axis=0).to(1 / u.keV) for f in Flavor}
         # get cross-sections
         xsecs = self.nN_cross_section(neutrino_energies, recoil_energies)
         # Rough integration over neutrino energies
@@ -138,8 +155,11 @@ class TARGET:
         rates_per_Er = {k:v.to(u.m ** 2 / u.keV) for k,v in rates_per_Er.items()}
         return rates_per_Er
 
-    def dRdt(self, model, neutrino_energies, recoil_energies):
-        self.get_fluxes(model, neutrino_energies)
+    def dRdt(self, model, neutrino_energies, recoil_energies, time_lower=None, time_upper=None):
+        """ Return rates per time
+            time range can be specified
+        """
+        self.get_fluxes(model, neutrino_energies, time_lower=time_lower, time_upper=time_upper)
         xsecs = self.nN_cross_section(neutrino_energies, recoil_energies)
         # get rates per time, from all neutrino energies
         # integrate over recoil energies

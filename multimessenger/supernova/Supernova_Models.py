@@ -245,13 +245,16 @@ class Models:
                  f"{file}?\n") == 'y':
             os.remove(file)
 
-    def compute_rates(self, total=True, force=False, leave=False, return_vals=False, **kw):
+    def compute_rates(self, total=True, force=False, leave=False, return_vals=False,
+                      time_lower=None, time_upper=None, **kw):
         """ Do it for each composite and scale for their abundance
             simple scaling won't work as the proton number changes
             :param total: `bool` if True return total of all isotopes
             :param force: `bool` whether to recalculate if already exist
             :param leave: `bool` tqdm arg, whether to leave the progress bar
             :param return_vals: `bool` whether to return rates or just create attributes
+            :param time_lower: `float*unit` lower time to clip rates
+            :param time_upper: `float*unit` upper time to clip rates
 
             Returns
                 (dR/dEr, dR/dt) if total is True, else two dictionaries for both
@@ -261,11 +264,14 @@ class Models:
         # create fluxes attribute for each isotope
         # only if fluxes doesn't exist or forced
         for isotope in tqdm(self.Nucleus, total=len(self.Nucleus), desc="Computing for all isotopes", colour="CYAN"):
-            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave, **kw)
+            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave,
+                               time_lower=time_lower, time_upper=time_upper **kw)
         self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
-        self.rateper_Er_iso = {isotope.name: isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies)
+        self.rateper_Er_iso = {isotope.name:
+                                   isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies,)
                                for isotope in tqdm(self.Nucleus)}
-        self.rateper_t_iso = {isotope.name: isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies)
+        self.rateper_t_iso = {isotope.name:
+                                  isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies,)
                               for isotope in tqdm(self.Nucleus)}
 
         self._compute_total_rates()
