@@ -265,7 +265,7 @@ class Models:
         # only if fluxes doesn't exist or forced
         for isotope in tqdm(self.Nucleus, total=len(self.Nucleus), desc="Computing for all isotopes", colour="CYAN"):
             isotope.get_fluxes(self.model, self.neutrino_energies, force, leave,
-                               time_lower=time_lower, time_upper=time_upper **kw)
+                               time_lower=time_lower, time_upper=time_upper, **kw)
         self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
         self.rateper_Er_iso = {isotope.name:
                                    isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies,)
