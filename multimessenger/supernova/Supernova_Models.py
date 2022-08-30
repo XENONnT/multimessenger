@@ -268,10 +268,12 @@ class Models:
                                time_lower=time_lower, time_upper=time_upper, **kw)
         self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
         self.rateper_Er_iso = {isotope.name:
-                                   isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies,)
+                                   isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies,
+                               time_lower=time_lower, time_upper=time_upper)
                                for isotope in tqdm(self.Nucleus)}
         self.rateper_t_iso = {isotope.name:
-                                  isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies,)
+                                  isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies,
+                               time_lower=time_lower, time_upper=time_upper)
                               for isotope in tqdm(self.Nucleus)}
 
         self._compute_total_rates()
