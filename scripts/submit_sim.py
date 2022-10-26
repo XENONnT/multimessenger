@@ -71,7 +71,6 @@ def make_batch_script(model_name,model_index,ntotal,distance,volume,runid):
 module load singularity
 singularity shell \\
     --bind /cvmfs/ \\
-    --bind /project/ \\
     --bind /project2/ \\
     --bind /scratch/midway2/$USER \\
     --bind /dali \\
