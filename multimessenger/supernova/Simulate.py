@@ -74,26 +74,31 @@ def generate_sn_instructions(energy_deposition,
     instr['y'][:] = y.repeat(2)
     instr['z'][:] = z.repeat(2)
     # making energy
-    instr['recoil'][:] = 0
+    instr['recoil'][:] = nestpy.INTERACTION_TYPE.NR
     instr['e_dep'][:] = energy_deposition.repeat(2)
     # getting local field from field map
     if fmap is not None:
         instr['local_field'] = fmap(np.array([np.sqrt(x ** 2 + y ** 2), z]).T).repeat(2)
     else:
         if field is not None:
-            instr['local_field'] = fmap
+            instr['local_field'] = field
         else:
             raise TypeError('Provide a field, either a map or a single value')
     if nc is None:
         raise KeyError("You need to provide a nest instance")
     # And generating quanta from nest
+    nc = nestpy.NESTcalc(nestpy.VDetector())
+    A = 131.293
+    Z = 54.
+    density = 2.862  # g/cm^3
     for i in range(0, n_tot):
-        y = nc.GetYields(
-            interaction=nestpy.INTERACTION_TYPE(instr['recoil'][2 * i]),
-            energy=instr['e_dep'][2 * i],
-            drift_field=instr['local_field'][2 * i],
-        )
-        q_ = nc.GetQuanta(y)
+        interaction = nestpy.INTERACTION_TYPE(instr['recoil'][2 * i])
+        y = nc.GetYields(interaction=interaction,
+                         energy=instr['e_dep'][2 * i],
+                         density=density,
+                         drift_field=instr['local_field'][2 * i],
+                         A=A, Z=Z, )
+        q_ = nc.GetQuanta(y, density)
         instr['amp'][2 * i] = q_.photons
         instr['amp'][2 * i + 1] = q_.electrons
         instr['n_excitons'][2 * i:2 * (i + 1)] = q_.excitons

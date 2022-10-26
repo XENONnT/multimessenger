@@ -86,6 +86,7 @@ def add_strax_folder(config, context=None):
                 output_folder_exists = True
         if not output_folder_exists:
             st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
+        click.secho(f"Using 'cutax.contexts.xenonnt_sim_SR0v2_cmt_v8' \nsaving data to {mc_data_folder}", fg='blue')
         return st
     except ImportError:
         click.secho("> You don't have strax/cutax, won't be able to simulate!", fg='red')
