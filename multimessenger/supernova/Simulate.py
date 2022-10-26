@@ -74,7 +74,7 @@ def generate_sn_instructions(energy_deposition,
     instr['y'][:] = y.repeat(2)
     instr['z'][:] = z.repeat(2)
     # making energy
-    instr['recoil'][:] = 7
+    instr['recoil'][:] = 0
     instr['e_dep'][:] = energy_deposition.repeat(2)
     # getting local field from field map
     if fmap is not None:
