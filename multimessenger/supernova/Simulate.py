@@ -47,7 +47,6 @@ def generate_sn_instructions(energy_deposition,
                              n_tot=1000,
                              rate=20.,
                              fmap=None, field=None,
-                             nc=None,
                              r_range=(0, 66.4), z_range=(-148.15, 0),
                              mode="all",
                              timemode="realistic",
@@ -84,8 +83,7 @@ def generate_sn_instructions(energy_deposition,
             instr['local_field'] = field
         else:
             raise TypeError('Provide a field, either a map or a single value')
-    if nc is None:
-        raise KeyError("You need to provide a nest instance")
+
     # And generating quanta from nest
     nc = nestpy.NESTcalc(nestpy.VDetector())
     A = 131.293
