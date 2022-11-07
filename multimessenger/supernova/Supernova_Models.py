@@ -415,7 +415,6 @@ class Models:
                               n_tot=1000,
                               rate=20.,
                               fmap=None, field=None,
-                              nc=None,
                               r_range=(0, 66.4), z_range=(-148.15, 0),
                               mode="all",
                               timemode="realistic",

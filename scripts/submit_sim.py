@@ -70,7 +70,6 @@ def make_batch_script(model_name,model_index,ntotal,distance,volume,runid):
 #SBATCH --time=12:00:00
 module load singularity
 singularity shell \\
-    --bind /cvmfs/ \\
     --bind /project2/ \\
     --bind /scratch/midway2/$USER \\
     --bind /dali \\
