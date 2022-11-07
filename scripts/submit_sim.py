@@ -26,7 +26,7 @@ parser.add_argument('-m', '--model',
                     type=str,
                     required=True)
 parser.add_argument('-i', '--model_index',
-                    help=('Some model types have differnt options. Select them by'
+                    help=('Some model types have different options. Select them by'
                           'index. TO BE IMPROVED.'),
                     type=str,
                     required=True)
