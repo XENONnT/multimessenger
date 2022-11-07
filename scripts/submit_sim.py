@@ -74,7 +74,7 @@ singularity shell \\
     --bind /project2/ \\
     --bind /scratch/midway2/$USER \\
     --bind /dali \\
-    /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
+    /project2/lgrandi/xenonnt/singularity-images/xenonnt-2022.09.1.simg <<EOF
 python simulate_snmodel.py -m {model_name} -i {model_index} -N {ntotal} -d {distance} -v {volume} -id {runid}
 EOF''' 
     with open(f'SN_sim_{runid}_wfsim.job', 'w') as F:
