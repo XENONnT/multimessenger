@@ -68,9 +68,11 @@ def main():
     
     if ntotal == -1:
         N_events = nevents
-        sampled_t = A.sample_data(nevents, dtype='time')
+        # sampled in seconds -> convert to ns
+        sampled_t = A.sample_data(nevents, dtype='time') * 1e9
     else:
         N_events = ntotal
+        # already samples in ns
         sampled_t = "shifted"
         
     sampled_Er = A.sample_data(N_events)
