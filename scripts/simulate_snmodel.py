@@ -2,7 +2,8 @@ import argparse
 from multimessenger.supernova import Supernova_Models as sn
 import numpy as np
 import pandas as pd
-import straxen, cutax, pema
+import straxen, cutax
+# import pema
 import astropy.units as u
 import os
 
@@ -85,8 +86,7 @@ def main():
     mc_data_folder = os.path.join(mc_folder, "strax_data")
     st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000",
                                                  output_folder=mc_data_folder)
-    st.register_all(pema.match_plugins)
-
+    # st.register_all(pema.match_plugins)
     st = A.simulate_one(df, runid, context=st)
     
 if __name__ == "__main__":
