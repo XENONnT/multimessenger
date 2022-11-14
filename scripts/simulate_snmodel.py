@@ -1,10 +1,11 @@
 import argparse
 from multimessenger.supernova import Supernova_Models as sn
 import numpy as np
-import nestpy
 import pandas as pd
-import straxen
+import straxen, cutax
+# import pema
 import astropy.units as u
+import os
 
 parser = argparse.ArgumentParser(
     description=('Script to run a SN simulation of a given model.')
@@ -60,27 +61,35 @@ def main():
                                             fmt="json.gz"),
                         method="RegularGridInterpolator")
 
-    nc = nestpy.NESTcalc(nestpy.DetectorExample_XENON10())
-    ## not sure if nestpy RNG issue was solved, so randomize NEST internal state
-    for i in range(np.random.randint(100)):
-        nc.GetQuanta(nc.GetYields(energy=np.random.uniform(10,100)))
+    # nc = nestpy.NESTcalc(nestpy.DetectorExample_XENON10())
+    # ## not sure if nestpy RNG issue was solved, so randomize NEST internal state
+    # for i in range(np.random.randint(100)):
+    #     nc.GetQuanta(nc.GetYields(energy=np.random.uniform(10,100)))
     
     if ntotal == -1:
         N_events = nevents
-        sampled_t = A.sample_data(nevents, dtype='time')
+        # sampled in seconds -> convert to ns
+        sampled_t = A.sample_data(nevents, dtype='time') * 1e9
     else:
         N_events = ntotal
+        # already samples in ns
         sampled_t = "shifted"
         
     sampled_Er = A.sample_data(N_events)
     instr = A.generate_instructions(energy_deposition=sampled_Er, 
                                     timemode=sampled_t, 
-                                    n_tot=N_events, 
-                                    nc=nc, 
+                                    n_tot=N_events,
                                     fmap=field_map)
     df = pd.DataFrame(instr)
     print(f"Total duration {np.ptp(df['time'])*1e-9:.2f} seconds")
-    st = A.simulate_one(df, runid)
+
+    # context
+    mc_folder = A.config["wfsim"]["sim_folder"]
+    mc_data_folder = os.path.join(mc_folder, "strax_data")
+    st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000",
+                                                 output_folder=mc_data_folder)
+    # st.register_all(pema.match_plugins)
+    st = A.simulate_one(df, runid, context=st)
     
 if __name__ == "__main__":
     main()

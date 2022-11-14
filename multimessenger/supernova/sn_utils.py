@@ -258,7 +258,7 @@ def clean_repos(pattern='*', config_file=None):
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs_path']
-    strax_data_path = config['wfsim']['strax_data_path']
+    strax_data_path = config['wfsim']['sim_folder']
 
     if input('Are you sure to delete all the data?\n'
              f'\t{inst_path}{pattern}\n'
@@ -275,7 +275,7 @@ def see_repos(config_file=None):
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs_path']
-    strax_data_path = config['wfsim']['strax_data_path']
+    strax_data_path = config['wfsim']['sim_folder']
 
     if not os.path.isdir(logs_path):
         os.mkdir(logs_path)

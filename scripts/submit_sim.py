@@ -26,7 +26,7 @@ parser.add_argument('-m', '--model',
                     type=str,
                     required=True)
 parser.add_argument('-i', '--model_index',
-                    help=('Some model types have differnt options. Select them by'
+                    help=('Some model types have different options. Select them by'
                           'index. TO BE IMPROVED.'),
                     type=str,
                     required=True)
@@ -70,12 +70,10 @@ def make_batch_script(model_name,model_index,ntotal,distance,volume,runid):
 #SBATCH --time=12:00:00
 module load singularity
 singularity shell \\
-    --bind /cvmfs/ \\
-    --bind /project/ \\
     --bind /project2/ \\
     --bind /scratch/midway2/$USER \\
     --bind /dali \\
-    /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
+    /project2/lgrandi/xenonnt/singularity-images/xenonnt-2022.09.1.simg <<EOF
 python simulate_snmodel.py -m {model_name} -i {model_index} -N {ntotal} -d {distance} -v {volume} -id {runid}
 EOF''' 
     with open(f'SN_sim_{runid}_wfsim.job', 'w') as F:
