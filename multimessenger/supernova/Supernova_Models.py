@@ -99,41 +99,14 @@ def make_history(history, input_str, version, user=None, fmt='%Y/%m/%d - %H:%M U
     history = pd.concat([history, new_df], ignore_index=True)
     return history
 
-def _compute_rates_within_time(Nucleus, model, neutrino_energies, recoil_energies, time_lower, time_upper, **kw):
-    for isotope in tqdm(Nucleus, total=len(Nucleus), desc="Computing for all isotopes", colour="CYAN"):
-        isotope.get_fluxes(model, neutrino_energies, force=True, leave=False,
-                           time_lower=time_lower, time_upper=time_upper, **kw)
-
-    isotope_fluxes = {isotope.name: isotope.fluxes for isotope in Nucleus}
-    rateper_Er_iso = {isotope.name:
-                          isotope.dRdEr(model, neutrino_energies, recoil_energies, time_lower=time_lower,
-                                        time_upper=time_upper)
-                      for isotope in tqdm(Nucleus)}
-    rateper_t_iso = {isotope.name:
-                         isotope.dRdt(model, neutrino_energies, recoil_energies, time_lower=time_lower,
-                                      time_upper=time_upper)
-                     for isotope in tqdm(Nucleus)}
-
-    # get the total fluxes and rates
-    f_example = isotope_fluxes[Nucleus[0].name][Flavor.NU_E]
-    dEr_example = rateper_Er_iso[Nucleus[0].name][Flavor.NU_E]
-    dt_example = rateper_t_iso[Nucleus[0].name][Flavor.NU_E]
-
-    fluxes = {f: np.zeros_like(f_example) for f in Flavor}
-    rateper_Er = {f: np.zeros_like(dEr_example) for f in Flavor}
-    rateper_t = {f: np.zeros_like(dt_example) for f in Flavor}
-    for f in Flavor:
-        for xe in Nucleus:
-            fluxes[f] += isotope_fluxes[xe.name][f]
-            rateper_Er[f] += rateper_Er_iso[xe.name][f]
-            rateper_t[f] += rateper_t_iso[xe.name][f]
-    # get Total in all flavors
-    rateper_Er["Total"], rateper_t["Total"] = 0, 0
-    for f in Flavor:
-        rateper_Er["Total"] += rateper_Er[f]
-        rateper_t["Total"] += rateper_t[f]
-    return rateper_Er, rateper_t
-
+def get_clipped_time_mask(times, time_lower=None, time_upper=None):
+    time_lower = time_lower or np.min(times)
+    time_upper = time_upper or np.max(times)
+    argmin = np.argmin(np.abs(times - time_lower))
+    argmax = np.argmin(np.abs(times - time_upper)) + 1
+    mask = np.zeros(len(times), dtype=bool)
+    mask[argmin:argmax] = True
+    return mask
 
 class Models:
     """ Deal with a given SN lightcurve from snewpy
@@ -193,13 +166,12 @@ class Models:
         self.single_rate = None
         self.history = pd.DataFrame(columns=['date', 'version', 'user', 'history'])
         self.simulation_history = {}
-        self.__version__ = "1.2.1"
+        self.__version__ = "1.3.1"
         try:
             self.retrieve_object()
         except FileNotFoundError:
             self.model = fetch_model(self.model_name, self.model_file, **self.model_kwargs)
             self.save_object(True)
-
 
 
     def __repr__(self):
@@ -280,7 +252,17 @@ class Models:
                  f"{file}?\n") == 'y':
             os.remove(file)
 
-    def compute_rates(self, total=True, force=False, leave=False, return_vals=False, **kw):
+    def _check_save_name(self, mask):
+        if all(mask):
+            # then no time mask is applied
+            return
+        else:
+            # then we are changing the times, so also change the saving name
+            self.name = self.name + "time"
+
+
+    def compute_rates(self, total=True, force=False, leave=False, return_vals=False,
+                      time_lower=None, time_upper=None, **kw):
         """ Do it for each composite and scale for their abundance
             simple scaling won't work as the proton number changes
             :param total: `bool` if True return total of all isotopes
@@ -293,16 +275,28 @@ class Models:
                 containing rates for all isotopes individually
         """
         is_first = True if self.fluxes is None else False
+        mask = get_clipped_time_mask(self.model.time, time_lower, time_upper)
+        if (not is_first) and (not force):
+            if not np.sum(mask) == len(self.Nucleus[0].fluxes[Flavor.NU_E]):
+                # Then it is called second time with different time limits
+                # need to recompute the fluxes for given time
+                print("\t> The times have been changed, re-computing the fluxes!")
+                self.compute_rates(total=True, force=True, leave=False, return_vals=False,
+                                    time_lower=time_lower, time_upper=time_upper, **kw)
+
+        # self._check_save_name(mask)
         # create fluxes attribute for each isotope
         # only if fluxes doesn't exist or forced
         for isotope in tqdm(self.Nucleus, total=len(self.Nucleus), desc="Computing for all isotopes", colour="CYAN"):
-            isotope.get_fluxes(self.model, self.neutrino_energies, force, leave, **kw)
+            isotope.get_fluxes(self.model, self.neutrino_energies, force=force, leave=leave, timemask=mask, **kw)
         self.isotope_fluxes = {isotope.name: isotope.fluxes for isotope in self.Nucleus}
         self.rateper_Er_iso = {isotope.name:
-                                   isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies)
+                                   isotope.dRdEr(self.model, self.neutrino_energies, self.recoil_energies,
+                                                 timemask=mask)
                                for isotope in tqdm(self.Nucleus)}
         self.rateper_t_iso = {isotope.name:
-                                  isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies)
+                                  isotope.dRdt(self.model, self.neutrino_energies, self.recoil_energies,
+                                               timemask=mask)
                               for isotope in tqdm(self.Nucleus)}
 
         self._compute_total_rates()
@@ -319,23 +313,6 @@ class Models:
                 click.secho(f"> Returning the rates -per isotope- at the source for 1 atom {_str}", fg='blue')
                 return self.rateper_Er_iso, self.rateper_t_iso
         click.secho(f"> Rates are computed at the source for 1 atom see rateper_Er/t attr {_str}", fg='green')
-
-    def compute_rates_within_time(self, time_lower=None, time_upper=None, **kw):
-        """ Do it for each composite and scale for their abundance
-            simple scaling won't work as the proton number changes
-            :param time_lower: `float*unit` lower time to clip rates
-            :param time_upper: `float*unit` upper time to clip rates
-
-            Returns
-                (dR/dEr, dR/dt)
-                doesn't save it
-        """
-        Nucleus = self.Nucleus.copy()
-        model = self.model
-        neutrino_energies = self.neutrino_energies
-        recoil_energies = self.recoil_energies
-        return _compute_rates_within_time(Nucleus, model, neutrino_energies, recoil_energies,
-                                          time_lower, time_upper, **kw)
 
 
     def _compute_total_rates(self):
