@@ -26,6 +26,7 @@ import configparser
 import astropy.units as u
 from snewpy.neutrino import Flavor
 from .sn_utils import isnotebook
+import copy
 if isnotebook():
     from tqdm.notebook import tqdm
 else:
@@ -72,12 +73,12 @@ class Models:
         self.storage = get_storage(storage, self.config)
         self.object_name = ""
         # parameters to use for computations
-        self.recoil_energies = np.linspace(0, 20, 100) * u.keV
         self.neutrino_energies = np.linspace(0, 200, 100)*u.MeV
         self.time_range = (None, None)
         self.times = None
         # computed attributes
         self.fluxes = None
+        self.scaled_fluxes = None
         print(f"> {self.model_name} is created, load a progenitor by function call.")
 
     def __call__(self, filename=None, index=None, force=False, savename=None, **model_kwargs):
@@ -89,7 +90,7 @@ class Models:
 
         # check if file exists
         full_file_path = os.path.join(self.storage, savename)
-        if os.path.isfile(full_file_path):
+        if os.path.isfile(full_file_path) and not force:
             # try to retrieve
             self.retrieve_object(savename)
         else:
@@ -119,7 +120,7 @@ class Models:
         if model_loaded:
             s += [f"|file name| {self.object_name}"]
             s += [f"|duration | {np.round(np.ptp(self.model.time), 2)}|"]
-            s += [f"|time range| {self.time_range}"]
+            s += [f"|time range| ({self.time_range[0]}, {self.time_range[1]})"]
         return '\n'.join(s)
 
 
@@ -133,8 +134,8 @@ class Models:
                 if no unit is given, assumes seconds
 
         """
-        neutrino_energies = neutrino_energies or self.recoil_energies
-        time_samples = time_samples or self.times
+        neutrino_energies = neutrino_energies if type(neutrino_energies)!=type(None) else self.neutrino_energies
+        time_samples = time_samples if type(time_samples)!=type(None) else self.times
 
         if not type(neutrino_energies) == u.quantity.Quantity:
             # assume MeV
@@ -144,10 +145,13 @@ class Models:
             # assume seconds
             time_samples *= u.s
 
-        # if the user has changed something the rates needs to be recomputed. Ask for confirmation
-        if not all([neutrino_energies == self.neutrino_energies,
-                    time_samples == self.times]) and self.fluxes is not None:
+        # if the user has changed something the rates needs to be recomputed
+        if not (np.array_equal(neutrino_energies, self.neutrino_energies) and
+                np.array_equal(time_samples, self.times)) and \
+                self.fluxes is not None:
             self.fluxes = None
+
+        # set those params
         self.neutrino_energies = neutrino_energies
         self.times = time_samples
 
@@ -195,6 +199,7 @@ class Models:
         """
         if self.fluxes is not None and not force:
             # already computed
+            click.secho("fluxes are stored in the `self.fluxes` attribute")
             return None
 
         # sets the object attributes, and resets the fluxes if things have changed
@@ -207,31 +212,31 @@ class Models:
         _fluxes = np.zeros((len(self.times), len(self.neutrino_energies))) * flux_unit
         _fluxes = {f: _fluxes.copy() for f in Flavor}
 
-        for f in tqdm(Flavor, total=len(Flavor), desc="Computing Fluxes", leave=leave):
-            for i, sec in tqdm(enumerate(self.times), total=len(self.times), desc=f.to_tex(), leave=False):
-                _fluxes_dict = self.model.get_initial_spectra(sec, self.neutrino_energies, **kw)
+        for i, sec in tqdm(enumerate(self.times), total=len(self.times), desc="Looping", leave=leave):
+            _fluxes_dict = self.model.get_initial_spectra(sec, self.neutrino_energies, **kw)
+            # for f in tqdm(Flavor, total=len(Flavor), leave=False):
+            for f in Flavor:
                 _fluxes[f][i, :] = _fluxes_dict[f]
         self.fluxes = _fluxes
         self.save_object(update=True)
 
 
-    def scale_fluxes(self, distance, N_Xe=4.6e27*u.count/u.tonne, overwrite=False):
+    def scale_fluxes(self, distance, N_Xe=4.6e27*u.count/u.tonne):
         """ Scale fluxes based on distance and number of atoms
+            distance is assumed to be given in kpc or with units
+
             Return: scaled fluxes
         """
+        # each time copy from the fluxes
+        self.scaled_fluxes = copy.deepcopy(self.fluxes)
         if not type(distance) == u.quantity.Quantity:
             # assume kpc
             distance *= u.kpc
 
         scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
         try:
-            fluxes_scaled = {}
-            for f in self.fluxes.keys():
-                if overwrite:
-                    self.fluxes[f] *= scale
-                    return self.fluxes
-                else:
-                    fluxes_scaled[f] = self.fluxes[f] * scale
-                    return fluxes_scaled
+            for f in self.scaled_fluxes.keys():
+                self.scaled_fluxes[f] *= scale
+            return self.scaled_fluxes
         except:
-            raise NotImplementedError("fluxes does not exist\nCreate them by calling `get_fluxes()`")
+            raise NotImplementedError("fluxes does not exist\nCreate them by calling `compute_model_fluxes()`")

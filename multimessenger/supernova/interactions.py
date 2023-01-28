@@ -1,10 +1,12 @@
 #!/usr/bin/python
-from scipy.special import spherical_jn
+
 import numpy as np
 from astropy import units as u
 from snewpy.neutrino import Flavor
+import copy
 from .sn_utils import isnotebook
 from .Nucleus import Target
+import matplotlib.pyplot as plt
 try:
     import cPickle as pickle
 except ModuleNotFoundError:
@@ -26,18 +28,18 @@ par_s = 0.9*u.fm
 # everything in energy units
 aval = (par_a / hbar / c_speed).to(u.keV ** -1)  # .value # a in keV
 sval = (par_s / hbar / c_speed).to(u.keV ** -1)  # .value # s value in keV
-
+plt.style.use('customstyle.mplstyle')
 
 class InteractionSingle:
-    def __init__(self, Model, Target, recoil_energy):
+    def __init__(self, Model, Target, recoil_energies):
         # read the SN model and the time and neutrino energies
         self.Model = Model
         self.name = Target.name
         self.times = self.Model.times
-        self.neutrino_energies = recoil_energy #self.Model.neutrino_energies
+        self.neutrino_energies = self.Model.neutrino_energies
         # read the single isotope target and requested recoil energies
         self.Target = Target
-        self.recoil_energies = self.Target.recoil_energies
+        self.recoil_energies = recoil_energies
         # get cross-section for a given recoil and neutrino energy (len(E_nu), len(E_R))
         self.xsecs = self.Target.nN_cross_section(self.neutrino_energies, self.recoil_energies)
 
@@ -107,12 +109,20 @@ class Interactions:
         else:
             self.Nucleus = [Target(ATOM_TABLE[isotope], pure=True)]
 
+        self.Nuclei_name = Nuclei
+        self.isotope_name = isotope
         self.recoil_energies = np.linspace(0,20,100) * u.keV
         self.all_targets = [InteractionSingle(self.Model, t, self.recoil_energies) for t in self.Nucleus]
         self.rates_per_recoil_iso = None
         self.rates_per_time_iso = None
         self.rates_per_recoil = None
         self.rates_per_time = None
+        # after scale
+        self.rates_per_recoil_scaled = None
+        self.rates_per_time_scaled = None
+        self.volume = None
+        self.distance = None
+        self.expected_total = dict()
 
         if os.path.isfile(self.interaction_file):
             # try to retrieve
@@ -144,6 +154,32 @@ class Interactions:
                  f"{full_file_path}?\n") == 'y':
             os.remove(full_file_path)
 
+    def __repr__(self):
+        """Default representation of the model.
+        """
+        _repr = self.Model.__repr__()
+        return _repr
+
+    def _repr_markdown_(self):
+        """Markdown representation of the model, for Jupyter notebooks.
+        """
+        try:
+            _repr = self.Model._repr_markdown_()
+        except AttributeError:
+            _repr = f"**{self.Model.object_name}**"
+
+        s = [_repr]
+        s += [f"|Interaction file| {self.interaction_file}"]
+        s += [f"|Target | {self.isotope_name} {self.Nuclei_name}"]
+        is_computed = type(self.rates_per_time) != type(None)
+        is_scaled = type(self.rates_per_recoil_scaled) != type(None)
+        s += [f"|Computed, scaled | {is_computed}, {is_scaled}"]
+        if is_scaled:
+            s += [f"|distance | {self.distance}"]
+            s += [f"|volume | {self.volume}"]
+            s += [f"|Expected Total | {self.expected_total['Total']:.0f}"]
+        return '\n'.join(s)
+
     def compute_interaction_rates(self, recoil_energies=None, force=False, **kw_model):
         """
         :param recoil_energies: `array` default 0-20 keV 100 samples
@@ -160,9 +196,11 @@ class Interactions:
 
         # check if the model fluxes are computed
         if self.Model.fluxes is None:
+            click.secho(f"\t> Fluxes is not computed for {self.Model.object_name}, \n\tcomputing now...", fg='blue')
             self.Model.compute_model_fluxes(**kw_model)
 
         if self.rates_per_recoil is not None and not force:
+            click.secho(f"\t> Recoil rates have been found! Stored in self.rates_per_recoil & self.rates_per_time")
             # rates have been computed
             return None
 
@@ -223,3 +261,81 @@ class Interactions:
     #     rates_t_tr = {nu: rates_t[nu][:-trunc_here] for nu in rates_t.keys()}
     #     times_tr = times[:-trunc_here]
     #     return rates_Er_tr, rates_t_tr, recen_tr, times_tr
+
+    def _compute_expected_total(self):
+        """ for given scaled rates compute the total expected counts
+        """
+        for k, v in self.rates_per_recoil_scaled.items():
+            self.expected_total[k] = np.trapz(v, self.recoil_energies)
+
+
+
+    def scale_rates(self, distance, volume, N_Xe=4.6e27*u.count/u.tonne):
+        """ Scale the rates  based on distance and number of atoms
+            distance is assumed to be given in kpc or with units
+
+            Returns: `tuple` (scaled rates per recoil, scaled rates per time)
+        """
+        # each time copy from the rates at th source
+        self.rates_per_recoil_scaled = copy.deepcopy(self.rates_per_recoil)
+        self.rates_per_time_scaled = copy.deepcopy(self.rates_per_time)
+        if not type(distance) == u.quantity.Quantity:
+            # assume kpc
+            distance *= u.kpc
+        if not type(volume) == u.quantity.Quantity:
+            # assume ton
+            volume *= u.tonne
+        # track the parameters
+        self.volume = volume
+        self.distance = distance
+
+        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
+        scale *= volume
+        try:
+            for f in self.rates_per_time_scaled.keys():
+                self.rates_per_recoil_scaled[f] *= scale
+                self.rates_per_time_scaled[f] *= scale
+                # self.expected_total
+            self._compute_expected_total()
+            return self.rates_per_recoil_scaled, self.rates_per_time_scaled
+        except:
+            raise NotImplementedError("\t> Rates haven't been computed yet!\n"
+                                      "\t>Compute them by calling `compute_interaction_rates()`")
+
+
+    def plot_rates(self, scaled=True):
+        """ Plot the rates, scaled or total
+        """
+        if scaled:
+            if type(self.rates_per_time_scaled)==type(None):
+                click.secho(f"\t>Scaled rates have not been computed!, Use self.scale_rates()", fg='red')
+                return None
+            rates_time = self.rates_per_time_scaled
+            rates_recoil = self.rates_per_recoil_scaled
+            d = f"{self.distance.value} {self.distance.unit}"
+            v = f"{self.volume.value} {self.volume.unit}"
+        else:
+            if type(self.rates_per_recoil)==type(None):
+                click.secho(f"\t>Rates have not been computed!, Use self.compute_interaction_rates()", fg='red')
+                return None
+            rates_time = self.rates_per_time
+            rates_recoil = self.rates_per_recoil
+            d = "source"
+            v = "1 atom"
+
+        times = self.Model.times
+        recoils = self.recoil_energies
+        # plot the rates
+        fig, (ax1, ax2) = plt.subplots(ncols=2, figsize=(12, 5))
+        for f in Flavor:
+            ax1.semilogx(times, rates_time[f])
+            ax2.plot(recoils, rates_recoil[f], label=f.to_tex())
+
+        ax1.semilogx(times, rates_time['Total'], color='k')
+        ax2.plot(recoils, rates_recoil['Total'], color='k', label='Total')
+
+        ax1.set_ylabel(f"Rates [{rates_time['Total'].unit}]\n (at {d}, for {v})")
+        ax1.set_xlabel(f'times [{times.unit}]')
+        ax2.set_ylabel(f"Rates [{rates_recoil['Total'].unit}]\n (at {d}, for {v})")
+        ax2.set_xlabel(f'Recoil Energies [{recoils.unit}]')
+        ax2.legend()
