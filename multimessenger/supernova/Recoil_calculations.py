@@ -32,15 +32,6 @@ GF = 8.958e-44 * u.MeV * u.cm**3
 GFnat = (GF/(hbar*c_speed)**3).to(u.keV**-2)
 corrGFmN = len_nat**2 * e_nat**2
 
-
-# def get_clipped_times(times, time_lower=None, time_upper=None):
-#     time_lower = time_lower or np.min(times)
-#     time_upper = time_upper or np.max(times)
-#     argmin = np.argmin(np.abs(times - time_lower))
-#     argmax = np.argmin(np.abs(times - time_upper)) + 1
-#     return times[argmin:argmax]
-
-
 class TARGET:
     def __init__(self, atom, pure = False):
         """ Set a Target Atom
