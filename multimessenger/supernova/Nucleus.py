@@ -60,6 +60,25 @@ class Target:
         self.Qw = self.N - (1 - 4.0 * sin2theta) * self.Z
         self.rnval, self.term1 = _get_vals(self.A, self.Z, self.N, self.masskeV)
 
+    def __repr__(self):
+        """Default representation of the model.
+        """
+        _repr = []
+        for k,v in self.target.items():
+            _repr += [f"|{k:.10s}| {v} |"]
+        return "\n".join(_repr)
+
+    def _repr_markdown_(self):
+        """Markdown representation of the model, for Jupyter notebooks.
+        """
+        _repr = ["**The Target:**"]
+        _repr += ['|Parameter|Value|',
+                  '|:--------|:----:|']
+        for k, v in self.target.items():
+            _repr += [f"|{k:.10s}| {v} "]
+        return "\n".join(_repr)
+
+
     def form_factor(self, Er):
         """
         Helms Form Factor

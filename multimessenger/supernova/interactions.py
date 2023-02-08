@@ -49,7 +49,7 @@ class InteractionSingle:
             Returns
               $\frac{dR}{dE_R} = \sum_{\nu_\beta} N_{Xe}
                \int_{E_{min}^{\nu}} dE_\nu f_\nu(E_\nu)\frac{d\sigma}{dE_R}(E_\nu, E_R)$
-            So the result is a dictionary with matricies
+            So the result is a dictionary with matrices
         """
         # get time integrated fluxes (len(E_nu))
         time_integrated_fluxes = {f: np.trapz(self.Model.fluxes[f], self.times, axis=0).to(1 / u.keV) for f in Flavor}
