@@ -2,6 +2,7 @@
 from scipy.special import spherical_jn
 import numpy as np
 from astropy import units as u
+import pandas as pd
 
 
 hbar = 1.0546e-27*u.cm**2 *u.g / u.s
@@ -71,12 +72,17 @@ class Target:
     def _repr_markdown_(self):
         """Markdown representation of the model, for Jupyter notebooks.
         """
-        _repr = ["**The Target:**"]
-        _repr += ['|Parameter|Value|',
-                  '|:--------|:----:|']
-        for k, v in self.target.items():
-            _repr += [f"|{k:.10s}| {v} "]
-        return "\n".join(_repr)
+        df = pd.DataFrame(self.target, index=["Values"]).T
+        return (
+            '### The Target'
+            f'{df._repr_html_()}<br>\n'
+        )
+        # _repr = ["**The Target:**"]
+        # _repr += ['|Parameter|Value|',
+        #           '|:--------|:----:|']
+        # for k, v in self.target.items():
+        #     _repr += [f"|{k:.10s}| {v}"]
+        # return '\n'.join(_repr)
 
 
     def form_factor(self, Er):
