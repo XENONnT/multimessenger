@@ -199,7 +199,7 @@ class Models:
         """
         if self.fluxes is not None and not force:
             # already computed
-            click.secho("fluxes are stored in the `self.fluxes` attribute")
+            click.secho("Fluxes already exist in `self.fluxes`, and force=False, doing nothing.")
             return None
 
         # sets the object attributes, and resets the fluxes if things have changed
