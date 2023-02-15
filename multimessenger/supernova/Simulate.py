@@ -1,7 +1,15 @@
 # The core is taken from Andrii Terliuk's script
 import numpy as np
 import nestpy, os, click
+from astropy import units as u
+from snewpy.neutrino import Flavor
+from scipy.interpolate import interp1d
+from .sn_utils import isnotebook
 
+if isnotebook():
+    from tqdm.notebook import tqdm
+else:
+    from tqdm import tqdm
 try:
     import wfsim
     WFSIMEXIST = True
@@ -163,3 +171,97 @@ def _simulate_one(df, runid, config, context):
         context.make(runid, "truth")
         click.secho(f"{runid} is fetched! Returning context!", fg='green')
     return context
+
+def _inverse_transform_sampling(x_vals, y_vals, n_samples):
+    cum_values = np.zeros(x_vals.shape)
+    y_mid = (y_vals[1:] + y_vals[:-1]) * 0.5
+    cum_values[1:] = np.cumsum(y_mid * np.diff(x_vals))
+    inv_cdf = interp1d(cum_values / np.max(cum_values), x_vals)
+    r = np.random.rand(n_samples)
+    return inv_cdf(r)
+
+
+NEUTRINO_ENERGIES = np.linspace(0,250,500)
+RECOIL_ENERGIES = np.linspace(0,30,100)
+
+def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
+    """
+    For the sampling, I could in principle, sample an isotope for each interaction
+    based on their abundance. However, this would slow down the sampling heavily,
+    therefore, I select always the isotope that has the highest abundance
+    """
+    # fetch the attributes
+    Model = interaction.Model
+    times = Model.times.value
+    neutrino_energies =  kw.get("neutrino_energies", None) or interaction.Model.neutrino_energies.value
+    recoil_energies = kw.get("recoil_energies", None) or interaction.recoil_energies.value
+    totrates = interaction.rates_per_time_scaled[flavor]
+
+    # sample times
+    sampled_times = _inverse_transform_sampling(times, totrates, size)
+    sampled_times = np.sort(sampled_times)
+
+    # fluxes at those times
+    fluxes_at_times = Model.model.get_initial_spectra(t=sampled_times * u.s,
+                                                      E=neutrino_energies * u.MeV,
+                                                      flavors=[flavor])[flavor]
+    # get all the cross-sections for a range of neutrino energies
+    crosssec = interaction.Nucleus[0].nN_cross_section(neutrino_energies * u.MeV,
+                                                       recoil_energies * u.keV)
+
+    # calculate fluxes convolved with this cross-section
+    flux_xsec = np.zeros((len(sampled_times), len(recoil_energies), len(neutrino_energies)))
+    for i, t in enumerate(sampled_times):
+        flux_xsec[i] = (fluxes_at_times[i, :] * crosssec) / np.sum(fluxes_at_times[i, :] * crosssec)
+
+    # select the most abundant atom
+    maxabund = np.argmax([nuc.abund for _, nuc in enumerate(interaction.Nucleus)])
+    atom = interaction.Nucleus[maxabund]
+
+    sampled_nues, sampled_recoils = np.zeros(len(sampled_times)), np.zeros(len(sampled_times))
+    for i, t in tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name):
+        bb = np.trapz(flux_xsec[i], axis=0)
+        sampled_nues[i] = _inverse_transform_sampling(neutrino_energies, bb, 1)
+        recspec = atom.nN_cross_section(sampled_nues[i] * u.MeV, recoil_energies * u.keV).value.flatten()
+        sampled_recoils[i] = _inverse_transform_sampling(recoil_energies, recspec / np.sum(recspec), 1)[0]
+    return sampled_times, sampled_nues, sampled_recoils
+
+
+
+def sample_times_energies(interaction, size='infer', **kw):
+    """ Sample interaction times and neutrino energies at those times
+        also sample recoil energies based on those neutrino energies and
+        the atomic cross-section at that energies.
+        :param interaction: `interactions.Interactions object`
+        :param size: if 'infer' uses the expected number of total counts from the interaction
+                    if a single integer, uses the same for each flavor
+                    can also be a list of expected counts for each flavor
+                    [nue, nue_bar, nux, nux_bar]
+        neutrino_energies & recoil_energies can be passed as kwargs
+        :returns: sampled_times, sampled_neutrino_energies, sampled_recoils
+    """
+    time_samples = dict()
+    neutrino_energy_samples = dict()
+    recoil_energy_samples = dict()
+    if type(size)==str:
+        size = []
+        for f in Flavor:
+            tot_count = np.trapz(interaction.rates_per_recoil_scaled[f], interaction.recoil_energies)
+            size.append(int(tot_count.value))
+    else:
+        if np.ndim(size)==0:
+            size = np.repeat(size, 4)
+
+    for f,s in zip(Flavor, size):
+        a,b,c = _sample_times_energy(interaction, s, flavor=f, **kw)
+        time_samples[f] = a
+        neutrino_energy_samples[f] = b
+        recoil_energy_samples[f] = c
+
+    time_samples['Total'] = np.concatenate([time_samples[f] for f in Flavor])
+    neutrino_energy_samples['Total'] = np.concatenate([neutrino_energy_samples[f] for f in Flavor])
+    recoil_energy_samples['Total'] = np.concatenate([recoil_energy_samples[f] for f in Flavor])
+
+    return time_samples, neutrino_energy_samples, recoil_energy_samples
+
+
