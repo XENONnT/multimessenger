@@ -72,28 +72,44 @@ def generate_sn_instructions(energy_deposition,
             times = generate_times(rate=rate, size=n_tot, timemode=timemode) + time_offset
     if not WFSIMEXIST:
         raise ImportError("WFSim is not installed and is required for instructions!")
+
+    # create instructions frame
     instr = np.zeros(2 * n_tot, dtype=wfsim.instruction_dtype)
-    instr['event_number'] = np.arange(1, n_tot + 1).repeat(2)
+    instr['event_number'] = np.arange(1, n_tot + 1).repeat(2)    # same event two output S1,S2
     instr['type'][:] = np.tile([1, 2], n_tot)
-    instr['time'][:] = times.repeat(2)
+    instr['time'][:] = times.repeat(2)                           # same event time, S2 delay added later in wfsim
     # generating uniformly distributed events for given R and Z range
     x, y, z = generate_vertex(r_range=r_range, z_range=z_range, size=n_tot)
     instr['x'][:] = x.repeat(2)
     instr['y'][:] = y.repeat(2)
     instr['z'][:] = z.repeat(2)
     # making energy
-    instr['recoil'][:] = 7
+    instr['recoil'][:] = nestpy.NR
     instr['e_dep'][:] = energy_deposition.repeat(2)
     # getting local field from field map
     if fmap is not None:
+        if type(fmap)==str:
+            # file name is passed, get the field map manually
+            import straxen
+            downloader = straxen.MongoDownloader()
+            fmap = straxen.InterpolatingMap(
+                        straxen.get_resource(downloader.download_single(fmap),
+                                             fmt="json.gz"),
+                        method="RegularGridInterpolator")
         instr['local_field'] = fmap(np.array([np.sqrt(x ** 2 + y ** 2), z]).T).repeat(2)
     else:
         if field is not None:
-            instr['local_field'] = fmap
+            instr['local_field'] = field
         else:
             raise TypeError('Provide a field, either a map or a single value')
     if nc is None:
-        raise KeyError("You need to provide a nest instance")
+        # get a nestpy instance
+        nc = nestpy.NESTcalc(nestpy.DetectorExample_XENON10())
+        ## not sure if nestpy RNG issue was solved, so randomize NEST internal state
+        for i in range(np.random.randint(100)):
+            nc.GetQuanta(nc.GetYields(energy=np.random.uniform(10, 100)))
+        click.secho("> `nc` is not passed, Using default nestpy instance nestpy.DetectorExample_XENON10()")
+
     # And generating quanta from nest
     for i in range(0, n_tot):
         y = nc.GetYields(
@@ -153,8 +169,13 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     return sampled_er, sampled_t, rolled_total
 
 def _simulate_one(df, runid, config, context):
-    if not (WFSIMEXIST and CUTAXEXIST and STRAXEXIST):
-        raise ImportError("WFSim, strax and/or cutax are not installed and is required for simulation!")
+    """ from a given instruction (see Simulate.generate_sn_instruction)
+        simulate data with name=`runid` using the `config` and with the given context
+    """
+    for libexists, libname in zip([WFSIMEXIST, CUTAXEXIST, STRAXEXIST], ["WFSim", "cutax", "strax"]):
+        if not libexists:
+            raise ImportError(f"{libname} not installed and is required for simulation!")
+
     csv_folder = config["wfsim"]["instruction_path"]
     csv_path = os.path.join(csv_folder, runid + ".csv")
     if not context.is_stored(runid, "truth"):
@@ -225,7 +246,6 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
         recspec = atom.nN_cross_section(sampled_nues[i] * u.MeV, recoil_energies * u.keV).value.flatten()
         sampled_recoils[i] = _inverse_transform_sampling(recoil_energies, recspec / np.sum(recspec), 1)[0]
     return sampled_times, sampled_nues, sampled_recoils
-
 
 
 def sample_times_energies(interaction, size='infer', **kw):
