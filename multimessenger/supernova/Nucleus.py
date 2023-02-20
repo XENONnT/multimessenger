@@ -77,12 +77,6 @@ class Target:
             '### The Target'
             f'{df._repr_html_()}<br>\n'
         )
-        # _repr = ["**The Target:**"]
-        # _repr += ['|Parameter|Value|',
-        #           '|:--------|:----:|']
-        # for k, v in self.target.items():
-        #     _repr += [f"|{k:.10s}| {v}"]
-        # return '\n'.join(_repr)
 
 
     def form_factor(self, Er):
