@@ -302,6 +302,41 @@ class Interactions:
             raise NotImplementedError("\t> Rates haven't been computed yet!\n"
                                       "\t>Compute them by calling `compute_interaction_rates()`")
 
+    def simulate_automatically(self, context, runid, config=None,
+                               return_instructions=False,
+                               **kw):
+        """ Simulate using WFSim automatically from your interactions
+            First sample times and energies
+            Next, generate sn instructions
+            Finally, simulate a single WFSim simulation from the instructions
+            kwargs can include:
+            :param nc: `nestpy.NESTcalc()` instance
+            :param fmap: `str` name of the electric field file, default
+                "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
+                or `straxen.InterpolatingMap`
+            :param field: `float` if no map is passed, fixed field
+
+            Returns:
+            context, (instructions)
+        """
+        from .Simulate import  _simulate_one, sample_times_energies, generate_sn_instructions
+        from .sn_utils import add_strax_folder
+        config = config or self.Model.config
+        _context = add_strax_folder(config, context) # to have access to common strax data folder
+
+        # sample times and recoil energies
+        time_samples, _, recoil_energy_samples = sample_times_energies(self, size='infer')
+
+
+        instructions = generate_sn_instructions(energy_deposition=recoil_energy_samples,
+                                                n_tot=len(time_samples),
+                                                timemode=time_samples,
+                                                **kw)
+        st = _simulate_one(instructions, runid, config=config, context=_context)
+        to_return = [st]
+        if return_instructions:
+            to_return.append(instructions)
+        return to_return
 
     def plot_rates(self, scaled=True):
         """ Plot the rates, scaled or total
