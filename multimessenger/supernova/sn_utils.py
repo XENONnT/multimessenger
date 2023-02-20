@@ -79,6 +79,27 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     return interpolated
 
 
+def add_strax_folder(config, context):
+    """ This appends the SN MC folder to your directories
+        So the simulations created by others are accessible to you
+
+    """
+    mc_folder = config["wfsim"]["sim_folder"]
+    mc_data_folder = os.path.join(mc_folder, "strax_data")
+    try:
+        import strax
+        st = context
+        output_folder_exists = False
+        for i, stores in enumerate(st.storage):
+            if mc_data_folder in stores.path:
+                output_folder_exists = True
+        if not output_folder_exists:
+            st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
+        return st
+    except Exception as e:
+        click.secho(f"> {e}", fg='red')
+        pass
+
 # def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, config_file=None):
 #     """ Sample from the recoil spectrum in given file
 #
