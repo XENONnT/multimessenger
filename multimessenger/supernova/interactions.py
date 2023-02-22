@@ -1,9 +1,10 @@
 #!/usr/bin/python
 
 import numpy as np
+import pandas as pd
 from astropy import units as u
 from snewpy.neutrino import Flavor
-import copy
+import copy, os
 from .sn_utils import isnotebook
 from .Nucleus import Target
 import matplotlib.pyplot as plt
@@ -28,7 +29,9 @@ par_s = 0.9*u.fm
 # everything in energy units
 aval = (par_a / hbar / c_speed).to(u.keV ** -1)  # .value # a in keV
 sval = (par_s / hbar / c_speed).to(u.keV ** -1)  # .value # s value in keV
-plt.style.use('customstyle.mplstyle')
+customstyle = os.path.join(os.path.dirname(os.path.realpath(__file__)), "customstyle.mplstyle")
+plt.style.use(customstyle)
+# plt.style.use('customstyle.mplstyle')
 
 class InteractionSingle:
     def __init__(self, Model, Target, recoil_energies):
@@ -304,6 +307,7 @@ class Interactions:
 
     def simulate_automatically(self, context, runid, config=None,
                                return_instructions=False,
+                               force=False,
                                **kw):
         """ Simulate using WFSim automatically from your interactions
             First sample times and energies
@@ -315,6 +319,7 @@ class Interactions:
                 "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
                 or `straxen.InterpolatingMap`
             :param field: `float` if no map is passed, fixed field
+            :param force: `bool` even if data exists, recreate from scratch
 
             Returns:
             context, (instructions)
@@ -327,12 +332,16 @@ class Interactions:
         # sample times and recoil energies
         time_samples, _, recoil_energy_samples = sample_times_energies(self, size='infer')
 
+        # default field file
+        field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
 
-        instructions = generate_sn_instructions(energy_deposition=recoil_energy_samples,
-                                                n_tot=len(time_samples),
-                                                timemode=time_samples,
+        instructions = generate_sn_instructions(energy_deposition=recoil_energy_samples['Total'],
+                                                n_tot=len(time_samples['Total']* 1e9), # times in ns
+                                                timemode=time_samples['Total'],
+                                                fmap=field_file,
                                                 **kw)
-        st = _simulate_one(instructions, runid, config=config, context=_context)
+        instructions = pd.DataFrame(instructions)
+        st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
         to_return = [st]
         if return_instructions:
             to_return.append(instructions)

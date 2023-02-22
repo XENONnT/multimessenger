@@ -168,7 +168,7 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     # te remaining 10 will just confuse more.
     return sampled_er, sampled_t, rolled_total
 
-def _simulate_one(df, runid, config, context):
+def _simulate_one(df, runid, config, context, force):
     """ from a given instruction (see Simulate.generate_sn_instruction)
         simulate data with name=`runid` using the `config` and with the given context
     """
