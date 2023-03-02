@@ -60,7 +60,7 @@ def generate_sn_instructions(energy_deposition,
                              mode="all",
                              timemode="realistic",
                              time_offset=0,
-                             identifier=None,
+                             return_nonzero_mask=False,
                              **kwargs
                              ):
     if type(timemode) != str:
@@ -123,9 +123,6 @@ def generate_sn_instructions(energy_deposition,
         instr['amp'][2 * i + 1] = q_.electrons
         instr['n_excitons'][2 * i:2 * (i + 1)] = q_.excitons
 
-    if identifier is not None:
-        instr['identifier'] = identifier
-
     if mode == "s1":
         instr = instr[instr['type'] == 1]
     elif mode == "s2":
@@ -135,8 +132,10 @@ def generate_sn_instructions(energy_deposition,
     else:
         raise RuntimeError("Unknown mode: ", mode)
     # to avoid zero size interactions
-    instr = instr[instr['amp'] > 0]
-    return instr
+    _instr = instr[instr['amp'] > 0]
+    if return_nonzero_mask:
+        return _instr, instr['amp']>0
+    return _instr
 
 def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate_in_oneSN):
     from .sn_utils import _inverse_transform_sampling
