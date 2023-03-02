@@ -391,8 +391,8 @@ class Interactions:
             _to = int((i + 1) * single_sample_size)
             recoil_energy_samples[_from:_to] = recoil_energy_sample
             time_samples[_from:_to] = time_sample
-            time_sample[_from:_to] += max_time   # shift by the max time so that each SN starts at a later time. (ensure no overlap)
-            time_sample[_from:_to] += shifts[i]  # add the requested shift.
+            time_samples[_from:_to] += max_time   # shift by the max time so that each SN starts at a later time. (ensure no overlap)
+            time_samples[_from:_to] += shifts[i]  # add the requested shift.
             max_time = np.max(time_samples)      # max time of *all* registered times
             identifier[_from:_to] = i
 
