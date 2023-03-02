@@ -405,10 +405,11 @@ class Interactions:
                                                              return_nonzero_mask=True,
                                                              **kw)
         instructions = pd.DataFrame(instructions)
-        instructions['identifier'] = identifier.repeat(2)[nonzeromask]
         st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
         to_return = st
         if return_instructions:
+            # also add the identifier
+            instructions['identifier'] = identifier.repeat(2)[nonzeromask]
             to_return = [st, instructions]
         return to_return
 
