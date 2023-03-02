@@ -1,5 +1,6 @@
 #!/usr/bin/python
 
+import warnings
 import numpy as np
 import pandas as pd
 from astropy import units as u
@@ -336,15 +337,75 @@ class Interactions:
         field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
 
         instructions = generate_sn_instructions(energy_deposition=recoil_energy_samples['Total'],
-                                                n_tot=len(time_samples['Total']* 1e9), # times in ns
-                                                timemode=time_samples['Total'],
+                                                n_tot=len(time_samples['Total']), # times in ns
+                                                timemode=time_samples['Total']* 1e9,
                                                 fmap=field_file,
                                                 **kw)
         instructions = pd.DataFrame(instructions)
         st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
-        to_return = [st]
+        to_return = st
         if return_instructions:
-            to_return.append(instructions)
+            to_return = [st, instructions]
+        return to_return
+
+    def simulate_many(self, context, runid, config=None,
+                      return_instructions=False,
+                      force=False,
+                      N_supernova=200,
+                      shift_method='random',
+                      **kw):
+        """ Simulate many SN using WFSim
+            see also simulate_automatically()
+            :param N_supernova: `int` number of supernova to simulate
+            :param shift_method: `str` random, oneafterother
+
+            Returns:
+            context, (instructions)
+        """
+        from .Simulate import  _simulate_one, sample_times_energies, generate_sn_instructions
+        from .sn_utils import add_strax_folder
+        config = config or self.Model.config
+        _context = add_strax_folder(config, context) # to have access to common strax data folder
+
+        # sample times and recoil energies
+        duration = np.ptp(self.Model.model.time)
+        if shift_method=='random':
+            shifts = np.random.uniform(0, 10, N_supernova)
+        elif shift_method=='oneafterother':
+            shifts = np.repeat(duration, N_supernova)
+        else:
+            warnings.warn(f"The shift_method={shift_method} is not recognized, shifting randomly")
+            shifts = np.random.uniform(0, 10, N_supernova)
+
+        max_time = 0
+        _, _, foo = sample_times_energies(self, size='infer', leave=False)
+        single_sample_size = len(foo['Total'])
+        time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
+        recoil_energy_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
+        for i in range(N_supernova):
+            time_sample, _, recoil_energy_sample = sample_times_energies(self, size='infer', leave=False)
+            time_sample, recoil_energy_sample = time_sample['Total'], recoil_energy_sample['Total']
+            # adjust arrays
+            _from = int(i * single_sample_size)
+            _to = int((i + 1) * single_sample_size)
+            recoil_energy_samples[_from:_to] = recoil_energy_sample
+            time_samples[_from:_to] = time_sample
+            time_sample[_from:_to] += max_time   # shift by the max time so that each SN starts at a later time. (ensure no overlap)
+            time_sample[_from:_to] += shifts[i]  # add the requested shift.
+            max_time = np.max(time_samples)      # max time of *all* registered times
+
+        # default field file
+        field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
+        instructions = generate_sn_instructions(energy_deposition=recoil_energy_samples,
+                                                n_tot=len(time_samples), # times in ns
+                                                timemode=time_samples* 1e9,
+                                                fmap=field_file,
+                                                **kw)
+        instructions = pd.DataFrame(instructions)
+        st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
+        to_return = st
+        if return_instructions:
+            to_return = [st, instructions]
         return to_return
 
     def plot_rates(self, scaled=True):
