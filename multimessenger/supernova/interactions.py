@@ -368,7 +368,7 @@ class Interactions:
         _context = add_strax_folder(config, context) # to have access to common strax data folder
 
         # sample times and recoil energies
-        duration = np.ptp(self.Model.model.time)
+        duration = np.ptp(self.Model.model.time).value
         if shift_method=='random':
             shifts = np.random.uniform(0, 10, N_supernova)
         elif shift_method=='oneafterother':
@@ -382,7 +382,7 @@ class Interactions:
         single_sample_size = len(foo['Total'])
         time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
         recoil_energy_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
-        identifier = np.zeros(single_sample_size*N_supernova)
+        identifier = np.zeros(single_sample_size*N_supernova, dtype=int)
         for i in range(N_supernova):
             time_sample, _, recoil_energy_sample = sample_times_energies(self, size='infer', leave=False)
             time_sample, recoil_energy_sample = time_sample['Total'], recoil_energy_sample['Total']
