@@ -382,6 +382,7 @@ class Interactions:
         single_sample_size = len(foo['Total'])
         time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
         recoil_energy_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
+        identifier = np.zeros(single_sample_size*N_supernova)
         for i in range(N_supernova):
             time_sample, _, recoil_energy_sample = sample_times_energies(self, size='infer', leave=False)
             time_sample, recoil_energy_sample = time_sample['Total'], recoil_energy_sample['Total']
@@ -393,6 +394,7 @@ class Interactions:
             time_sample[_from:_to] += max_time   # shift by the max time so that each SN starts at a later time. (ensure no overlap)
             time_sample[_from:_to] += shifts[i]  # add the requested shift.
             max_time = np.max(time_samples)      # max time of *all* registered times
+            identifier[_from:_to] = i
 
         # default field file
         field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
@@ -400,6 +402,7 @@ class Interactions:
                                                 n_tot=len(time_samples), # times in ns
                                                 timemode=time_samples* 1e9,
                                                 fmap=field_file,
+                                                identifier=identifier,
                                                 **kw)
         instructions = pd.DataFrame(instructions)
         st = _simulate_one(instructions, runid, config=config, context=_context, force=force)

@@ -60,6 +60,7 @@ def generate_sn_instructions(energy_deposition,
                              mode="all",
                              timemode="realistic",
                              time_offset=0,
+                             identifier=None,
                              **kwargs
                              ):
     if type(timemode) != str:
@@ -121,6 +122,10 @@ def generate_sn_instructions(energy_deposition,
         instr['amp'][2 * i] = q_.photons
         instr['amp'][2 * i + 1] = q_.electrons
         instr['n_excitons'][2 * i:2 * (i + 1)] = q_.excitons
+
+    if identifier is not None:
+        instr['identifier'] = identifier
+
     if mode == "s1":
         instr = instr[instr['type'] == 1]
     elif mode == "s2":
