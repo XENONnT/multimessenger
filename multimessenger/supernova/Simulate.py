@@ -178,14 +178,14 @@ def _simulate_one(df, runid, config, context, force):
 
     csv_folder = config["wfsim"]["instruction_path"]
     csv_path = os.path.join(csv_folder, runid + ".csv")
-    if not context.is_stored(runid, "truth"):
+    if not context.is_stored(runid, "truth") or force:
         df.to_csv(csv_path, index=False)
         context.set_config(dict(fax_file=csv_path))
         context.make(runid, "truth")
         # context.make(runid, "peak_basics")
         click.secho(f"{runid} is created! Returning context!", fg='blue')
     else:
-        click.secho(f"{runid} already exists!", fg='green')
+        click.secho(f"{runid} already exists and force=False!", fg='green')
         if not os.path.isfile(csv_path):
             click.secho(f"{runid} exists in straxen storage, but the {csv_path} does not!"
                         f" Maybe manually deleted? Returning the simulation anyway", fg='red')
@@ -216,6 +216,7 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
     times = Model.times.value
     neutrino_energies =  kw.get("neutrino_energies", None) or interaction.Model.neutrino_energies.value
     recoil_energies = kw.get("recoil_energies", None) or interaction.recoil_energies.value
+    leave = kw.get("leave", True)
     totrates = interaction.rates_per_time_scaled[flavor]
 
     # sample times
@@ -240,7 +241,7 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
     atom = interaction.Nucleus[maxabund]
 
     sampled_nues, sampled_recoils = np.zeros(len(sampled_times)), np.zeros(len(sampled_times))
-    for i, t in tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name):
+    for i, t in tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name ,leave=leave):
         bb = np.trapz(flux_xsec[i], axis=0)
         sampled_nues[i] = _inverse_transform_sampling(neutrino_energies, bb, 1)
         recspec = atom.nN_cross_section(sampled_nues[i] * u.MeV, recoil_energies * u.keV).value.flatten()
