@@ -2,6 +2,21 @@
 
 The scripts are under `xenonnt/multimessenger/supernova/`. 
 
+[SNAX](./SNAX.ipynb) is a standalone analysis notebook. It shows the recoil interaction
+rate calculations step by step. The methods in this notebook are then implemented in the `multimessenger` script.
+
+[SNAX-REFACTOR-TUTORIAL](SNAX-REFACTOR-tutorial.ipynb) This is meant to be the first tutorial of how to use the package.
+In it you can learn how to fetch and investigate a model from snewpy, how to create a target nuclei and look at its properties, and 
+finally how to create interactions between a model flux and the target.
+
+[SNAX-simulations](./SNAX-REFACTOR-tutorial-simulation.ipynb) This notebook showcases the use of `multimessenger` package 
+for simulating XENONnT-TPC like data using WFSim.
+
+[Proper time energy sampling](Proper-time-energy-sampling.ipynb) For simulations, one can sample times and energies 
+from the resulting $dR/dE_R$ (time-integrated recoil spectrum) and $dR/dt$ (energy-integrated time distribution), however,
+in that case one loses the energy-dependancy of the flux at different times. This notebook
+illustrates how the sampling is done properly in the `multimessenger` package.
+
 [//]: # ()
 [//]: # (The notebooks;)
 
