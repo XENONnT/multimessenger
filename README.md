@@ -19,10 +19,29 @@ pip install ./
 
 ## Usage 
 ```python
-from multimessenger.supernova import Supernova_Models as sn
-data = sn.Models(model_name='Fornax_2021')
+# get a model
+from multimessenger.supernova import Supernova_Models
+SN_Nakazato = Supernova_Models.Models("Nakazato_2013", config_file="./local_conf.conf")
+SN_Nakazato(index=5) # load a progenitor (brings the attributes)
+SN_Nakazato.compute_model_fluxes() # calculate the fluxes for a set of param
+fluxes_at10 = SN_Nakazato.scale_fluxes(distance=10) # scale fluxes
 ```
-Also see [notebooks](./notebooks).
+```python
+# create a target
+from multimessenger.supernova.Nucleus import Target
+from multimessenger.supernova.Xenon_Atom import ATOM_TABLE
+singleXe = Target(ATOM_TABLE['Xe131'], pure=True) # pure means setting the abundance to =1 
+```
+```python
+# create interactions
+from multimessenger.supernova.interactions import Interactions
+Int = Interactions(SN_Nakazato, Nuclei='Xenon', isotope='Xe131') # isotop=string creates a TARGET
+Int.compute_interaction_rates()
+Int.plot_rates(scaled=False)
+```
+
+
+Also see the [notebooks](./notebooks).
 
 By default, the composite is 'Xenon', later, Argon can also be implemented.
 
@@ -31,5 +50,6 @@ they can simply be loaded by specifying the model name, and filename (or file in
 displays your options and asks you to select one of them. Some models might be taking key-word arguments, which can be passed
 by `model_kwargs` argument to the `sn.Models()` function.
 
-
-For more see [notebooks](./notebooks).
+Also check out the studies carried out in Supernova neutrino search context; <br>
+[wiki index](https://xe1t-wiki.lngs.infn.it/doku.php?id=xenon:peres:sntrigger:snindex)<br>
+[analysiscode](https://github.com/XENONnT/analysiscode/tree/master/Multimessenger)
