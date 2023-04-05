@@ -1,6 +1,7 @@
 import argparse
 import os
 from multimessenger.supernova.snewpy_models import models_list
+import configparser
 
 parser = argparse.ArgumentParser(
     description=('Script to submit request a simulation of a given SN '
@@ -35,12 +36,16 @@ volume = args.volume
 runidbase = args.runidbase
 
 def make_batch_script(config, model_name,model_index,distance,volume,runid, incr):
+    _conf = configparser.ConfigParser()
+    _conf.read(config)
+    outpath = _conf["wfsim"]["sim_folder"]
+
     main_str = f'''#!/bin/bash
 #SBATCH --qos=xenon1t
 #SBATCH --partition=xenon1t
 #SBATCH --job-name={runid}_{incr}
-#SBATCH --output=/dali/lgrandi/melih/mma/sim_logs/{runid}_{incr}.out
-#SBATCH --error=/dali/lgrandi/melih/mma/sim_logs/{runid}_{incr}.err
+#SBATCH --output={outpath}{runid}_{incr}.out
+#SBATCH --error={outpath}{runid}_{incr}.err
 #SBATCH --account=pi-lgrandi
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
