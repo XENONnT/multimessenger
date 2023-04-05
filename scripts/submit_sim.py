@@ -59,7 +59,7 @@ singularity shell \\
     --bind /scratch/midway2/$USER \\
     --bind /dali \\
     /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
-python simulate_snmodel.py -c {config} -m {model_name} -i {model_index} -d {distance} -v {volume} -id {runid}
+python simulate_snmodel.py -c {config} -m {model_name} -i {model_index} -d {distance} -v {volume} -id {runid}_{incr}
 EOF''' 
     with open(f'SNsim_{runid}_{incr}.job', 'w') as F:
         F.write(main_str)  
