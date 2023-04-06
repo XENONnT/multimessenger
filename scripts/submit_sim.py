@@ -35,7 +35,7 @@ distance = args.distance
 volume = args.volume
 runidbase = args.runidbase
 
-def make_batch_script(config, model_name,model_index,distance,volume,runid, incr):
+def make_batch_script(config, model_name, model_index, distance, volume, runid, ntotal):
     _conf = configparser.ConfigParser()
     _conf.read(config)
     outpath = _conf["wfsim"]["sim_folder"]
@@ -43,9 +43,9 @@ def make_batch_script(config, model_name,model_index,distance,volume,runid, incr
     main_str = f'''#!/bin/bash
 #SBATCH --qos=xenon1t
 #SBATCH --partition=xenon1t
-#SBATCH --job-name={runid}_{incr}
-#SBATCH --output={outpath}{runid}_{incr}.out
-#SBATCH --error={outpath}{runid}_{incr}.err
+#SBATCH --job-name={runid}_{ntotal}
+#SBATCH --output={outpath}{runid}_{ntotal}.out
+#SBATCH --error={outpath}{runid}_{ntotal}.err
 #SBATCH --account=pi-lgrandi
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
@@ -59,16 +59,19 @@ singularity shell \\
     --bind /scratch/midway2/$USER \\
     --bind /dali \\
     /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
-python simulate_snmodel.py -c {config} -m {model_name} -i {model_index} -d {distance} -v {volume} -id {runid}_{incr}
+python simulate_snmodel.py -c {config} -m {model_name} -i {model_index} -d {distance} -v {volume} -id {runid} -N {ntotal}
 EOF''' 
-    with open(f'SNsim_{runid}_{incr}.job', 'w') as F:
+    with open(f'SN_{runid}_{ntotal}.job', 'w') as F:
         F.write(main_str)  
-    print(f'Generated file with ID: {runid}_{incr}')
+    print(f'Generated file with ID: {runid}_{ntotal}')
     
 
 if __name__ == "__main__":
     print('Making .job file:')
-    for i in range(ntotal):
-        incr = f"{i:03}"
-        make_batch_script(config_file, model_name, model_index, distance, volume, runidbase, incr)
-        os.system(f"sbatch SNsim_{runidbase}_{incr}.job")
+    make_batch_script(config_file, model_name, model_index, distance, volume, runidbase, ntotal)
+    os.system(f"sbatch SN_{runidbase}_{ntotal}.job")
+
+    # for i in range(ntotal):
+    #     incr = f"{i:03}"
+    #     make_batch_script(config_file, model_name, model_index, distance, volume, runidbase, incr)
+    #     os.system(f"sbatch SNsim_{runidbase}_{incr}.job")

@@ -1,4 +1,6 @@
 import argparse
+import configparser
+
 from multimessenger.supernova import Supernova_Models
 from multimessenger.supernova.interactions import Interactions
 import numpy as np
@@ -7,7 +9,8 @@ import straxen
 
 
 parser = argparse.ArgumentParser(
-    description=('Script to run a SN simulation of a given model.')
+    description=('Script to run a SN simulation of a given model.'
+                 'It allows for requesting multiple simulations at the same time.')
 )
 
 parser.add_argument('-c', '--config',
@@ -24,23 +27,20 @@ parser.add_argument('-i', '--model_index',
                           'index. TO BE IMPROVED.'),
                     type=int,
                     required=True)
-parser.add_argument('-d', '--distance',
-                    help='Distance to SN in kpc.',
-                    default = 10,
-                    type=float)
-parser.add_argument('-v', '--volume',
-                    help='Volume in tons.',
-                    default = 5.9,
-                    type=float)
-parser.add_argument('-id', '--runid',
-                    help='runid to consider.',
-                    type=str,
-                    required=True)
+parser.add_argument('-N', '--ntotal',
+                    help=('Number of realizations. By default it is 1.'),
+                    type=int,
+                    default=1,
+                    required=False)
+parser.add_argument('-d', '--distance', help='Distance to SN in kpc.', default = 10, type=float)
+parser.add_argument('-v', '--volume', help='Volume in tons.', default = 5.9, type=float)
+parser.add_argument('-id', '--runid', help='runid to consider.', type=str, required=True)
 
 args = parser.parse_args()
 
 downloader = straxen.MongoDownloader()
 
+number_of_realization = args.ntotal
 config_file = args.config
 model_name = args.model
 model_index = args.model_index
@@ -61,19 +61,23 @@ def get_interactions(SelectedModel, distance, volume):
     _ = Int.scale_rates(distance=distance, volume=volume)  # scale rates for dist & vol
     return Int
 
-def fetch_context():
+def fetch_context(outpath="/project2/lgrandi/xenonnt/simulations/supernova/"):
     """ If context is updated, change it in here
     """
-    return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder="/project2/lgrandi/xenonnt/simulations/supernova/")
+    return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=outpath)
 
 
 def main():
+    _conf = configparser.ConfigParser()
+    _conf.read(config_file)
+    outpath = _conf["wfsim"]["sim_folder"]
     straxen.print_versions("strax,straxen,cutax,wfsim".split(","))
     SelectedModel = get_model(config_file, model_name, model_index, distance)
     Interaction = get_interactions(SelectedModel, distance, volume)
-    context = fetch_context()
+    context = fetch_context(outpath)
     # simulate
-    Interaction.simulate_automatically(context=context, runid=runid)
+    for realization in number_of_realization:
+        Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
 
 if __name__ == "__main__":
     main()
