@@ -51,58 +51,34 @@ def generate_times(rate, size, timemode='realistic'):
         times = times.round().astype(np.int64)
         return times
 
-def generate_sn_instructions(energy_deposition,
-                             n_tot=1000,
-                             rate=20.,
-                             fmap=None, field=None,
-                             nc=None,
-                             r_range=(0, 66.4), z_range=(-148.15, 0),
-                             mode="all",
-                             timemode="realistic",
-                             time_offset=0,
-                             return_nonzero_mask=False,
-                             **kwargs
-                             ):
-    if type(timemode) != str:
-        times = timemode
-    else:
-        if timemode=="shifted":
-            kwargs.pop("self")
-            energy_deposition, times, n_tot = shifted_times(**kwargs)
-        else:
-            times = generate_times(rate=rate, size=n_tot, timemode=timemode) + time_offset
-    if not WFSIMEXIST:
-        raise ImportError("WFSim is not installed and is required for instructions!")
-
-    # create instructions frame
-    instr = np.zeros(2 * n_tot, dtype=wfsim.instruction_dtype)
-    instr['event_number'] = np.arange(1, n_tot + 1).repeat(2)    # same event two output S1,S2
-    instr['type'][:] = np.tile([1, 2], n_tot)
-    instr['time'][:] = times.repeat(2)                           # same event time, S2 delay added later in wfsim
-    # generating uniformly distributed events for given R and Z range
-    x, y, z = generate_vertex(r_range=r_range, z_range=z_range, size=n_tot)
-    instr['x'][:] = x.repeat(2)
-    instr['y'][:] = y.repeat(2)
-    instr['z'][:] = z.repeat(2)
-    # making energy
-    instr['recoil'][:] = nestpy.NR
-    instr['e_dep'][:] = energy_deposition.repeat(2)
+def generate_local_fields(fmap, pos):
+    """ Generate local fields for the wfsim instructions
+    """
+    # the interaction sites
+    x, y, z = pos
     # getting local field from field map
-    if fmap is not None:
-        if type(fmap)==str:
-            # file name is passed, get the field map manually
-            import straxen
-            downloader = straxen.MongoDownloader()
-            fmap = straxen.InterpolatingMap(
-                        straxen.get_resource(downloader.download_single(fmap),
-                                             fmt="json.gz"),
+    if fmap is None:
+        fmap = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
+        print(f"> Using default local field map.")
+
+    if type(fmap) == str:
+        # file name is passed, get the field map manually
+        import straxen
+        downloader = straxen.MongoDownloader()
+        fmap = straxen.InterpolatingMap(
+                        straxen.get_resource(downloader.download_single(fmap), fmt="json.gz"),
                         method="RegularGridInterpolator")
-        instr['local_field'] = fmap(np.array([np.sqrt(x ** 2 + y ** 2), z]).T).repeat(2)
+        local_field = fmap(np.array([np.sqrt(x ** 2 + y ** 2), z]).T).repeat(2)
+    elif type(fmap)==float:
+        local_field = np.repeat(fmap, len(x))
     else:
-        if field is not None:
-            instr['local_field'] = field
-        else:
-            raise TypeError('Provide a field, either a map or a single value')
+        raise TypeError(f"Expected electric field to be either string or float got {type(fmap)}")
+    return local_field
+
+def generate_yields(nc, n_tot, instr):
+    """ Generate quanta either with the given nestpy instance
+        or by using the default one.
+    """
     if nc is None:
         # get a nestpy instance
         nc = nestpy.NESTcalc(nestpy.DetectorExample_XENON10())
@@ -122,6 +98,60 @@ def generate_sn_instructions(energy_deposition,
         instr['amp'][2 * i] = q_.photons
         instr['amp'][2 * i + 1] = q_.electrons
         instr['n_excitons'][2 * i:2 * (i + 1)] = q_.excitons
+    return instr
+
+def generate_sn_instructions(energy_deposition,
+                             times="realistic",
+                             time_offset=0,
+                             n_tot=1000,
+                             rate=20.,
+                             field=None,
+                             nc=None,
+                             r_range=(0, 66.4), z_range=(-148.15, 0),
+                             mode="all",
+                             return_nonzero_mask=False,
+                             **kwargs
+                             ):
+    """ Generate WFSim instructions for Supernova Signal
+        :param energy_deposition: recoil energies in keV, or mono energy
+        :param times: interaction times either manually in nanoseconds or as str
+            "shifted", or "realistic" or "uniform"
+        :param time_offset: if times are sampled via string, offset amount in ns
+        :param n_tot: total interactions to simulate.
+        :param rate: rate of sampling
+        :param field: either a float (V/m) or a str with field map name
+        :param nc: either a modified nestpy instance, or use the default
+        :param r_range/z_range: the boundaries of the TPC
+        :param mode: whether full sim, or s1/ s2 only
+        :param return_nonzero_mask: to fetch entries with amp=0
+    """
+    if type(times) != str:
+        times = times
+    else:
+        if times== "shifted":
+            kwargs.pop("self")
+            energy_deposition, times, n_tot = shifted_times(**kwargs)
+        else:
+            times = generate_times(rate=rate, size=n_tot, timemode=times) + time_offset
+    if not WFSIMEXIST:
+        raise ImportError("WFSim is not installed and is required for instructions!")
+
+    # create instructions frame
+    instr = np.zeros(2 * n_tot, dtype=wfsim.instruction_dtype)
+    instr['event_number'] = np.arange(1, n_tot + 1).repeat(2)    # same event two output S1,S2
+    instr['type'][:] = np.tile([1, 2], n_tot)
+    instr['e_dep'][:] = energy_deposition.repeat(2)
+    instr['time'][:] = times.repeat(2)                           # same event time, S2 delay added later in wfsim
+    # generating uniformly distributed events for given R and Z range
+    x, y, z = generate_vertex(r_range=r_range, z_range=z_range, size=n_tot)
+    instr['x'][:] = x.repeat(2)
+    instr['y'][:] = y.repeat(2)
+    instr['z'][:] = z.repeat(2)
+    instr['recoil'][:] = nestpy.NR
+    # getting local field from field map
+    instr['local_field'] = generate_local_fields(field, [x,y,z])
+    # get the light and charge yields
+    instr = generate_yields(nc, n_tot, instr)
 
     if mode == "s1":
         instr = instr[instr['type'] == 1]
