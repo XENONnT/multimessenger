@@ -40,7 +40,7 @@ def make_batch_script(config, model_name, model_index, distance, volume, runid, 
     _conf.read(config)
     outpath = _conf["wfsim"]["sim_folder"]
 
-    main_str = f'''#!/bin/bash
+    main_str = f"""#!/bin/bash
 #SBATCH --qos=xenon1t
 #SBATCH --partition=xenon1t
 #SBATCH --job-name={runid}_{ntotal}
@@ -60,7 +60,7 @@ singularity shell \\
     --bind /dali \\
     /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
 python simulate_snmodel.py -c {config} -m {model_name} -i {model_index} -d {distance} -v {volume} -id {runid} -N {ntotal}
-EOF''' 
+EOF"""
     with open(f'SN_{runid}_{ntotal}.job', 'w') as F:
         F.write(main_str)  
     print(f'Generated file with ID: {runid}_{ntotal}')

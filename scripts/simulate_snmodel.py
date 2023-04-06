@@ -76,7 +76,7 @@ def main():
     Interaction = get_interactions(SelectedModel, distance, volume)
     context = fetch_context(outpath)
     # simulate
-    for realization in number_of_realization:
+    for realization in range(number_of_realization):
         Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
 
 if __name__ == "__main__":
