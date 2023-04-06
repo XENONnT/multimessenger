@@ -44,8 +44,8 @@ def make_batch_script(config, model_name, model_index, distance, volume, runid, 
 #SBATCH --qos=xenon1t
 #SBATCH --partition=xenon1t
 #SBATCH --job-name={runid}_{ntotal}
-#SBATCH --output={outpath}{runid}_{ntotal}.out
-#SBATCH --error={outpath}{runid}_{ntotal}.err
+#SBATCH --output={outpath}logs/{runid}_{ntotal}.out
+#SBATCH --error={outpath}logs/{runid}_{ntotal}.err
 #SBATCH --account=pi-lgrandi
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
