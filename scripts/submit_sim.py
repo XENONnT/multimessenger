@@ -1,7 +1,10 @@
 import argparse
 import os
-from multimessenger.supernova.snewpy_models import models_list
 import configparser
+
+models_list = ['Bollig_2016', 'Fornax_2021',  'Kuroda_2020', 'Nakazato_2013',
+               'OConnor_2015', 'Sukhbold_2015', 'Tamborra_2014',
+               'Walk_2018', 'Walk_2019', 'Zha_2021',]
 
 parser = argparse.ArgumentParser(
     description=('Script to submit request a simulation of a given SN '
