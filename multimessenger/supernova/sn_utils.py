@@ -10,6 +10,7 @@ import datetime
 import os, click
 import configparser
 from scipy import interpolate
+from glob import glob
 
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
@@ -100,40 +101,45 @@ def add_strax_folder(config, context):
 
 def clean_repos(pattern='*', config_file=None):
     config = configparser.ConfigParser()
-    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config_path = config_file or "../../simple_config.conf"
+    #'/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
-    logs_path = config['wfsim']['logs_path']
-    strax_data_path = config['wfsim']['strax_data_path']
+    logs_path = config['wfsim']['logs']
+    strax_data_path = config['wfsim']['sim_folder']
 
-    if input('Are you sure to delete all the data?\n'
-             f'\t{inst_path}{pattern}\n'
-             f'\t{logs_path}{pattern}\n'
-             f'\t{strax_data_path}{pattern}\n>>>').lower() == 'y':
-        os.system(f'rm -r {inst_path}{pattern}')
-        os.system(f'rm -r {logs_path}{pattern}')
-        os.system(f'rm -r {strax_data_path}{pattern}')
-
+    for path in [inst_path, logs_path, strax_data_path]:
+        if input('Are you sure to delete all the data?\n'
+                 f'\t{path}{pattern}\n').lower() == 'y':
+            os.system(f'rm -r {path}{pattern}')
 
 def see_repos(config_file=None):
     config = configparser.ConfigParser()
-    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config_path = config_file or "../../simple_config.conf"
+    #'/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
-    logs_path = config['wfsim']['logs_path']
-    strax_data_path = config['wfsim']['strax_data_path']
+    logs_path = config['wfsim']['logs']
+    strax_data_path = config['wfsim']['sim_folder']
+    proc_data = config['paths']["processed_data"]
 
-    if not os.path.isdir(logs_path):
-        os.mkdir(logs_path)
-    if not os.path.isdir(strax_data_path):
-        os.mkdir(strax_data_path)
-    click.secho('\n >>Instructions\n', bg='blue', fg='white')
-    os.system(f'ls -r {inst_path}')
-    click.secho('\n >>Logs\n', bg='blue', fg='white')
-    os.system(f'ls -r {logs_path}')
-    click.secho('\n >>Existing data\n', bg='blue', fg='white')
-    os.system(f'ls -r {strax_data_path}')
+    for path in [inst_path, logs_path, strax_data_path, proc_data]:
+        if not os.path.isdir(path):
+            # os.mkdir(path)
+            click.secho(f"> Could not found {path}", fg='red')
+        else:
+            click.secho(f'\n >> In {path}\n', bg='blue', fg='white')
+            os.system(f'ls {path}*')
 
+def see_simulated_files(config_file=None):
+    config = configparser.ConfigParser()
+    config_path = config_file or "../../simple_config.conf"
+    config.read(config_path)
+    sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
+    simdirs = glob(sim_folder + '/*/')
+    clean_simdirs = np.unique([a.split("-")[0].split("/")[-1] for a in simdirs])
+    for i in clean_simdirs:
+        print(f"\t{i}")
 
 def display_config(config_file=None):
     config = configparser.ConfigParser()
