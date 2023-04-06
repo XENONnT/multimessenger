@@ -132,6 +132,9 @@ def see_repos(config_file=None):
             os.system(f'ls {path}*')
 
 def see_simulated_files(config_file=None, get_names=False):
+    """ Looks into the simulation folder and tells you
+        the names of the simulated data
+    """
     config = configparser.ConfigParser()
     config_path = config_file or "../../simple_config.conf"
     config.read(config_path)

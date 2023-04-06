@@ -79,6 +79,10 @@ def main():
     # simulate
     for realization in range(number_of_realization):
         Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
+    # TODO:
+    # generate peak_basics and peak_positions
+    # then remove everything that is lower lever
+    # reference here: https://straxen.readthedocs.io/en/latest/reference/datastructure_nT.html
 
 if __name__ == "__main__":
     main()
