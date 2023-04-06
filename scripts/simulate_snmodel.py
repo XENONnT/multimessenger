@@ -6,6 +6,7 @@ from multimessenger.supernova.interactions import Interactions
 import numpy as np
 import cutax
 import straxen
+import os
 
 
 parser = argparse.ArgumentParser(
@@ -70,7 +71,7 @@ def fetch_context(outpath="/project2/lgrandi/xenonnt/simulations/supernova/"):
 def main():
     _conf = configparser.ConfigParser()
     _conf.read(config_file)
-    outpath = _conf["wfsim"]["sim_folder"]
+    outpath = os.path.join(_conf["wfsim"]["sim_folder"], "strax_data")
     straxen.print_versions("strax,straxen,cutax,wfsim".split(","))
     SelectedModel = get_model(config_file, model_name, model_index, distance)
     Interaction = get_interactions(SelectedModel, distance, volume)
