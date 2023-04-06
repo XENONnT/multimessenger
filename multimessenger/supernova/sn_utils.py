@@ -131,7 +131,7 @@ def see_repos(config_file=None):
             click.secho(f'\n >> In {path}\n', bg='blue', fg='white')
             os.system(f'ls {path}*')
 
-def see_simulated_files(config_file=None):
+def see_simulated_files(config_file=None, get_names=False):
     config = configparser.ConfigParser()
     config_path = config_file or "../../simple_config.conf"
     config.read(config_path)
@@ -140,6 +140,8 @@ def see_simulated_files(config_file=None):
     clean_simdirs = np.unique([a.split("-")[0].split("/")[-1] for a in simdirs])
     for i in clean_simdirs:
         print(f"\t{i}")
+    if get_names:
+        return clean_simdirs
 
 def display_config(config_file=None):
     config = configparser.ConfigParser()
