@@ -190,7 +190,7 @@ def find_context_for_hash(data_type: str, lineage_hash: str,
                       )
     return df
 
-def see_simulated_contexts(config_file=None):
+def see_simulated_contexts(config_file=None, sim_id=None):
     """ See which simulations were made with what contexts
     """
     # check the lineages in the simulated files
@@ -216,6 +216,8 @@ def see_simulated_contexts(config_file=None):
         df["sim_id"] = [n] * len(df)
         list_of_df.append(df)
     df_final = pd.concat(list_of_df)
+    if sim_id is not None:
+        return df_final[df_final["sim_id"] == sim_id]
     return df_final
 
 
