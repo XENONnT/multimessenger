@@ -123,13 +123,14 @@ def see_repos(config_file=None):
     strax_data_path = config['wfsim']['sim_folder']
     proc_data = config['paths']["processed_data"]
 
-    for path in [inst_path, logs_path, strax_data_path, proc_data]:
+    click.secho(f'\n >> In {strax_data_path} There are these folders\n', bg='green', fg='white')
+    for path in [inst_path, logs_path, proc_data]:
         if not os.path.isdir(path):
             # os.mkdir(path)
             click.secho(f"> Could not found {path}", fg='red')
         else:
             click.secho(f'\n >> In {path}\n', bg='blue', fg='white')
-            os.system(f'ls {path}*')
+            os.system(f'ls {path}*/')
 
 def see_simulated_files(config_file=None, get_names=False):
     """ Looks into the simulation folder and tells you
@@ -141,10 +142,11 @@ def see_simulated_files(config_file=None, get_names=False):
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
     simdirs = glob(sim_folder + '/*/')
     clean_simdirs = np.unique([a.split("-")[0].split("/")[-1] for a in simdirs])
-    for i in clean_simdirs:
-        print(f"\t{i}")
     if get_names:
         return clean_simdirs
+    for i in clean_simdirs:
+        print(f"\t{i}")
+
 
 def display_config(config_file=None):
     config = configparser.ConfigParser()
