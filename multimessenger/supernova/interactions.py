@@ -344,6 +344,7 @@ class Interactions:
         instructions = pd.DataFrame(instructions)
         st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
         to_return = st
+        # Maybe no need to return the context again?
         if return_instructions:
             to_return = [st, instructions]
         return to_return

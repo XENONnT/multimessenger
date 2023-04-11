@@ -8,7 +8,8 @@ models_list = ['Bollig_2016', 'Fornax_2021',  'Kuroda_2020', 'Nakazato_2013',
 
 parser = argparse.ArgumentParser(
     description=('Script to submit request a simulation of a given SN '
-                 'model via batch job.')
+                 'model via batch job.\n '
+                 'Ex: python3 submit_sim.py -c ../simple_config.conf -m Bollig_2016 -i 0 -rib Bollig16_i0_b0 -N 20')
 )
 
 parser.add_argument('-c', '--config',
@@ -73,8 +74,3 @@ if __name__ == "__main__":
     print('Making .job file:')
     make_batch_script(config_file, model_name, model_index, distance, volume, runidbase, ntotal)
     os.system(f"sbatch SN_{runidbase}_{ntotal}.job")
-
-    # for i in range(ntotal):
-    #     incr = f"{i:03}"
-    #     make_batch_script(config_file, model_name, model_index, distance, volume, runidbase, incr)
-    #     os.system(f"sbatch SNsim_{runidbase}_{incr}.job")
