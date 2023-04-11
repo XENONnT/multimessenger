@@ -78,7 +78,10 @@ def main():
     context = fetch_context(outpath)
     # simulate
     for realization in range(number_of_realization):
-        Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
+        try:
+            Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
+        except Exception as e:
+            print(f"\n\n >>> Exception raised:\n{e}\n\n")
         # simulates truth, peak basics, and peak positions
 
     # After all created, remove low level data
