@@ -11,6 +11,7 @@ import os, click
 import configparser
 from scipy import interpolate
 from glob import glob
+import pandas as pd
 
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
@@ -101,8 +102,8 @@ def add_strax_folder(config, context):
 
 def clean_repos(pattern='*', config_file=None):
     config = configparser.ConfigParser()
-    config_path = config_file or "../../simple_config.conf"
-    #'/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs']
@@ -115,8 +116,8 @@ def clean_repos(pattern='*', config_file=None):
 
 def see_repos(config_file=None):
     config = configparser.ConfigParser()
-    config_path = config_file or "../../simple_config.conf"
-    #'/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
     logs_path = config['wfsim']['logs']
@@ -137,7 +138,8 @@ def see_simulated_files(config_file=None, get_names=False):
         the names of the simulated data
     """
     config = configparser.ConfigParser()
-    config_path = config_file or "../../simple_config.conf"
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
     config.read(config_path)
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
     simdirs = glob(sim_folder + '/*/')
@@ -147,17 +149,16 @@ def see_simulated_files(config_file=None, get_names=False):
     for i in clean_simdirs:
         print(f"\t{i}")
 
-
 def display_config(config_file=None):
     config = configparser.ConfigParser()
-    config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-    config.read(config_file)
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
+    config.read(config_path)
     for x in config.sections():
         click.secho(f'{x:^20}', bg='blue')
         for i in config[x]:
             print(i)
         print('-'*15)
-
 
 def display_times(arr):
     """ Takes times array in ns, prints the corrected times
@@ -170,6 +171,52 @@ def display_times(arr):
     print(tf, datetime.datetime.utcfromtimestamp(tf).strftime('%Y-%m-%d %H:%M:%S'))
     timedelta = datetime.datetime.utcfromtimestamp(tf)-datetime.datetime.utcfromtimestamp(ti)
     print(f'{timedelta.seconds} seconds \n{timedelta.resolution} resolution')
+
+def find_context_for_hash(data_type: str, lineage_hash: str,
+                          columns=('name', 'strax_version', 'cutax_version',
+                                   'straxen_version', 'date_added', 'tag')
+                          ):
+    """Find back the software and context that was used"""
+    import utilix
+    # Query the context database for the requested datatype
+    entries = utilix.rundb.xent_collection(collection='contexts').find(
+        {f'hashes.{data_type}': lineage_hash},
+        projection={key: True for key in columns}
+    )
+
+    # Cast the docs into a format that allows making a dataframe
+    df = pd.DataFrame([{key: doc.get(key) for key in columns}
+                       for doc in entries]
+                      )
+    return df
+
+def see_simulated_contexts(config_file=None):
+    """ See which simulations were made with what contexts
+    """
+    # check the lineages in the simulated files
+    config = configparser.ConfigParser()
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
+    config.read(config_path)
+    sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
+    simdirs = glob(sim_folder + '/*/')
+    files = [s.split("/")[-2] for s in simdirs if "truth" in s]
+    hashes = np.unique([h.split("-")[-1] for h in files])
+    names = np.unique([n.split("-")[0] for n in files])
+    # unique hashes
+    uh = np.unique([h for h in hashes if "temp" not in h])
+    df_dict = {k: find_context_for_hash("truth", k) for k in uh}
+    unames, uindex = np.unique(names, return_index=True) # unique names and their indices
+    uhashes = hashes[uindex]
+    list_of_df = []
+    for n, h in zip(unames, uhashes):
+        h = h.split("_temp")[0]     # if there is a missing data
+        df = df_dict[h].copy()      # copy the already-fetched dfs
+        df["hash"] = [h] * len(df)  # some context e.g. dev points to more than one set
+        df["sim_id"] = [n] * len(df)
+        list_of_df.append(df)
+    df_final = pd.concat(list_of_df)
+    return df_final
 
 
 def inject_in(small_signal, big_signal):
