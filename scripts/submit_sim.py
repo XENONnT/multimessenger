@@ -61,7 +61,7 @@ singularity shell \\
     --bind /project/ \\
     --bind /project2/ \\
     --bind /scratch/midway2/$USER \\
-    --bind /dali \\
+    --bind /midway \\
     /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
 python simulate_snmodel.py -c {config} -m {model_name} -i {model_index} -d {distance} -v {volume} -id {runid} -N {ntotal}
 EOF"""
