@@ -201,8 +201,8 @@ def see_simulated_contexts(config_file=None):
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
     simdirs = glob(sim_folder + '/*/')
     files = [s.split("/")[-2] for s in simdirs if "truth" in s]
-    hashes = np.unique([h.split("-")[-1] for h in files])
-    names = np.unique([n.split("-")[0] for n in files])
+    hashes = np.array([h.split("-")[-1] for h in files])
+    names = np.array([n.split("-")[0] for n in files])
     # unique hashes
     uh = np.unique([h for h in hashes if "temp" not in h])
     df_dict = {k: find_context_for_hash("truth", k) for k in uh}
