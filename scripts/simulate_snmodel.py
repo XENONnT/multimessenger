@@ -79,7 +79,7 @@ def main():
     # simulate
     for realization in range(number_of_realization):
         Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
-        context.make(f"{runid}_{realization:03}", ("peak_basics", "peak_positions"))
+        # simulates truth, peak basics, and peak positions
 
     # After all created, remove low level data
     # Higher level should still be created

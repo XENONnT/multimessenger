@@ -216,7 +216,8 @@ def _simulate_one(df, runid, config, context, force):
         df.to_csv(csv_path, index=False)
         context.set_config(dict(fax_file=csv_path))
         context.make(runid, "truth")
-        # context.make(runid, "peak_basics")
+        context.make(runid, "peak_basics")
+        context.make(runid, "peak_positions")
         click.secho(f"{runid} is created! Returning context!", fg='blue')
     else:
         click.secho(f"{runid} already exists and force=False!", fg='green')
