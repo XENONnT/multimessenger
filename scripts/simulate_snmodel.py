@@ -79,10 +79,15 @@ def main():
     # simulate
     for realization in range(number_of_realization):
         Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
-    # TODO:
-    # generate peak_basics and peak_positions
-    # then remove everything that is lower lever
-    # reference here: https://straxen.readthedocs.io/en/latest/reference/datastructure_nT.html
+        context.make(f"{runid}_{realization:03}", ("peak_basics", "peak_positions"))
+
+    # After all created, remove low level data
+    # Higher level should still be created
+    # see https://straxen.readthedocs.io/en/latest/reference/datastructure_nT.html
+    print(f"Data simulated, deleting the intermediate products.")
+    for dtype in ["*lone_hits*", "*merged_s2s*", "*peaklet*", "*pulse*", "*raw*"]:
+        files = os.path.join(outpath,  dtype)
+        os.system(f'rm -r {files}')
 
 if __name__ == "__main__":
     main()
