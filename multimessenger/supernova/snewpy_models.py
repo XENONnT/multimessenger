@@ -66,7 +66,6 @@ class SnewpyWrapper:
         model = models_dict[self.name](file_to_load, **model_kwargs)
         return model
 
-
     def _select_shorter_name(self, selected_file):
         """ Test the selected path with shorter filenames
             Some models have file names e.g. s27.0_LSS220_nue
@@ -88,12 +87,11 @@ class SnewpyWrapper:
             except FileNotFoundError:
                 continue
             except Exception as e:
-                print(f"Some Error Occured {e}\n still trying")
+                print(f"Some Error Occurred {e}\n still trying")
         if found:
             return f
         else:
             raise FileNotFoundError(f"for {self.name} I couldn't find the selected file")
-
 
     def _parse_models(self, filename, index):
         """ Get the selected model, or ask user
