@@ -3,8 +3,8 @@ import configparser
 
 from multimessenger.supernova import Supernova_Models
 from multimessenger.supernova.interactions import Interactions
+from multimessenger.supernova.sn_utils import fetch_context
 import numpy as np
-import cutax
 import straxen
 import os
 
@@ -62,10 +62,10 @@ def get_interactions(SelectedModel, distance, volume):
     _ = Int.scale_rates(distance=distance, volume=volume)  # scale rates for dist & vol
     return Int
 
-def fetch_context(outpath="/project2/lgrandi/xenonnt/simulations/supernova/"):
-    """ If context is updated, change it in here
-    """
-    return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=outpath)
+# def fetch_context(outpath="/project2/lgrandi/xenonnt/simulations/supernova/"):
+#     """ If context is updated, change it in here
+#     """
+#     return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=outpath)
 
 
 def main():
@@ -79,7 +79,7 @@ def main():
     # simulate
     for realization in range(number_of_realization):
         try:
-            Interaction.simulate_automatically(context=context, runid=f"{runid}_{realization:03}")
+            Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
         except Exception as e:
             print(f"\n\n >>> Exception raised:\n{e}\n\n")
         # simulates truth, peak basics, and peak positions

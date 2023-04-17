@@ -197,7 +197,7 @@ def find_context_for_hash(data_type: str, lineage_hash: str,
                        for doc in entries]
                       )
     df_ = df.set_index("name").sort_index()
-    df_.sort_values(by=['date_added'], inplace=True)
+    df_.sort_values(by=['date_added', 'sim_id'], inplace=True)
     return df_
 
 def see_simulated_contexts(config_file=None, sim_id=None):
@@ -289,3 +289,9 @@ def get_config(config_file=None):
     config = configparser.ConfigParser()
     config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_file)
+
+def fetch_context(outpath="/project2/lgrandi/xenonnt/simulations/supernova/"):
+    """ If context is updated, change it in here
+    """
+    import cutax
+    return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=outpath)

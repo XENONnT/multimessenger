@@ -306,10 +306,7 @@ class Interactions:
             raise NotImplementedError("\t> Rates haven't been computed yet!\n"
                                       "\t>Compute them by calling `compute_interaction_rates()`")
 
-    def simulate_automatically(self, context, runid, config=None,
-                               return_instructions=False,
-                               force=False,
-                               **kw):
+    def simulate_automatically(self, runid, context=None, config=None, return_instructions=False, force=False, **kw):
         """ Simulate using WFSim automatically from your interactions
             First sample times and energies
             Next, generate sn instructions
@@ -326,9 +323,12 @@ class Interactions:
             context, (instructions)
         """
         from .Simulate import  _simulate_one, sample_times_energies, generate_sn_instructions
-        from .sn_utils import add_strax_folder
+        from .sn_utils import add_strax_folder, fetch_context
         config = config or self.Model.config
-        _context = add_strax_folder(config, context) # to have access to common strax data folder
+        if context is None:
+            _context = fetch_context() # returns default context with output folder pointing to common strax data folder
+        else:
+            _context = add_strax_folder(config, context) # to have access to common strax data folder
 
         # sample times and recoil energies
         time_samples, _, recoil_energy_samples = sample_times_energies(self, size='infer')
