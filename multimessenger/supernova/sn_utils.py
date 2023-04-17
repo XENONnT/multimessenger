@@ -203,9 +203,7 @@ def find_context_for_hash(data_type: str, lineage_hash: str,
     df = pd.DataFrame([{key: doc.get(key) for key in columns}
                        for doc in entries]
                       )
-    df_ = df.set_index("name").sort_index()
-    df_.sort_values(by=['date_added', 'sim_id'], inplace=True)
-    return df_
+    return df
 
 def see_simulated_contexts(config_file=None, sim_id=None):
     """ See which simulations were made with what contexts
@@ -233,6 +231,9 @@ def see_simulated_contexts(config_file=None, sim_id=None):
         df["sim_id"] = [n] * len(df)
         list_of_df.append(df)
     df_final = pd.concat(list_of_df)
+    df_final.sort_values(by=['date_added', 'sim_id'], inplace=True)
+    df_final.reset_index(inplace=True)
+    df_final.drop(columns='index', inplace=True)
     if sim_id is not None:
         return df_final[df_final["sim_id"] == sim_id]
     return df_final
