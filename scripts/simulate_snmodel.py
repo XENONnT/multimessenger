@@ -62,16 +62,11 @@ def get_interactions(SelectedModel, distance, volume):
     _ = Int.scale_rates(distance=distance, volume=volume)  # scale rates for dist & vol
     return Int
 
-# def fetch_context(outpath="/project2/lgrandi/xenonnt/simulations/supernova/"):
-#     """ If context is updated, change it in here
-#     """
-#     return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=outpath)
-
 
 def main():
     _conf = configparser.ConfigParser()
     _conf.read(config_file)
-    # outpath = os.path.join(_conf["wfsim"]["sim_folder"], "strax_data")
+
     straxen.print_versions("strax,straxen,cutax,wfsim".split(","))
     SelectedModel = get_model(config_file, model_name, model_index, distance)
     Interaction = get_interactions(SelectedModel, distance, volume)
@@ -81,12 +76,13 @@ def main():
         try:
             Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
         except Exception as e:
-            print(f"\n\n >>> Exception raised:\n{e}\n\n")
+            print(f"\n\n >>> Exception raised: for  < {runid}_{realization:03} >\n{e}\n\n")
         # simulates truth, peak basics, and peak positions
 
     # After all created, remove low level data
     # Higher level should still be created
     # see https://straxen.readthedocs.io/en/latest/reference/datastructure_nT.html
+    outpath = os.path.join(_conf["wfsim"]["sim_folder"], "strax_data")
     print(f"Data simulated, deleting the intermediate products.")
     for dtype in ["*lone_hits*", "*merged_s2s*", "*peaklet*", "*pulse*", "*raw*"]:
         files = os.path.join(outpath,  dtype)
