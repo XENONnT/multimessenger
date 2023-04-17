@@ -172,11 +172,19 @@ def display_times(arr):
     timedelta = datetime.datetime.utcfromtimestamp(tf)-datetime.datetime.utcfromtimestamp(ti)
     print(f'{timedelta.seconds} seconds \n{timedelta.resolution} resolution')
 
+def _see_all_contexts():
+    import utilix
+    entries = utilix.rundb.xent_collection(collection='contexts').find(projection={'name': True})
+    contexts = [i.get('name') for i in entries]
+    contexts = np.unique(contexts)
+    return contexts
+
 def find_context_for_hash(data_type: str, lineage_hash: str,
                           columns=('name', 'strax_version', 'cutax_version',
-                                   'straxen_version', 'date_added', 'tag')
+                                   'straxen_version', 'date_added', 'tag'),
                           ):
-    """Find back the software and context that was used"""
+    """Find back the software and context that was used
+    """
     import utilix
     # Query the context database for the requested datatype
     entries = utilix.rundb.xent_collection(collection='contexts').find(
@@ -188,7 +196,8 @@ def find_context_for_hash(data_type: str, lineage_hash: str,
     df = pd.DataFrame([{key: doc.get(key) for key in columns}
                        for doc in entries]
                       )
-    return df
+    df_ = df.set_index("name").sort_index()
+    return df_
 
 def see_simulated_contexts(config_file=None, sim_id=None):
     """ See which simulations were made with what contexts
