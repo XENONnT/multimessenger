@@ -326,7 +326,7 @@ class Interactions:
         from .sn_utils import add_strax_folder, fetch_context
         config = config or self.Model.config
         if context is None:
-            _context = fetch_context() # returns default context with output folder pointing to common strax data folder
+            _context = fetch_context(config) # returns default context with output folder pointing to common strax data folder
         else:
             _context = add_strax_folder(config, context) # to have access to common strax data folder
 

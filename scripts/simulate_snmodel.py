@@ -71,11 +71,11 @@ def get_interactions(SelectedModel, distance, volume):
 def main():
     _conf = configparser.ConfigParser()
     _conf.read(config_file)
-    outpath = os.path.join(_conf["wfsim"]["sim_folder"], "strax_data")
+    # outpath = os.path.join(_conf["wfsim"]["sim_folder"], "strax_data")
     straxen.print_versions("strax,straxen,cutax,wfsim".split(","))
     SelectedModel = get_model(config_file, model_name, model_index, distance)
     Interaction = get_interactions(SelectedModel, distance, volume)
-    context = fetch_context(outpath)
+    context = fetch_context(_conf)
     # simulate
     for realization in range(number_of_realization):
         try:

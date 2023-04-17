@@ -78,6 +78,13 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     interpolated = itp.interp1d(rec_bins, y_vals, kind="cubic", fill_value="extrapolate")
     return interpolated
 
+def fetch_context(config):
+    """ If context is updated, change it in here
+    """
+    mc_folder = config["wfsim"]["sim_folder"]
+    mc_data_folder = os.path.join(mc_folder, "strax_data")
+    import cutax
+    return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=mc_data_folder)
 
 def add_strax_folder(config, context):
     """ This appends the SN MC folder to your directories
@@ -290,8 +297,3 @@ def get_config(config_file=None):
     config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_file)
 
-def fetch_context(outpath="/project2/lgrandi/xenonnt/simulations/supernova/"):
-    """ If context is updated, change it in here
-    """
-    import cutax
-    return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=outpath)
