@@ -197,6 +197,7 @@ def find_context_for_hash(data_type: str, lineage_hash: str,
                        for doc in entries]
                       )
     df_ = df.set_index("name").sort_index()
+    df_.sort_values(by=['date_added'], inplace=True)
     return df_
 
 def see_simulated_contexts(config_file=None, sim_id=None):
