@@ -12,6 +12,7 @@ import configparser
 from scipy import interpolate
 from glob import glob
 import pandas as pd
+import astropy
 
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
@@ -318,9 +319,11 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
             'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
     # metadata from the snewpy model
     for k, v in snewpymodel.metadata.items():
+        if isinstance(v, astropy.units.quantity.Quantity):
+            v = f"{v}"
         meta[k] = v
     meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
-    meta['Duration'] = np.round(np.ptp(snewpymodel.time), 2)
+    meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
     # metadata from the interaction object
     meta['Interaction File'] = inter.interaction_file
     meta['Nuclei Name'] = inter.Nuclei_name
@@ -329,6 +332,7 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
     df = see_simulated_contexts(config_file=config_file, sim_id=sim_id)
     df_dict = df.iloc[0].to_dict()
     df_dict['context_name'] = df_dict['name']
+    df_dict['date_added'] = f"{df_dict['date_added']}"
     df_dict.pop('sim_id')
     df_dict.pop('name')
     # make a json entry
@@ -345,6 +349,6 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
 
     #overwrite/create file
     with open(output_json, "w") as f:
-        json.dump(dictObj, f)
+        json.dump(dictObj, f, indent=4, sort_keys=True)
 
 
