@@ -300,9 +300,11 @@ def get_config(config_file=None):
 
 
 def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
+    model = inter.Model
+    snewpymodel = model.model
     # where to save the json file
     try:
-        store_at = inter.Model.config['wfsim']['sim_folder']
+        store_at = model.config['wfsim']['sim_folder']
         print("WFSim / sim_folder could not be found, storing the metadata in cwd")
     except:
         store_at = "./"
@@ -311,26 +313,26 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
     os.makedirs(output_json, exist_ok=True)
 
     # create some metadata
-    model = inter.Model.model
-    meta = {'User': inter.Model.user, 'Storage': inter.Model.storage, 'Model Name': inter.Model.model_name,
-            'Model File': model.filename}
-    for k, v in model.metadata.items():
+    meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
+            'Sim File': model.object_name,
+            'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
+    # metadata from the snewpy model
+    for k, v in snewpymodel.metadata.items():
         meta[k] = v
-    meta['Sim File'] = inter.Model.object_name
-    meta['Duration'] = np.round(np.ptp(model.time), 2)
-    meta['Time Range'] = f"{inter.Model.time_range[0]}, {inter.Model.time_range[1]}"
+    meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
+    meta['Duration'] = np.round(np.ptp(snewpymodel.time), 2)
+    # metadata from the interaction object
     meta['Interaction File'] = inter.interaction_file
     meta['Nuclei Name'] = inter.Nuclei_name
     meta['Isotope Name'] = inter.isotope_name
-    json_entry = {sim_id: meta}
-    # also add context info
+    # metadata from the wfsim context
     df = see_simulated_contexts(config_file=config_file, sim_id=sim_id)
     df_dict = df.iloc[0].to_dict()
     df_dict['context_name'] = df_dict['name']
     df_dict.pop('sim_id')
     df_dict.pop('name')
-    json_entry[sim_id] = {"Context":df_dict}
-
+    # make a json entry
+    json_entry = {sim_id: {"Model":meta, "Context": df_dict}}
     # Append this simulation
     with open(output_json) as fp:
         dictObj = json.load(fp)
