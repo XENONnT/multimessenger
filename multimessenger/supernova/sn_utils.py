@@ -305,8 +305,8 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
     # where to save the json file
     try:
         store_at = model.config['wfsim']['sim_folder']
-        print("WFSim / sim_folder could not be found, storing the metadata in cwd")
-    except:
+    except Exception as e:
+        print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
         store_at = "./"
     # Check if json exists, create if not
     output_json = os.path.join(store_at, jsonfilename)
@@ -334,12 +334,17 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
     # make a json entry
     json_entry = {sim_id: {"Model":meta, "Context": df_dict}}
     # Append this simulation
-    with open(output_json) as fp:
-        dictObj = json.load(fp)
-    # update the existing json
-    dictObj.update(json_entry)
-    # save it again
-    with open(output_json, 'a+') as outfile:
-        json.dump(dictObj, outfile, indent=4, sort_keys=True)
-    return meta
+    if os.path.exists(output_json):
+        #read existing file and append new data
+        with open(output_json, "r") as f:
+            dictObj = json.load(f)
+        dictObj.update(json_entry)
+    else:
+        #create new json
+        dictObj = json_entry
+
+    #overwrite/create file
+    with open(output_json, "w") as f:
+        json.dump(dictObj, f)
+
 
