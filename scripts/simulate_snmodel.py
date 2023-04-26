@@ -3,7 +3,7 @@ import configparser
 
 from multimessenger.supernova import Supernova_Models
 from multimessenger.supernova.interactions import Interactions
-from multimessenger.supernova.sn_utils import fetch_context
+from multimessenger.supernova.sn_utils import fetch_context, make_json
 import numpy as np
 import straxen
 import os
@@ -75,6 +75,8 @@ def main():
     for realization in range(number_of_realization):
         try:
             Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
+            # create a metadata for bookkeeping
+            make_json(Interaction, f"{runid}_{realization:03}", config_file)
         except Exception as e:
             print(f"\n\n >>> Exception raised: for  < {runid}_{realization:03} >\n{e}\n\n")
         # simulates truth, peak basics, and peak positions
