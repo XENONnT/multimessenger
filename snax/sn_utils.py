@@ -114,7 +114,7 @@ def add_strax_folder(config, context):
 
 def clean_repos(pattern='*', config_file=None):
     config = configparser.ConfigParser()
-    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
     config_path = config_file or default_config_path
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
@@ -128,7 +128,7 @@ def clean_repos(pattern='*', config_file=None):
 
 def see_repos(config_file=None):
     config = configparser.ConfigParser()
-    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
     config_path = config_file or default_config_path
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
@@ -150,7 +150,7 @@ def see_simulated_files(config_file=None, get_names=False):
         the names of the simulated data
     """
     config = configparser.ConfigParser()
-    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
     config_path = config_file or default_config_path
     config.read(config_path)
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
@@ -163,7 +163,7 @@ def see_simulated_files(config_file=None, get_names=False):
 
 def display_config(config_file=None):
     config = configparser.ConfigParser()
-    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
     config_path = config_file or default_config_path
     config.read(config_path)
     for x in config.sections():
@@ -215,7 +215,7 @@ def see_simulated_contexts(config_file=None, sim_id=None):
     """
     # check the lineages in the simulated files
     config = configparser.ConfigParser()
-    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
     config_path = config_file or default_config_path
     config.read(config_path)
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")

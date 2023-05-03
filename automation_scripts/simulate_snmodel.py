@@ -1,7 +1,7 @@
 import argparse
 import configparser
 
-from multimessenger.supernova import Supernova_Models
+from snax import Supernova_Models
 from multimessenger.supernova.interactions import Interactions
 from multimessenger.supernova.sn_utils import fetch_context, make_json
 import numpy as np

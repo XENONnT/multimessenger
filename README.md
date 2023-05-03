@@ -17,20 +17,24 @@ cd multimessenger
 pip install ./
 ```
 
-## Usage 
+## Usage
+
 ```python
 # get a model
-from multimessenger.supernova import Supernova_Models
+from snax import Supernova_Models
+
 SN_Nakazato = Supernova_Models.Models("Nakazato_2013", config_file="./local_conf.conf")
-SN_Nakazato(index=5) # load a progenitor (brings the attributes)
-SN_Nakazato.compute_model_fluxes() # calculate the fluxes for a set of param
-fluxes_at10 = SN_Nakazato.scale_fluxes(distance=10) # scale fluxes
+SN_Nakazato(index=5)  # load a progenitor (brings the attributes)
+SN_Nakazato.compute_model_fluxes()  # calculate the fluxes for a set of param
+fluxes_at10 = SN_Nakazato.scale_fluxes(distance=10)  # scale fluxes
 ```
+
 ```python
 # create a target
 from multimessenger.supernova.Nucleus import Target
-from multimessenger.supernova.Xenon_Atom import ATOM_TABLE
-singleXe = Target(ATOM_TABLE['Xe131'], pure=True) # pure means setting the abundance to =1 
+from snax.Xenon_Atom import ATOM_TABLE
+
+singleXe = Target(ATOM_TABLE['Xe131'], pure=True)  # pure means setting the abundance to =1 
 ```
 ```python
 # create interactions

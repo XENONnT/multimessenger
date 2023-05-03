@@ -66,7 +66,7 @@ class Models:
         """
         self.user = os.environ['USER']
         self.config = configparser.ConfigParser()
-        self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+        self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
         conf_path = config_file or self.default_conf_path
         self.config.read(conf_path)
         self.model_name = model_name
