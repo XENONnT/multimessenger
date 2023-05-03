@@ -1,8 +1,10 @@
 
-import os, click
-from glob import glob
+import click
+import os
 import re
+from glob import glob
 from inspect import signature
+
 import snewpy
 from snewpy.models.ccsn import Bollig_2016, Fornax_2021, Kuroda_2020
 from snewpy.models.ccsn import Nakazato_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014

@@ -13,7 +13,9 @@ uses _pickle module, check here https://stackoverflow.com/questions/4529815/savi
 How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle-yourself
 
 """
-import os, click
+import click
+import os
+
 import numpy as np
 
 try:
@@ -21,7 +23,7 @@ try:
 except ModuleNotFoundError:
     import pickle
 
-from .snewpy_models import SnewpyWrapper, models_list
+from .snewpy_models import SnewpyWrapper
 import configparser
 import astropy.units as u
 from snewpy.neutrino import Flavor

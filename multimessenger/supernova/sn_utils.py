@@ -4,15 +4,19 @@ Author: Melih Kara kara@kit.edu
 The auxiliary tools that are used within the SN signal generation, waveform simulation
 
 """
-import numpy as np
-import scipy.interpolate as itp
-import datetime
-import os, click, json
+import click
 import configparser
-from scipy import interpolate
+import datetime
+import json
+import os
 from glob import glob
-import pandas as pd
+
 import astropy
+import numpy as np
+import pandas as pd
+import scipy.interpolate as itp
+from scipy import interpolate
+
 
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
