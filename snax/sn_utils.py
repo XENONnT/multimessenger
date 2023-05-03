@@ -223,7 +223,7 @@ def see_simulated_contexts(config_file=None, sim_id=None):
     config.read(config_path)
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
     simdirs = glob(sim_folder + '/*/')
-    files = [s.split("/")[-2] for s in simdirs if "truth" in s]
+    files = [s.split("/")[-2] for s in simdirs if "-truth-" in s]
     hashes = np.array([h.split("-")[-1] for h in files])
     names = np.array([n.split("-")[0] for n in files])
     # unique hashes
