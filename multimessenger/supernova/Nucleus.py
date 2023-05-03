@@ -1,9 +1,8 @@
 #!/usr/bin/python
-from scipy.special import spherical_jn
 import numpy as np
-from astropy import units as u
 import pandas as pd
-
+from astropy import units as u
+from scipy.special import spherical_jn
 
 hbar = 1.0546e-27*u.cm**2 *u.g / u.s
 c_speed = 2.99792458e10*u.cm/u.s # 299792458*u.m/u.s
