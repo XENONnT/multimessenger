@@ -268,7 +268,7 @@ class Plotter:
             ax.axhline(i - 0.5)
             for j, v in enumerate(volumes):
                 c = total_counts[i, j]
-                ax.text(j, i, f"{int(c.value)}", va='center', ha='center', weight='bold')
+                ax.text(j, i, f"{int(c.value)}", va='center', ha='center', weight='bold', fontsize=19)
 
         ax.set_xticks(np.arange(len(volumes)), np.round(volumes.value).astype(int))
         ax.set_yticks(np.arange(len(distances)), np.round(distances.value).astype(int))

@@ -5,18 +5,19 @@ The auxiliary tools that are used within the SN signal generation, waveform simu
 
 """
 import numpy as np
-import pandas as pd
 import scipy.interpolate as itp
-import _pickle as pickle
 import datetime
-import os, click
+import os, click, json
 import configparser
 from scipy import interpolate
+from glob import glob
+import pandas as pd
+import astropy
 
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
-config = configparser.ConfigParser()
-config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
+# config = configparser.ConfigParser()
+# config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
 
 def isnotebook():
     """ Tell if the script is running on a notebook
@@ -78,227 +79,94 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     interpolated = itp.interp1d(rec_bins, y_vals, kind="cubic", fill_value="extrapolate")
     return interpolated
 
+def fetch_context(config):
+    """ If context is updated, change it in here
+    """
+    mc_folder = config["wfsim"]["sim_folder"]
+    mc_data_folder = os.path.join(mc_folder, "strax_data")
+    import cutax
+    return cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(output_folder=mc_data_folder)
 
-# def sample_from_recoil_spectrum(x='energy', N_sample=1, pickled_file=None, config_file=None):
-#     """ Sample from the recoil spectrum in given file
-#
-#         Parameters
-#         ----------
-#         x : `str`
-#             The x-axis to sample 'time' | 'energy'
-#         N_sample : `int`
-#             The number of samples
-#         pickled_file : `str`
-#             Path to pickled file. Expected to have (rates_Er, rates_t, recoil_e, timebins)
-#         config_file : `str`
-#             Path to configuration file
-#
-#     """
-#     config = configparser.ConfigParser()
-#     config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-#     config.read(config_path)
-#     path_img = config['paths']['imgs']
-#     path_data = config['paths']['data']
-#     paths = {'img': path_img, 'data': path_data}
-#
-#     pickled_file = pickled_file or paths['data']+"rates_combined.pickle"
-#     with open(pickled_file, "rb") as input_file:
-#         rates_Er, rates_t, recoil_energy_bins, timebins = pickle.load(input_file)
-#     if x.lower() == 'energy':
-#         spectrum = rates_Er['Total']
-#         xaxis = recoil_energy_bins
-#         # interpolate
-#         intrp_rates = itp.interp1d(xaxis, spectrum, kind="cubic", fill_value="extrapolate")
-#         xaxis = np.linspace(xaxis.min(), xaxis.max(), 200)
-#         spectrum = intrp_rates(xaxis)
-#     elif x.lower() == 'time':
-#         spectrum = rates_t['Total']
-#         xaxis = timebins
-#     else: return print('choose x=time or x=energy')
-#     sample = _inverse_transform_sampling(xaxis, spectrum, N_sample)
-#     return sample
+def add_strax_folder(config, context):
+    """ This appends the SN MC folder to your directories
+        So the simulations created by others are accessible to you
 
-
-# def instructions_SN(total_events_to_sim, sn_perton_fullt, single_sn_duration=10, single=False,
-#                     dump_csv=False, filename=None, below_cathode=False, config_file=None):
-#     # Todo: to study the signal shape, times are not really relevant
-#     # and the time sampling makes things hard, maybe we can ignore that and only sample energies
-#     """
-#         WFSim instructions to simulate Supernova NR peak.
-#
-#         Parameters
-#         ----------
-#         total_events_to_sim : `int`
-#             total number of events desired
-#         sn_perton_fullt: `float`
-#             The number of events/tonne/(total duration) expected from a single SN.
-#             See `sn_utils.get_rates_above_threshold()`
-#         single_sn_duration: `float`
-#             The "total duration" of a single supernova signal
-#         single : `bool`
-#             True if a single SN signal is desired. In which case the `total_events_to_sim` is
-#             overwritten with the total nr of events *in the TPC* (not the nevent_SN)
-#         dump_csv : `bool`
-#             Whether to dump the csv file in config['wfsim']['instruction_path']
-#         filename : `str`
-#             The name of the csv file if the dump_csv is True
-#         below_cathode : `bool`
-#             If True, it randomly samples x positions 12 cm beyond cathode
-#         config_file : `str`
-#             Path to configuration file
-#
-#         Notes
-#         -----
-#         - The distance between cathode and bottom array assumed to be 12 cm for now.
-#         - The number of total events is calculated by nevent_SN * volume in kg
-#         - For multiple SN events, the times are shifted by ten seconds to avoid overfilling the chunks
-#     """
-#     import wfsim, nestpy, straxen
-#     if isnotebook():
-#         from tqdm.notebook import tqdm
-#     else:
-#         from tqdm import tqdm
-#
-#     config = configparser.ConfigParser()
-#     config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-#     config.read(config_path)
-#
-#     # Xenon Atom
-#     A, Z = 131.293, 54
-#     lxe_density = float(config['xenonnt']['lxe_density'])  # g/cm^3
-#     drift_field = float(config['xenonnt']['drift_field'])  # V/cm
-#
-#     # compute the total expected interactions
-#     volume = float(config['xenonnt']['volume'])
-#     sn_pert = sn_perton_fullt * volume  # total nr SN events in the whole volume, after SN duration
-#     sn_pert = np.ceil(sn_pert).astype(int)
-#
-#     # if single signal is requested, overwrite the total
-#     if single:
-#         total_events_to_sim = sn_pert
-#
-#     # to get total number of events. We need to sample sn_pert events for X times
-#     nr_iterations = np.ceil(total_events_to_sim / sn_pert).astype(int)
-#     rolled_sample_size = int(nr_iterations * sn_pert)
-#
-#     # we need to sample this many energies and times
-#     sample_E = np.ones(rolled_sample_size) * - 1
-#     sample_t = np.ones(rolled_sample_size) * - 1
-#
-#     ## shifted time sampling
-#     for i in range(nr_iterations):
-#         from_ = int(i * sn_pert)
-#         to_ = int((i + 1) * sn_pert)
-#         smpl_e = sample_from_recoil_spectrum(N_sample=sn_pert)
-#         smpl_t = (sample_from_recoil_spectrum(x='time', N_sample=sn_pert) * 1e9).astype(np.int64) # nanosec
-#         mint, maxt = np.min(smpl_t), np.max(smpl_t)
-#         # SN signal also has pre-SN neutrino, so if there are negative times boost them
-#         if mint <= 0: smpl_t -= mint
-#
-#         time_shift = i * single_sn_duration * 1e9 # add 1 SN duration to each iteration
-#         sample_E[from_:to_] = smpl_e
-#         sample_t[from_:to_] = smpl_t + time_shift
-#
-#     n = rolled_sample_size
-#     instructions = np.ones(2 * n, dtype=wfsim.instruction_dtype)
-#     instructions[:] = -1
-#     instructions['time'] = (sample_t).repeat(2) + 1000000
-#
-#     instructions['event_number'] = np.arange(0, n).repeat(2)
-#     instructions['type'] = np.tile([1, 2], n)
-#     instructions['recoil'][:] = 0
-#     instructions['local_field'][:] = drift_field
-#
-#     r = np.sqrt(np.random.uniform(0, straxen.tpc_r ** 2, n))
-#     t = np.random.uniform(-np.pi, np.pi, n)
-#     instructions['x'] = np.repeat(r * np.cos(t), 2)
-#     instructions['y'] = np.repeat(r * np.sin(t), 2)
-#
-#     if below_cathode:
-#         instructions['z'] = np.repeat(np.random.uniform(-straxen.tpc_z - 12, 0, n), 2)
-#     else:
-#         instructions['z'] = np.repeat(np.random.uniform(-straxen.tpc_z, 0, n), 2)
-#
-#     interaction_type = nestpy.INTERACTION_TYPE(0) # 0 for NR
-#     nc = nestpy.nestpy.NESTcalc(nestpy.nestpy.VDetector())
-#
-#     quanta, exciton, recoil, e_dep = [], [], [], []
-#     for energy_deposit in tqdm(sample_E, desc='generating instructions from nest'):
-#         interaction = nestpy.INTERACTION_TYPE(interaction_type)
-#         y = nc.GetYields(interaction, energy_deposit, lxe_density, drift_field, A, Z)
-#         q = nc.GetQuanta(y, lxe_density)
-#         quanta.append(q.photons)
-#         quanta.append(q.electrons)
-#         exciton.append(q.excitons)
-#         exciton.append(0)
-#         # both S1 and S2
-#         recoil += [interaction_type, interaction_type]
-#         e_dep += [energy_deposit, energy_deposit]
-#
-#     instructions['amp'] = quanta
-#     instructions['local_field'] = drift_field
-#     instructions['n_excitons'] = exciton
-#     instructions['recoil'] = recoil
-#     instructions['e_dep'] = e_dep
-#     instructions_df = pd.DataFrame(instructions)
-#     instructions_df = instructions_df[instructions_df['amp'] > 0]
-#     instructions_df.sort_values('time', inplace=True)
-#     if dump_csv:
-#         tdy = str(datetime.date.today())
-#         inst_path = config['wfsim']['instruction_path']
-#         filename = filename or f'{tdy}_instructions.csv'
-#         instructions_df.to_csv(f'{inst_path}{filename}', index=False)
-#         print(f'Saved in -> {inst_path}{filename}')
-#     return instructions_df
-
+    """
+    mc_folder = config["wfsim"]["sim_folder"]
+    mc_data_folder = os.path.join(mc_folder, "strax_data")
+    try:
+        import strax
+        st = context
+        output_folder_exists = False
+        for i, stores in enumerate(st.storage):
+            if mc_data_folder in stores.path:
+                output_folder_exists = True
+        if not output_folder_exists:
+            st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
+        return st
+    except Exception as e:
+        click.secho(f"> {e}", fg='red')
+        pass
 
 def clean_repos(pattern='*', config_file=None):
     config = configparser.ConfigParser()
-    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
-    logs_path = config['wfsim']['logs_path']
+    logs_path = config['wfsim']['logs']
     strax_data_path = config['wfsim']['sim_folder']
 
-    if input('Are you sure to delete all the data?\n'
-             f'\t{inst_path}{pattern}\n'
-             f'\t{logs_path}{pattern}\n'
-             f'\t{strax_data_path}{pattern}\n>>>').lower() == 'y':
-        os.system(f'rm -r {inst_path}{pattern}')
-        os.system(f'rm -r {logs_path}{pattern}')
-        os.system(f'rm -r {strax_data_path}{pattern}')
-
+    for path in [inst_path, logs_path, strax_data_path]:
+        if input('Are you sure to delete all the data?\n'
+                 f'\t{path}{pattern}\n').lower() == 'y':
+            os.system(f'rm -r {path}{pattern}')
 
 def see_repos(config_file=None):
     config = configparser.ConfigParser()
-    config_path = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
     config.read(config_path)
     inst_path = config['wfsim']['instruction_path']
-    logs_path = config['wfsim']['logs_path']
+    logs_path = config['wfsim']['logs']
     strax_data_path = config['wfsim']['sim_folder']
+    proc_data = config['paths']["processed_data"]
 
-    if not os.path.isdir(logs_path):
-        os.mkdir(logs_path)
-    if not os.path.isdir(strax_data_path):
-        os.mkdir(strax_data_path)
-    click.secho('\n >>Instructions\n', bg='blue', fg='white')
-    os.system(f'ls -r {inst_path}')
-    click.secho('\n >>Logs\n', bg='blue', fg='white')
-    os.system(f'ls -r {logs_path}')
-    click.secho('\n >>Existing data\n', bg='blue', fg='white')
-    os.system(f'ls -r {strax_data_path}')
+    click.secho(f'\n >> In {strax_data_path} There are these folders\n', bg='green', fg='white')
+    for path in [inst_path, logs_path, proc_data]:
+        if not os.path.isdir(path):
+            # os.mkdir(path)
+            click.secho(f"> Could not found {path}", fg='red')
+        else:
+            click.secho(f'\n >> In {path}\n', bg='blue', fg='white')
+            os.system(f'ls {path}*/')
 
+def see_simulated_files(config_file=None, get_names=False):
+    """ Looks into the simulation folder and tells you
+        the names of the simulated data
+    """
+    config = configparser.ConfigParser()
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
+    config.read(config_path)
+    sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
+    simdirs = glob(sim_folder + '/*/')
+    clean_simdirs = np.unique([a.split("-")[0].split("/")[-1] for a in simdirs])
+    if get_names:
+        return clean_simdirs
+    for i in clean_simdirs:
+        print(f"\t{i}")
 
 def display_config(config_file=None):
     config = configparser.ConfigParser()
-    config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
-    config.read(config_file)
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
+    config.read(config_path)
     for x in config.sections():
         click.secho(f'{x:^20}', bg='blue')
         for i in config[x]:
             print(i)
         print('-'*15)
-
 
 def display_times(arr):
     """ Takes times array in ns, prints the corrected times
@@ -311,6 +179,65 @@ def display_times(arr):
     print(tf, datetime.datetime.utcfromtimestamp(tf).strftime('%Y-%m-%d %H:%M:%S'))
     timedelta = datetime.datetime.utcfromtimestamp(tf)-datetime.datetime.utcfromtimestamp(ti)
     print(f'{timedelta.seconds} seconds \n{timedelta.resolution} resolution')
+
+def _see_all_contexts():
+    import utilix
+    entries = utilix.rundb.xent_collection(collection='contexts').find(projection={'name': True})
+    contexts = [i.get('name') for i in entries]
+    contexts = np.unique(contexts)
+    return contexts
+
+def find_context_for_hash(data_type: str, lineage_hash: str,
+                          columns=('name', 'strax_version', 'cutax_version',
+                                   'straxen_version', 'date_added', 'tag'),
+                          ):
+    """Find back the software and context that was used
+    """
+    import utilix
+    # Query the context database for the requested datatype
+    entries = utilix.rundb.xent_collection(collection='contexts').find(
+        {f'hashes.{data_type}': lineage_hash},
+        projection={key: True for key in columns}
+    )
+
+    # Cast the docs into a format that allows making a dataframe
+    df = pd.DataFrame([{key: doc.get(key) for key in columns}
+                       for doc in entries]
+                      )
+    return df
+
+def see_simulated_contexts(config_file=None, sim_id=None):
+    """ See which simulations were made with what contexts
+    """
+    # check the lineages in the simulated files
+    config = configparser.ConfigParser()
+    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+    config_path = config_file or default_config_path
+    config.read(config_path)
+    sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
+    simdirs = glob(sim_folder + '/*/')
+    files = [s.split("/")[-2] for s in simdirs if "truth" in s]
+    hashes = np.array([h.split("-")[-1] for h in files])
+    names = np.array([n.split("-")[0] for n in files])
+    # unique hashes
+    uh = np.unique([h for h in hashes if "temp" not in h])
+    df_dict = {k: find_context_for_hash("truth", k) for k in uh}
+    unames, uindex = np.unique(names, return_index=True) # unique names and their indices
+    uhashes = hashes[uindex]
+    list_of_df = []
+    for n, h in zip(unames, uhashes):
+        h = h.split("_temp")[0]     # if there is a missing data
+        df = df_dict[h].copy()      # copy the already-fetched dfs
+        df["hash"] = [h] * len(df)  # some context e.g. dev points to more than one set
+        df["sim_id"] = [n] * len(df)
+        list_of_df.append(df)
+    df_final = pd.concat(list_of_df)
+    df_final.sort_values(by=['date_added', 'sim_id'], inplace=True)
+    df_final.reset_index(inplace=True)
+    df_final.drop(columns='index', inplace=True)
+    if sim_id is not None:
+        return df_final[df_final["sim_id"] == sim_id]
+    return df_final
 
 
 def inject_in(small_signal, big_signal):
@@ -366,6 +293,62 @@ def compute_rate_within(arr, sampling=1, ts=None, tf=None, start_at_zero=True, s
     return np.histogram(arr, bins=bins)
 
 def get_config(config_file=None):
+    """ On dali, get the default config from mma repo
+    """
     config = configparser.ConfigParser()
     config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_file)
+
+
+def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
+    model = inter.Model
+    snewpymodel = model.model
+    # where to save the json file
+    try:
+        store_at = model.config['wfsim']['sim_folder']
+    except Exception as e:
+        print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
+        store_at = "./"
+    # Check if json exists, create if not
+    output_json = os.path.join(store_at, jsonfilename)
+    # os.makedirs(output_json, exist_ok=True)
+
+    # create some metadata
+    meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
+            'Sim File': model.object_name,
+            'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
+    # metadata from the snewpy model
+    for k, v in snewpymodel.metadata.items():
+        if isinstance(v, astropy.units.quantity.Quantity):
+            v = f"{v}"
+        meta[k] = v
+    meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
+    meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
+    # metadata from the interaction object
+    meta['Interaction File'] = inter.interaction_file
+    meta['Nuclei Name'] = inter.Nuclei_name
+    meta['Isotope Name'] = inter.isotope_name
+    # metadata from the wfsim context
+    df = see_simulated_contexts(config_file=config_file, sim_id=sim_id)
+    df_dict = df.iloc[0].to_dict()
+    df_dict['context_name'] = df_dict['name']
+    df_dict['date_added'] = f"{df_dict['date_added']}"
+    df_dict.pop('sim_id')
+    df_dict.pop('name')
+    # make a json entry
+    json_entry = {sim_id: {"Model":meta, "Context": df_dict}}
+    # Append this simulation
+    if os.path.exists(output_json):
+        #read existing file and append new data
+        with open(output_json, "r") as f:
+            dictObj = json.load(f)
+        dictObj.update(json_entry)
+    else:
+        #create new json
+        dictObj = json_entry
+
+    #overwrite/create file
+    with open(output_json, "w") as f:
+        json.dump(dictObj, f, indent=4, sort_keys=True)
+
+

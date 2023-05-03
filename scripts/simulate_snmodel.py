@@ -1,18 +1,26 @@
 import argparse
-from multimessenger.supernova import Supernova_Models as sn
+import configparser
+
+from multimessenger.supernova import Supernova_Models
+from multimessenger.supernova.interactions import Interactions
+from multimessenger.supernova.sn_utils import fetch_context, make_json
 import numpy as np
-import pandas as pd
-import straxen, cutax
-# import pema
-import astropy.units as u
+import straxen
 import os
 
+
 parser = argparse.ArgumentParser(
-    description=('Script to run a SN simulation of a given model.')
+    description=('Script to run a SN simulation of a given model.'
+                 'It allows for requesting multiple simulations at the same time.')
 )
+
+parser.add_argument('-c', '--config',
+                    help=('The config file with the data paths'),
+                    type=str,
+                    required=True)
 parser.add_argument('-m', '--model',
                     help='Model to simulate, call --help for list of models.',
-                    choices = sn.models_list,
+                    choices = Supernova_Models.models_list,
                     type=str,
                     required=True)
 parser.add_argument('-i', '--model_index',
@@ -21,75 +29,66 @@ parser.add_argument('-i', '--model_index',
                     type=int,
                     required=True)
 parser.add_argument('-N', '--ntotal',
-                    help='Number of events to simulate. -1 for realistic simulation.',
+                    help=('Number of realizations. By default it is 1.'),
                     type=int,
-                    required=True)
-parser.add_argument('-d', '--distance',
-                    help='Distance to SN in kpc.',
-                    default = 10,
-                    type=float)
-parser.add_argument('-v', '--volume',
-                    help='Volume in tons.',
-                    default = 5.9,
-                    type=float)
-parser.add_argument('-id', '--runid',
-                    help='runid to consider.',
-                    type=str,
-                    required=True)
+                    default=1,
+                    required=False)
+parser.add_argument('-d', '--distance', help='Distance to SN in kpc.', default = 10, type=float)
+parser.add_argument('-v', '--volume', help='Volume in tons.', default = 5.9, type=float)
+parser.add_argument('-id', '--runid', help='runid to consider.', type=str, required=True)
 
 args = parser.parse_args()
 
 downloader = straxen.MongoDownloader()
 
+number_of_realization = args.ntotal
+config_file = args.config
 model_name = args.model
 model_index = args.model_index
-ntotal = args.ntotal
 distance = args.distance
 volume = args.volume
 runid = args.runid
 
+def get_model(config_file, model_name, index, distance):
+    SelectedModel = Supernova_Models.Models(model_name, config_file=config_file)
+    SelectedModel(index=index)  # brings the attributes
+    SelectedModel.compute_model_fluxes(neutrino_energies=np.linspace(0, 50, 200))
+    _ = SelectedModel.scale_fluxes(distance=distance)
+    return SelectedModel
+
+def get_interactions(SelectedModel, distance, volume):
+    Int = Interactions(SelectedModel, Nuclei='Xenon', isotope='mix')  # create interactions
+    Int.compute_interaction_rates()  # compute rates
+    _ = Int.scale_rates(distance=distance, volume=volume)  # scale rates for dist & vol
+    return Int
+
+
 def main():
-    
-    A = sn.Models(model_name=model_name, index=model_index, distance=distance*u.kpc, volume=volume*u.t)
-    A.compute_rates() #fetches the already existing sim
+    _conf = configparser.ConfigParser()
+    _conf.read(config_file)
 
-    nevents = int(A.single_rate.value)
-    
-    field_file="fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
-    field_map = straxen.InterpolatingMap(
-                        straxen.get_resource(downloader.download_single(field_file),
-                                            fmt="json.gz"),
-                        method="RegularGridInterpolator")
+    straxen.print_versions("strax,straxen,cutax,wfsim".split(","))
+    SelectedModel = get_model(config_file, model_name, model_index, distance)
+    Interaction = get_interactions(SelectedModel, distance, volume)
+    context = fetch_context(_conf)
+    # simulate
+    for realization in range(number_of_realization):
+        try:
+            Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
+            # create a metadata for bookkeeping
+            make_json(Interaction, f"{runid}_{realization:03}", config_file)
+        except Exception as e:
+            print(f"\n\n >>> Exception raised: for  < {runid}_{realization:03} >\n{e}\n\n")
+        # simulates truth, peak basics, and peak positions
 
-    # nc = nestpy.NESTcalc(nestpy.DetectorExample_XENON10())
-    # ## not sure if nestpy RNG issue was solved, so randomize NEST internal state
-    # for i in range(np.random.randint(100)):
-    #     nc.GetQuanta(nc.GetYields(energy=np.random.uniform(10,100)))
-    
-    if ntotal == -1:
-        N_events = nevents
-        # sampled in seconds -> convert to ns
-        sampled_t = A.sample_data(nevents, dtype='time') * 1e9
-    else:
-        N_events = ntotal
-        # already samples in ns
-        sampled_t = "shifted"
-        
-    sampled_Er = A.sample_data(N_events)
-    instr = A.generate_instructions(energy_deposition=sampled_Er, 
-                                    timemode=sampled_t, 
-                                    n_tot=N_events,
-                                    fmap=field_map)
-    df = pd.DataFrame(instr)
-    print(f"Total duration {np.ptp(df['time'])*1e-9:.2f} seconds")
+    # After all created, remove low level data
+    # Higher level should still be created
+    # see https://straxen.readthedocs.io/en/latest/reference/datastructure_nT.html
+    outpath = os.path.join(_conf["wfsim"]["sim_folder"], "strax_data")
+    print(f"Data simulated, deleting the intermediate products.")
+    for dtype in ["*lone_hits*", "*merged_s2s*", "*peaklet*", "*pulse*", "*raw*"]:
+        files = os.path.join(outpath,  dtype)
+        os.system(f'rm -r {files}')
 
-    # context
-    mc_folder = A.config["wfsim"]["sim_folder"]
-    mc_data_folder = os.path.join(mc_folder, "strax_data")
-    st = cutax.contexts.xenonnt_sim_SR0v2_cmt_v8(cmt_run_id="026000",
-                                                 output_folder=mc_data_folder)
-    # st.register_all(pema.match_plugins)
-    st = A.simulate_one(df, runid, context=st)
-    
 if __name__ == "__main__":
     main()
