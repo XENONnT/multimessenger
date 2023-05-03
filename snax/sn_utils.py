@@ -166,11 +166,14 @@ def display_config(config_file=None):
     default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
     config_path = config_file or default_config_path
     config.read(config_path)
-    for x in config.sections():
-        click.secho(f'{x:^20}', bg='blue')
-        for i in config[x]:
-            print(i)
-        print('-'*15)
+    try:
+        for x in config.sections():
+            click.secho(f'{x:^20}', bg='blue')
+            for i in config[x]:
+                print(f"{i:20} : {config[x][i]}")
+            print('-'*15)
+    except Exception as e:
+        print(f"{e}\nSomething went wrong, maybe empty config?")
 
 def display_times(arr):
     """ Takes times array in ns, prints the corrected times

@@ -23,7 +23,7 @@ try:
 except ModuleNotFoundError:
     import pickle
 
-from .snewpy_models import SnewpyWrapper
+from .snewpy_models import SnewpyWrapper, models_list
 import configparser
 import astropy.units as u
 from snewpy.neutrino import Flavor
@@ -97,7 +97,6 @@ class Models:
             self.retrieve_object(savename)
         else:
             # create that object and save
-            # self.model = self.model_caller.load_model_data(filename, index, force)
             self.object_name = savename
             self.times = self.model.time
             self.time_range = (self.times[0], self.times[-1])

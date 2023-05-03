@@ -8,7 +8,7 @@ with open(os.path.join(this_dir, 'README.md'), 'rb') as f:
     long_description = f.read().decode().strip()
 
 # load version
-with open("multimessenger/_version.py", "r") as f:
+with open("snax/_version.py", "r") as f:
     version_file = f.read()
 version_match = re.search(r"^version = ['\"]([^'\"]*)['\"]", version_file, re.M)
 version = version_match.group(1)
@@ -41,7 +41,7 @@ extras_require = {
 }
 
 setup(
-    name='multimessenger',
+    name='snax',
     version=version,
     description='Multimessenger Astronomy Analysis tools for XENONnT',
     long_description=long_description,

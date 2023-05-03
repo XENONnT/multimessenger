@@ -1,13 +1,17 @@
 
-# multimessenger
+# SNAX (SuperNova Analysis in Xenon)
 
-> Main responsibles: Ricado Peres (rperes@physik.uzh.ch), Melih Kara (kara@kit.edu), Amanda Depoian (adepoian@purdue.edu)
-
-The go-to place when you doubt that DM exist but remember that both neutrinos and SN are definetly real. Welcome!
+> Main responsibles: Ricardo Peres (rperes@physik.uzh.ch), Melih Kara (kara@kit.edu), Amanda Depoian (adepoian@purdue.edu)
+The go-to place when you doubt that DM exists but remember that both neutrinos and SN are definetly real. Welcome!
 What to find:
+  - Class to investigate Supernova Models
+  - Class to create a target object
+  - Class to investigate interactions between a given model and a target
+
+You can also use the SNAX package to investigate more things
   - Simulation code for SN in LXe experiments
   - From recoil spectrum to signal waveforms with wfsim.
-  - Sensitivity and significance studies
+  - Sensitivity and significance studies.
 
 ## Installation 
 
@@ -31,14 +35,14 @@ fluxes_at10 = SN_Nakazato.scale_fluxes(distance=10)  # scale fluxes
 
 ```python
 # create a target
-from multimessenger.supernova.Nucleus import Target
+from snax.Nucleus import Target
 from snax.Xenon_Atom import ATOM_TABLE
 
 singleXe = Target(ATOM_TABLE['Xe131'], pure=True)  # pure means setting the abundance to =1 
 ```
 ```python
 # create interactions
-from multimessenger.supernova.interactions import Interactions
+from snax.interactions import Interactions
 Int = Interactions(SN_Nakazato, Nuclei='Xenon', isotope='Xe131') # isotop=string creates a TARGET
 Int.compute_interaction_rates()
 Int.plot_rates(scaled=False)
