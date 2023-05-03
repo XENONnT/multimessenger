@@ -23,7 +23,7 @@ try:
 except ModuleNotFoundError:
     import pickle
 
-from .snewpy_models import SnewpyWrapper
+from .snewpy_models import SnewpyWrapper, models_list
 import configparser
 import astropy.units as u
 from snewpy.neutrino import Flavor
@@ -66,7 +66,7 @@ class Models:
         """
         self.user = os.environ['USER']
         self.config = configparser.ConfigParser()
-        self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "../..", "simple_config.conf")
+        self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
         conf_path = config_file or self.default_conf_path
         self.config.read(conf_path)
         self.model_name = model_name
@@ -97,7 +97,6 @@ class Models:
             self.retrieve_object(savename)
         else:
             # create that object and save
-            # self.model = self.model_caller.load_model_data(filename, index, force)
             self.object_name = savename
             self.times = self.model.time
             self.time_range = (self.times[0], self.times[-1])

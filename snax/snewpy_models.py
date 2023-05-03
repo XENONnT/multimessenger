@@ -5,7 +5,6 @@ import re
 from glob import glob
 from inspect import signature
 
-import snewpy
 from snewpy.models.ccsn import Bollig_2016, Fornax_2021, Kuroda_2020
 from snewpy.models.ccsn import Nakazato_2013, OConnor_2015, Sukhbold_2015, Tamborra_2014
 from snewpy.models.ccsn import Walk_2018, Walk_2019, Zha_2021
@@ -22,21 +21,18 @@ models = [Bollig_2016, Fornax_2021, Kuroda_2020,
 
 models_dict = dict(zip(models_list, models))
 
-
 def _get_files_in_folder(model_name, config):
     try:
         snewpy_base = config['paths']['snewpy_models']
         file_path = os.path.join(snewpy_base, model_name)
         files_in_model = glob(os.path.join(file_path, '*'))
-        assert len(files_in_model) > 0,  f"The model folder {file_path} is empty"
-        return files_in_model, file_path
+        assert len(files_in_model) > 0, f"Couldn't find anything in {file_path}"
     except Exception as e:
-        print(f"{e} looking at snewpy installation")
-        snewpy_base = snewpy.__file__.split("python/snewpy/__init__.py")[0]
-        file_path = os.path.join(snewpy_base, "models", model_name)
+        print(f"Got the following exception: {e}")
+        file_path = input("Can't seem to find the models, where are they saved? : ")
         files_in_model = glob(os.path.join(file_path, '*'))
-        assert len(files_in_model) > 0
-        return files_in_model, file_path
+        assert len(files_in_model) > 0, f"Couldn't find anything under {file_path}"
+    return files_in_model, file_path
 
 class SnewpyWrapper:
     """ Load the snewpy models easily

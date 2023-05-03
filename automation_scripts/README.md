@@ -1,7 +1,7 @@
 ## Scripts to automate simulation and processing
 
 This directory contains several usefull scripts to simulate, 
-process, analyse and plot with the multimessenger package.
+process, analyse and plot with the snax package.
 
 Available scripts:
   * **simulate_snmodel.py** - simulates and/or fetches already 
