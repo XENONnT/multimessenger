@@ -240,4 +240,5 @@ class Models:
             for f in self.scaled_fluxes.keys():
                 self.scaled_fluxes[f] *= scale
             return self.scaled_fluxes
-        except:
+        except Exception as e:
+            raise NotImplementedError(f"{e}\nfluxes does not exist\nCreate them by calling `compute_model_fluxes()`")
