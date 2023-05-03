@@ -152,7 +152,6 @@ def generate_sn_instructions(energy_deposition,
     instr['local_field'] = generate_local_fields(field, [x,y,z])
     # get the light and charge yields
     instr = generate_yields(nc, n_tot, instr)
-
     if mode == "s1":
         instr = instr[instr['type'] == 1]
     elif mode == "s2":
@@ -319,5 +318,3 @@ def sample_times_energies(interaction, size='infer', **kw):
     recoil_energy_samples['Total'] = np.concatenate([recoil_energy_samples[f] for f in Flavor])
 
     return time_samples, neutrino_energy_samples, recoil_energy_samples
-
-

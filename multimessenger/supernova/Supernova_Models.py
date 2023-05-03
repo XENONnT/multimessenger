@@ -241,4 +241,3 @@ class Models:
                 self.scaled_fluxes[f] *= scale
             return self.scaled_fluxes
         except:
-            raise NotImplementedError("fluxes does not exist\nCreate them by calling `compute_model_fluxes()`")
