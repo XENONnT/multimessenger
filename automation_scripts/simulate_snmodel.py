@@ -68,6 +68,7 @@ def main():
     _conf.read(config_file)
 
     straxen.print_versions("strax,straxen,cutax,wfsim".split(","))
+    print()
     SelectedModel = get_model(config_file, model_name, model_index, distance)
     Interaction = get_interactions(SelectedModel, distance, volume)
     context = fetch_context(_conf)
@@ -76,9 +77,13 @@ def main():
         try:
             Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
             # create a metadata for bookkeeping
-            make_json(Interaction, f"{runid}_{realization:03}", config_file)
+            try:
+                make_json(Interaction, f"{runid}_{realization:03}", config_file)
+            except Exception as e:
+                print(f">>> Problem making an entry to the JSON {runid}_{realization:03}\n{e}\n")
         except Exception as e:
             print(f"\n\n >>> Exception raised: for  < {runid}_{realization:03} >\n{e}\n\n")
+        print(f"\t\t ##### {runid}_{realization:03} COMPLETED ####")
         # simulates truth, peak basics, and peak positions
 
     # After all created, remove low level data
