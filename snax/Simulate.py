@@ -211,14 +211,19 @@ def _simulate_one(df, runid, config, context, force):
 
     csv_folder = config["wfsim"]["instruction_path"]
     csv_path = os.path.join(csv_folder, runid + ".csv")
+
     if not context.is_stored(runid, "truth") or force:
         df.to_csv(csv_path, index=False)
         context.set_config(dict(fax_file=csv_path))
         context.make(runid, "truth")
         context.make(runid, "peak_basics")
         context.make(runid, "peak_positions")
-        click.secho(f"{runid} is created! Returning context!", fg='blue')
+        click.secho(f"{runid} 'truth', 'peak_basics' and 'peak_positions' are created!", fg='blue')
     else:
+        for datatype in ["peak_basics", "peak_positions"]:
+            if not context.is_stored(runid, datatype) or force:
+                context.make(runid, datatype)
+                click.secho(f"{runid} '{datatype}' is created!", fg='blue')
         click.secho(f"{runid} already exists and force=False!", fg='green')
         if not os.path.isfile(csv_path):
             click.secho(f"{runid} exists in straxen storage, but the {csv_path} does not!"
