@@ -239,12 +239,25 @@ def see_simulated_contexts(config_file=None, sim_id=None):
         df["sim_id"] = [n] * len(df)
         list_of_df.append(df)
     df_final = pd.concat(list_of_df)
+    df_final['sn_model'] = df_final.apply(lambda row: "_".join(row['sim_id'].split("_")[:2]), axis=1)
     df_final.sort_values(by=['date_added', 'sim_id'], inplace=True)
     df_final.reset_index(inplace=True)
     df_final.drop(columns='index', inplace=True)
     if sim_id is not None:
         return df_final[df_final["sim_id"] == sim_id]
     return df_final
+
+def check_stored(st, df, keys=None):
+    """ Check if the given keys for the given run_id are stored in context st
+        by default checks for peak_basics and peak_positions
+    """
+    if keys is None:
+        keys = ["peak_basics", "peak_positions"]
+    if not isinstance(keys, list):
+        keys = [keys]
+    for k in keys:
+        df[f'{k}_stored'] = df.apply(lambda row: st.is_stored(row['sim_id'], k), axis=1)
+    return df
 
 
 def inject_in(small_signal, big_signal):
@@ -308,6 +321,8 @@ def get_config(config_file=None):
 
 
 def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
+    """ Make a json file that contains the metadata of the simulation
+    """
     model = inter.Model
     snewpymodel = model.model
     # where to save the json file
