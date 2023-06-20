@@ -374,7 +374,7 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
     with open(output_json, "w") as f:
         json.dump(dictObj, f, indent=4, sort_keys=True)
 
-def fetch_metadata(config_file, jsonfilename="simulation_metadata.json"):
+def fetch_metadata(config_file, jsonfilename="simulation_metadata.json", full=False):
     """ Fetch the metadata of the simulations
     """
     config = get_config(config_file)
@@ -402,7 +402,10 @@ def fetch_metadata(config_file, jsonfilename="simulation_metadata.json"):
         with open(meta_file, "r") as f:
             dictObj = json.load(f)
 
-    dd = {k: {**v['Context'], **v['Model']} for k, v in dictObj.items()}
+    if full:
+        dd ={k: {**v['Context'], **v['Model']} for k, v in dictObj.items()}
+    else:
+        dd = {k: v['Model'] for k, v in dictObj.items()}
     metaframe = pd.DataFrame(dd).T
     return metaframe
 
