@@ -21,7 +21,7 @@ from scipy import interpolate
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
 # config = configparser.ConfigParser()
-# config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
+# config.read("/project2/lgrandi/xenonnt/simulations/supernova/simple_config.conf")
 
 def isnotebook():
     """ Tell if the script is running on a notebook
@@ -316,7 +316,7 @@ def get_config(config_file=None):
     """ On dali, get the default config from mma repo
     """
     config = configparser.ConfigParser()
-    config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config_file = config_file or "/project2/lgrandi/xenonnt/simulations/supernova/simple_config.conf"
     config.read(config_file)
     return config
 
