@@ -318,6 +318,7 @@ def get_config(config_file=None):
     config = configparser.ConfigParser()
     config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
     config.read(config_file)
+    return config
 
 
 def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
@@ -373,4 +374,35 @@ def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json
     with open(output_json, "w") as f:
         json.dump(dictObj, f, indent=4, sort_keys=True)
 
+def fetch_metadata(config_file, jsonfilename="simulation_metadata.json"):
+    """ Fetch the metadata of the simulations
+    """
+    config = get_config(config_file)
+    store_at = config['wfsim']['sim_folder']
+    meta_file = os.path.join(store_at, jsonfilename)
+
+    try:
+        with open(meta_file, "r") as f:
+            dictObj = json.load(f)
+    except ValueError:
+        # Read the file
+        # Sometime there is a double closing bracket, fix it
+        with open(meta_file, 'r') as file:
+            lines = file.readlines()
+        # Check the last line
+        last_line = lines[-1].rstrip()
+        if last_line.endswith('}}'):
+            modified_last_line = last_line[:-1]
+            # Update the last line in the list of lines
+            lines[-1] = modified_last_line
+        # Write the modified content back to the file
+        with open(meta_file, 'w') as file:
+            file.writelines(lines)
+
+        with open(meta_file, "r") as f:
+            dictObj = json.load(f)
+
+    dd = {k: {**v['Context'], **v['Model']} for k, v in dictObj.items()}
+    metaframe = pd.DataFrame(dd).T
+    return metaframe
 
