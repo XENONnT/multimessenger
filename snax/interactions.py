@@ -1,19 +1,20 @@
 #!/usr/bin/python
-
+import json
 import warnings
 import numpy as np
 import pandas as pd
+import astropy
 from astropy import units as u
 from snewpy.neutrino import Flavor
-import copy, os
-from .sn_utils import isnotebook
+import copy
+from .sn_utils import isnotebook, see_simulated_contexts
 from .Nucleus import Target
 import matplotlib.pyplot as plt
 try:
     import cPickle as pickle
 except ModuleNotFoundError:
     import pickle
-import click, os
+import click, os, json
 if isnotebook():
     from tqdm.notebook import tqdm
 else:
@@ -344,6 +345,12 @@ class Interactions:
         instructions = pd.DataFrame(instructions)
         st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
         to_return = st
+
+        try:
+            self._make_json(runid, config)
+        except Exception as e:
+            print(f">>> Problem making an entry to the JSON {runid}\n{e}\n")
+
         # Maybe no need to return the context again?
         if return_instructions:
             to_return = [st, instructions]
@@ -413,6 +420,59 @@ class Interactions:
             instructions['identifier'] = identifier.repeat(2)[nonzeromask]
             to_return = [st, instructions]
         return to_return
+
+    def _make_json(self, sim_id, config, jsonfilename="simulation_metadata.json"):
+        """ Make a json file that contains the metadata of the simulation
+        """
+        model = self.Model
+        snewpymodel = model.model
+        # where to save the json file
+        try:
+            store_at = model.config['wfsim']['sim_folder']
+        except Exception as e:
+            print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
+            store_at = "./"
+        # Check if json exists, create if not
+        output_json = os.path.join(store_at, jsonfilename)
+        # os.makedirs(output_json, exist_ok=True)
+
+        # create some metadata
+        meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
+                'Sim File': model.object_name,
+                'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
+        # metadata from the snewpy model
+        for k, v in snewpymodel.metadata.items():
+            if isinstance(v, astropy.units.quantity.Quantity):
+                v = f"{v}"
+            meta[k] = v
+        meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
+        meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
+        # metadata from the interaction object
+        meta['Interaction File'] = self.interaction_file
+        meta['Nuclei Name'] = self.Nuclei_name
+        meta['Isotope Name'] = self.isotope_name
+        # metadata from the wfsim context
+        df = see_simulated_contexts(config_file=config, sim_id=sim_id)
+        df_dict = df.iloc[0].to_dict()
+        df_dict['context_name'] = df_dict['name']
+        df_dict['date_added'] = f"{df_dict['date_added']}"
+        df_dict.pop('sim_id')
+        df_dict.pop('name')
+        # make a json entry
+        json_entry = {sim_id: {"Model": meta, "Context": df_dict}}
+        # Append this simulation
+        if os.path.exists(output_json):
+            # read existing file and append new data
+            with open(output_json, "r") as f:
+                dictObj = json.load(f)
+            dictObj.update(json_entry)
+        else:
+            # create new json
+            dictObj = json_entry
+
+        # overwrite/create file
+        with open(output_json, "w") as f:
+            json.dump(dictObj, f, indent=4, sort_keys=True)
 
     def plot_rates(self, scaled=True):
         """ Plot the rates, scaled or total
