@@ -217,10 +217,13 @@ def see_simulated_contexts(config_file=None, sim_id=None):
     """ See which simulations were made with what contexts
     """
     # check the lineages in the simulated files
-    config = configparser.ConfigParser()
-    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
-    config_path = config_file or default_config_path
-    config.read(config_path)
+    if config_file is None or type(config_file)==str:
+        config_file = config_file or os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
+        config = configparser.ConfigParser()
+        config.read(config_file)
+    else:
+        config = config_file
+
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
     simdirs = glob(sim_folder + '/*/')
     files = [s.split("/")[-2] for s in simdirs if "-truth-" in s]
@@ -321,58 +324,58 @@ def get_config(config_file=None):
     return config
 
 
-def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
-    """ Make a json file that contains the metadata of the simulation
-    """
-    model = inter.Model
-    snewpymodel = model.model
-    # where to save the json file
-    try:
-        store_at = model.config['wfsim']['sim_folder']
-    except Exception as e:
-        print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
-        store_at = "./"
-    # Check if json exists, create if not
-    output_json = os.path.join(store_at, jsonfilename)
-    # os.makedirs(output_json, exist_ok=True)
-
-    # create some metadata
-    meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
-            'Sim File': model.object_name,
-            'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
-    # metadata from the snewpy model
-    for k, v in snewpymodel.metadata.items():
-        if isinstance(v, astropy.units.quantity.Quantity):
-            v = f"{v}"
-        meta[k] = v
-    meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
-    meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
-    # metadata from the interaction object
-    meta['Interaction File'] = inter.interaction_file
-    meta['Nuclei Name'] = inter.Nuclei_name
-    meta['Isotope Name'] = inter.isotope_name
-    # metadata from the wfsim context
-    df = see_simulated_contexts(config_file=config_file, sim_id=sim_id)
-    df_dict = df.iloc[0].to_dict()
-    df_dict['context_name'] = df_dict['name']
-    df_dict['date_added'] = f"{df_dict['date_added']}"
-    df_dict.pop('sim_id')
-    df_dict.pop('name')
-    # make a json entry
-    json_entry = {sim_id: {"Model":meta, "Context": df_dict}}
-    # Append this simulation
-    if os.path.exists(output_json):
-        #read existing file and append new data
-        with open(output_json, "r") as f:
-            dictObj = json.load(f)
-        dictObj.update(json_entry)
-    else:
-        #create new json
-        dictObj = json_entry
-
-    #overwrite/create file
-    with open(output_json, "w") as f:
-        json.dump(dictObj, f, indent=4, sort_keys=True)
+# def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
+#     """ Make a json file that contains the metadata of the simulation
+#     """
+#     model = inter.Model
+#     snewpymodel = model.model
+#     # where to save the json file
+#     try:
+#         store_at = model.config['wfsim']['sim_folder']
+#     except Exception as e:
+#         print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
+#         store_at = "./"
+#     # Check if json exists, create if not
+#     output_json = os.path.join(store_at, jsonfilename)
+#     # os.makedirs(output_json, exist_ok=True)
+#
+#     # create some metadata
+#     meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
+#             'Sim File': model.object_name,
+#             'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
+#     # metadata from the snewpy model
+#     for k, v in snewpymodel.metadata.items():
+#         if isinstance(v, astropy.units.quantity.Quantity):
+#             v = f"{v}"
+#         meta[k] = v
+#     meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
+#     meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
+#     # metadata from the interaction object
+#     meta['Interaction File'] = inter.interaction_file
+#     meta['Nuclei Name'] = inter.Nuclei_name
+#     meta['Isotope Name'] = inter.isotope_name
+#     # metadata from the wfsim context
+#     df = see_simulated_contexts(config_file=config_file, sim_id=sim_id)
+#     df_dict = df.iloc[0].to_dict()
+#     df_dict['context_name'] = df_dict['name']
+#     df_dict['date_added'] = f"{df_dict['date_added']}"
+#     df_dict.pop('sim_id')
+#     df_dict.pop('name')
+#     # make a json entry
+#     json_entry = {sim_id: {"Model":meta, "Context": df_dict}}
+#     # Append this simulation
+#     if os.path.exists(output_json):
+#         #read existing file and append new data
+#         with open(output_json, "r") as f:
+#             dictObj = json.load(f)
+#         dictObj.update(json_entry)
+#     else:
+#         #create new json
+#         dictObj = json_entry
+#
+#     #overwrite/create file
+#     with open(output_json, "w") as f:
+#         json.dump(dictObj, f, indent=4, sort_keys=True)
 
 def fetch_metadata(config_file, jsonfilename="simulation_metadata.json", full=False):
     """ Fetch the metadata of the simulations
