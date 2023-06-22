@@ -347,7 +347,7 @@ class Interactions:
         to_return = st
 
         try:
-            self._make_json(runid, config)
+            self._make_metadata(runid, config)
         except Exception as e:
             print(f">>> Problem making an entry to the JSON {runid}\n{e}\n")
 
@@ -421,7 +421,7 @@ class Interactions:
             to_return = [st, instructions]
         return to_return
 
-    def _make_json(self, sim_id, config, jsonfilename="simulation_metadata.json"):
+    def _make_metadata(self, sim_id, config):
         """ Make a json file that contains the metadata of the simulation
         """
         model = self.Model
@@ -432,9 +432,6 @@ class Interactions:
         except Exception as e:
             print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
             store_at = "./"
-        # Check if json exists, create if not
-        output_json = os.path.join(store_at, jsonfilename)
-        # os.makedirs(output_json, exist_ok=True)
 
         # create some metadata
         meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
@@ -458,21 +455,26 @@ class Interactions:
         df_dict['date_added'] = f"{df_dict['date_added']}"
         df_dict.pop('sim_id')
         df_dict.pop('name')
-        # make a json entry
-        json_entry = {sim_id: {"Model": meta, "Context": df_dict}}
-        # Append this simulation
-        if os.path.exists(output_json):
-            # read existing file and append new data
-            with open(output_json, "r") as f:
-                dictObj = json.load(f)
-            dictObj.update(json_entry)
-        else:
-            # create new json
-            dictObj = json_entry
+        csv_entry = {**df_dict, **meta, 'sim_id': sim_id}
+        self._save_data_to_csv(csv_entry, os.path.join(store_at, "simulation_metadata.csv"))
 
-        # overwrite/create file
-        with open(output_json, "w") as f:
-            json.dump(dictObj, f, indent=4, sort_keys=True)
+    def _save_data_to_csv(self, data, file_path):
+        # Create a DataFrame from the input dictionary
+        df = pd.DataFrame([data])
+        # Check if the file already exists
+        try:
+            existing_df = pd.read_csv(file_path)
+            # Check if the entry already exists in the DataFrame
+            if existing_df.isin(df.iloc[0]).all(1).any():
+                print("Skipping: Entry already exists in the DataFrame.")
+                return
+        except FileNotFoundError:
+            # If the file doesn't exist, create a new file with the DataFrame
+            df.to_csv(file_path, index=False)
+            return
+
+        # Append the new entry to the existing DataFrame and save it
+        df.to_csv(file_path, mode='a', header=False, index=False)
 
     def plot_rates(self, scaled=True):
         """ Plot the rates, scaled or total
