@@ -75,7 +75,13 @@ def main():
     # simulate
     for realization in range(number_of_realization):
         try:
-            Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
+            truth_exists = context.is_stored("truth", f"{runid}_{realization:03}")
+            peak_basics_exists = context.is_stored("peak_basics", f"{runid}_{realization:03}")
+            if truth_exists and peak_basics_exists:
+                print(f"Already simulated {runid}_{realization:03}, skipping")
+                continue
+            else:
+                Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
         except Exception as e:
             print(f"\n\n >>> Exception raised: for  < {runid}_{realization:03} >\n{e}\n\n")
         print(f"\t\t ##### {runid}_{realization:03} COMPLETED ####")
