@@ -3,7 +3,7 @@ import configparser
 
 from snax import Supernova_Models
 from snax.interactions import Interactions
-from snax.sn_utils import fetch_context, make_json
+from snax.sn_utils import fetch_context
 import numpy as np
 import straxen
 import os
