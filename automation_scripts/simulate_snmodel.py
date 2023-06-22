@@ -76,11 +76,6 @@ def main():
     for realization in range(number_of_realization):
         try:
             Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
-            # create a metadata for bookkeeping
-            try:
-                make_json(Interaction, f"{runid}_{realization:03}", config_file)
-            except Exception as e:
-                print(f">>> Problem making an entry to the JSON {runid}_{realization:03}\n{e}\n")
         except Exception as e:
             print(f"\n\n >>> Exception raised: for  < {runid}_{realization:03} >\n{e}\n\n")
         print(f"\t\t ##### {runid}_{realization:03} COMPLETED ####")
