@@ -53,7 +53,7 @@ class Models:
 
     def __init__(self,
                  snewpy_model,
-                 save_name=None,
+                 save_name,
                  storage=None,
                  config_file=None,
                  ):
@@ -73,11 +73,11 @@ class Models:
         # model related attributes
         self.model = snewpy_model
         self.model_name = self.model.__module__.split(".")[-1]
-        self.object_name = save_name
+        self.object_name = save_name + ".pkl"
+        self.times = snewpy_model.time
         # parameters to use for computations
         self.neutrino_energies = np.linspace(0, 200, 100)*u.MeV
         self.time_range = (None, None)
-        self.times = None
         # computed attributes
         self.fluxes = None
         self.scaled_fluxes = None
