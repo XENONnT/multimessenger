@@ -33,7 +33,6 @@ aval = (par_a / hbar / c_speed).to(u.keV ** -1)  # .value # a in keV
 sval = (par_s / hbar / c_speed).to(u.keV ** -1)  # .value # s value in keV
 customstyle = os.path.join(os.path.dirname(os.path.realpath(__file__)), "customstyle.mplstyle")
 plt.style.use(customstyle)
-# plt.style.use('customstyle.mplstyle')
 
 class InteractionSingle:
     def __init__(self, Model, Target, recoil_energies):
@@ -443,6 +442,7 @@ class Interactions:
                 v = f"{v}"
             meta[k] = v
         meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
+        meta['Object Name'] = self.Model.object_name
         meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
         # metadata from the interaction object
         meta['Interaction File'] = self.interaction_file
