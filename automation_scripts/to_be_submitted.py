@@ -5,7 +5,7 @@ import numpy as np
 import os, sys
 straxen.print_versions("strax,straxen,cutax,wfsim,snax,pema".split(","))
 from snax.Supernova_Models import Models
-from snax.sn_utils import , fetch_context
+from snax.sn_utils import fetch_context
 from snax.interactions import Interactions
 from snewpy.models.ccsn import Bollig_2016, Fornax_2021, Nakazato_2013
 
