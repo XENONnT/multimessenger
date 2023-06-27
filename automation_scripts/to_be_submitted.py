@@ -34,7 +34,7 @@ volume = args.volume
 config_file = args.config
 
 _conf = configparser.ConfigParser()
-_conf.read("../simple_config.conf")
+_conf.read(config_file)
 context = fetch_context(_conf)
 
 if case == 'Nakazato2013':
