@@ -16,6 +16,7 @@ parser.add_argument('-i', '--model_index', help=('Some model types have differnt
 parser.add_argument('-N', '--ntotal', help=('Number of realizations. By default it is 1.'), type=int, default=1, required=False)
 parser.add_argument('-d', '--distance', help='Distance to SN in kpc.', default = 10, type=float)
 parser.add_argument('-v', '--volume', help='Volume in tons.', default = 5.9, type=float)
+parser.add_argument('-t', '--tag', help='container tag.', default='2023.05.2', type=str)
 
 args = parser.parse_args()
 
@@ -25,6 +26,9 @@ model_index = args.model_index
 ntotal = args.ntotal
 distance = args.distance
 volume = args.volume
+tag = args.tag
+if tag != 'development':
+    tag = f'xenonnt-{tag}.simg'
 
 def make_batch_script(config, model_name, model_index, distance, volume, ntotal):
     _conf = configparser.ConfigParser()
@@ -47,7 +51,7 @@ singularity shell \\
     --bind /project2/ \\
     --bind /scratch/midway2/$USER \\
     --bind /midway \\
-    /project2/lgrandi/xenonnt/singularity-images/xenonnt-development.simg <<EOF
+    /project2/lgrandi/xenonnt/singularity-images/{tag} <<EOF
 python to_be_submitted.py -c {config} -m {model_name} -i {model_index} -d {distance} -v {volume} -N {ntotal}
 EOF"""
     with open(f'SN_{model_name}_{model_index}_{ntotal}.job', 'w') as F:
