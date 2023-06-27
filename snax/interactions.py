@@ -184,7 +184,7 @@ class Interactions:
             s += [f"|Expected Total | {self.expected_total['Total']:.0f}"]
         return '\n'.join(s)
 
-    def compute_interaction_rates(self, recoil_energies=None, force=False, **kw_model):
+    def compute_interaction_rates(self, recoil_energies=None, force=False, leave_bar=False, **kw_model):
         """
         :param recoil_energies: `array` default 0-20 keV 100 samples
             the recoil energies at which the interactions are calculated
@@ -209,8 +209,8 @@ class Interactions:
             return None
 
         # interaction rates for each isotope
-        self.rates_per_recoil_iso = {isotope.name: isotope.dRdEr() for isotope in tqdm(self.all_targets)}
-        self.rates_per_time_iso = {isotope.name: isotope.dRdt() for isotope in tqdm(self.all_targets)}
+        self.rates_per_recoil_iso = {isotope.name: isotope.dRdEr() for isotope in tqdm(self.all_targets, leave=leave_bar)}
+        self.rates_per_time_iso = {isotope.name: isotope.dRdt() for isotope in tqdm(self.all_targets, leave=leave_bar)}
 
         # sum over the isotopes and get the rates for the nuclei, creates self.rates_per_time(recoil)
         self._compute_total_rates()
