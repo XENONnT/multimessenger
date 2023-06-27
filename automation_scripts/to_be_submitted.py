@@ -93,7 +93,7 @@ elif case == 'Fornax2021':
 else:
     raise ValueError('Case not recognized')
 
-if len(interactions) <= index:
+if len(interactions) > index:
     interaction = interactions[index]
 else:
     raise ValueError('Index out of range')
