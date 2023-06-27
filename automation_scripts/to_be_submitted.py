@@ -16,7 +16,7 @@ N = 20
 
 case = sys.argv[1]
 try:
-    index = sys.argv[2]
+    index = int(sys.argv[2])
 except IndexError:
     index = 0
 
