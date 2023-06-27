@@ -75,8 +75,8 @@ def main():
     # simulate
     for realization in range(number_of_realization):
         try:
-            truth_exists = context.is_stored("truth", f"{runid}_{realization:03}")
-            peak_basics_exists = context.is_stored("peak_basics", f"{runid}_{realization:03}")
+            truth_exists = context.is_stored(f"{runid}_{realization:03}", "truth")
+            peak_basics_exists = context.is_stored(f"{runid}_{realization:03}", "peak_basics")
             if truth_exists and peak_basics_exists:
                 print(f"Already simulated {runid}_{realization:03}, skipping")
                 continue

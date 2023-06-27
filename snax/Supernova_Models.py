@@ -81,6 +81,8 @@ class Models:
         # computed attributes
         self.fluxes = None
         self.scaled_fluxes = None
+        # retrieve object if exists
+        self.__call__()
 
     def __call__(self, force=False):
         """ Call the model and save the output
