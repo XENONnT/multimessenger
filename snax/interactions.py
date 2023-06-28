@@ -10,6 +10,7 @@ import copy
 from .sn_utils import isnotebook, see_simulated_contexts
 from .Nucleus import Target
 import matplotlib.pyplot as plt
+from datetime import datetime
 try:
     import cPickle as pickle
 except ModuleNotFoundError:
@@ -441,6 +442,7 @@ class Interactions:
             if isinstance(v, astropy.units.quantity.Quantity):
                 v = f"{v}"
             meta[k] = v
+        meta['date simulated'] = datetime.today()
         meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
         meta['Object Name'] = self.Model.object_name
         meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"

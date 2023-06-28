@@ -33,10 +33,6 @@ distance = args.distance
 volume = args.volume
 config_file = args.config
 
-_conf = configparser.ConfigParser()
-_conf.read(config_file)
-context = fetch_context(_conf)
-
 if case == 'Nakazato2013':
     _N13_m13 = Nakazato_2013(filename=snewpy_models_path+"Nakazato_2013/nakazato-shen-z0.004-t_rev100ms-s13.0.fits")
     N13_m13 = Models(_N13_m13, save_name='N13_m13')
@@ -107,6 +103,9 @@ object_name = interaction.Model.object_name.split('.')[0]
 runid = f"{object_name}_{distance}kpc"
 
 def main():
+    _conf = configparser.ConfigParser()
+    _conf.read(config_file)
+    context = fetch_context(_conf)
     for i in range(N):
         truth_exists = context.is_stored(f"{runid}_{i:03}", "truth")
         peak_basics_exists = context.is_stored(f"{runid}_{i:03}", "peak_basics")
