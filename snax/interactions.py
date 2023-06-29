@@ -337,9 +337,10 @@ class Interactions:
         # default field file
         field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
 
+        # shift all times by 10 sec to avoid negative times
         instructions = generate_sn_instructions(energy_deposition=recoil_energy_samples['Total'],
                                                 n_tot=len(time_samples['Total']),  # times in ns
-                                                times=time_samples['Total'] * 1e9,
+                                                times=(time_samples['Total']+10) * 1e9,
                                                 fmap=field_file,
                                                 **kw)
         instructions = pd.DataFrame(instructions)
