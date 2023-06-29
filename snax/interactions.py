@@ -439,10 +439,14 @@ class Interactions:
                 'Sim File': model.object_name,
                 'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
         # metadata from the snewpy model
-        for k, v in snewpymodel.metadata.items():
-            if isinstance(v, astropy.units.quantity.Quantity):
-                v = f"{v}"
-            meta[k] = v
+        snewpy_meta = snewpymodel.metadata
+        meta['Progenitor mass'] = snewpy_meta.get('Progenitor mass', "unknown")
+        snewpy_model_meta = ""
+        for i, (k, v) in enumerate(snewpy_meta.items()):
+            if i != 0:
+                snewpy_model_meta += ", "
+            snewpy_model_meta += f"{k} : {v}"
+        meta["snewpy meta"] = snewpy_model_meta
         meta['date simulated'] = datetime.today()
         meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
         meta['Object Name'] = self.Model.object_name
