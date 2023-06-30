@@ -213,7 +213,7 @@ def find_context_for_hash(data_type: str, lineage_hash: str,
                       )
     return df
 
-def see_simulated_contexts(config_file=None, sim_id=None):
+def see_simulated_contexts(config_file=None, sim_id=None, unique=True):
     """ See which simulations were made with what contexts
     """
     # check the lineages in the simulated files
@@ -246,6 +246,8 @@ def see_simulated_contexts(config_file=None, sim_id=None):
     df_final.sort_values(by=['date_added', 'sim_id'], inplace=True)
     df_final.reset_index(inplace=True)
     df_final.drop(columns='index', inplace=True)
+    if unique:
+        df_final.drop_duplicates(subset=['name', 'tag', 'hash', 'sim_id', 'sn_model'], keep='last', inplace=True)
     if sim_id is not None:
         return df_final[df_final["sim_id"] == sim_id]
     return df_final
