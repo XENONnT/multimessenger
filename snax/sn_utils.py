@@ -415,11 +415,17 @@ def get_config(config_file=None):
 #     return metaframe
 
 
-def fetch_metadataframe(config_file, filename="simulation_metadata.csv"):
+def fetch_metadataframe(config_file, filename="simulation_metadata.csv", drop_duplicates=True):
     """ Fetch the metadata of the simulations
     """
     config = get_config(config_file)
     store_at = config['wfsim']['sim_folder']
     meta_file = os.path.join(store_at, filename)
-    metaframe = pd.read_csv(meta_file, index_col='sim_id')
+    metaframe = pd.read_csv(meta_file)
+    # metaframe = pd.read_csv(meta_file, index_col='sim_id')
+    # mf.reset_index(inplace=True)
+    collist = metaframe.columns.to_list()
+    collist.remove('date simulated')
+    if drop_duplicates:
+        metaframe.drop_duplicates(subset=collist, keep='first', inplace=True)
     return metaframe
