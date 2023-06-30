@@ -422,8 +422,6 @@ def fetch_metadataframe(config_file, filename="simulation_metadata.csv", drop_du
     store_at = config['wfsim']['sim_folder']
     meta_file = os.path.join(store_at, filename)
     metaframe = pd.read_csv(meta_file)
-    # metaframe = pd.read_csv(meta_file, index_col='sim_id')
-    # mf.reset_index(inplace=True)
     collist = metaframe.columns.to_list()
     collist.remove('date simulated')
     if drop_duplicates:
