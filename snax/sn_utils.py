@@ -250,6 +250,7 @@ def see_simulated_contexts(config_file=None, sim_id=None, unique=True):
         df_final.drop_duplicates(subset=['name', 'tag', 'hash', 'sim_id', 'sn_model'], keep='last', inplace=True)
     if sim_id is not None:
         return df_final[df_final["sim_id"] == sim_id]
+    df_final.reset_index(inplace=True)
     return df_final
 
 def check_stored(st, df, keys=None):
