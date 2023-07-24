@@ -5,7 +5,12 @@ import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
 import astropy.units as u
 import pandas as pd
-import plotly.express as px
+try:
+    import plotly.express as px
+    PLOTLY_EXISTS = True
+except ModuleNotFoundError:
+    PLOTLY_EXISTS = False
+    pass
 from snewpy.neutrino import Flavor
 from .sn_utils import isnotebook
 if isnotebook():
@@ -92,17 +97,29 @@ class Plotter:
         er_unit = str(_rateErtotal.unit)
         t_unit = str(_ratettotal.unit)
 
-        df_Er = pd.DataFrame.from_dict(rateEr)
-        df_t = pd.DataFrame.from_dict(ratet)
-        fig = px.line(df_Er, x="Recoil Energies", y=df_Er.columns[:-1], title=f"Recoil spectrum at {distance}")
-        fig.update_layout(yaxis_title=f'Rates [{er_unit}]',
-                          xaxis_title=f"Recoil Energies [{str(self.model.recoil_energies.unit)}]")
-        fig.show()
-        fig = px.line(df_t, x="Time", y=df_t.columns[:-1], title=f"Recoil spectrum at {distance}")
-        fig.update_layout(yaxis_title=f'Rates [{t_unit}]',
-                          xaxis_title=f"Time [{str(self.model.model.time.unit)}]")
-        fig.show()
-
+        if PLOTLY_EXISTS:
+            df_Er = pd.DataFrame.from_dict(rateEr)
+            df_t = pd.DataFrame.from_dict(ratet)
+            fig = px.line(df_Er, x="Recoil Energies", y=df_Er.columns[:-1], title=f"Recoil spectrum at {distance}")
+            fig.update_layout(yaxis_title=f'Rates [{er_unit}]',
+                              xaxis_title=f"Recoil Energies [{str(self.model.recoil_energies.unit)}]")
+            fig.show()
+            fig = px.line(df_t, x="Time", y=df_t.columns[:-1], title=f"Recoil spectrum at {distance}")
+            fig.update_layout(yaxis_title=f'Rates [{t_unit}]',
+                              xaxis_title=f"Time [{str(self.model.model.time.unit)}]")
+            fig.show()
+        else:
+            fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(10,11))
+            for f in rateEr.keys():
+                ax1.plot(self.model.recoil_energies, rateEr[f], label=f)
+                ax2.plot(self.model.model.time, ratet[f], label=f)
+            plt.suptitle(f"Recoil spectrum at {distance}")
+            ax1.set_xlabel(f"Recoil Energies [{str(self.model.recoil_energies.unit)}]")
+            ax1.set_ylabel(f'Rates [{er_unit}]')
+            ax2.set_xlabel(f"Time [{str(self.model.model.time.unit)}]")
+            ax2.set_ylabel(f'Rates [{t_unit}]')
+            ax1.legend()
+            ax2.legend()
 
     def plot_form_factor(self):
         Er_tests = np.linspace(0, 300, 1000) * u.keV
