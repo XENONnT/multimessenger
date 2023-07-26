@@ -1,5 +1,10 @@
 
 import numpy as np
+try:
+    from xenonnt_plot_style import XENONPlotStyle as xps
+    xps.use('xenonnt')
+except ModuleNotFoundError:
+    pass
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib.colors import LogNorm
@@ -18,47 +23,47 @@ if isnotebook():
 else:
     from tqdm import tqdm
 
-plt.style.use('ggplot')
-
-plt.rcParams['xtick.labelsize'] = 12
-plt.rcParams['ytick.labelsize'] = 12
-plt.rcParams['xtick.direction'] = 'out'
-plt.rcParams['ytick.direction'] = 'out'
-
-plt.rcParams['xtick.major.size'] = 10
-plt.rcParams['ytick.major.size'] = 10
-plt.rcParams['xtick.major.pad'] = 5
-plt.rcParams['ytick.major.pad'] = 5
-
-plt.rcParams['xtick.minor.size'] = 5
-plt.rcParams['ytick.minor.size'] = 5
-plt.rcParams['xtick.minor.pad'] = 5
-plt.rcParams['ytick.minor.pad'] = 5
-plt.rcParams['legend.fontsize'] = 18
-plt.rcParams['font.size'] = 16
-
-font_small = {'family': 'serif',
-              'color': 'darkred',
-              'weight': 'normal',
-              'size': 16,
-              }
-
-font_medium = {'family': 'serif',
-               'color': 'darkred',
-               'weight': 'normal',
-               'size': 20,
-               }
-
-font_large = {'family': 'serif',
-              'color': 'darkred',
-              'weight': 'normal',
-              'size': 24,
-              }
-params = {'xtick.labelsize': 'x-large',
-          'ytick.labelsize': 'x-large',
-          }
-# Updates plots to apply the above formatting to all plots in doc
-plt.rcParams.update(params)
+# plt.style.use('ggplot')
+#
+# plt.rcParams['xtick.labelsize'] = 12
+# plt.rcParams['ytick.labelsize'] = 12
+# plt.rcParams['xtick.direction'] = 'out'
+# plt.rcParams['ytick.direction'] = 'out'
+#
+# plt.rcParams['xtick.major.size'] = 10
+# plt.rcParams['ytick.major.size'] = 10
+# plt.rcParams['xtick.major.pad'] = 5
+# plt.rcParams['ytick.major.pad'] = 5
+#
+# plt.rcParams['xtick.minor.size'] = 5
+# plt.rcParams['ytick.minor.size'] = 5
+# plt.rcParams['xtick.minor.pad'] = 5
+# plt.rcParams['ytick.minor.pad'] = 5
+# plt.rcParams['legend.fontsize'] = 18
+# plt.rcParams['font.size'] = 16
+#
+# font_small = {'family': 'serif',
+#               'color': 'darkred',
+#               'weight': 'normal',
+#               'size': 16,
+#               }
+#
+# font_medium = {'family': 'serif',
+#                'color': 'darkred',
+#                'weight': 'normal',
+#                'size': 20,
+#                }
+#
+# font_large = {'family': 'serif',
+#               'color': 'darkred',
+#               'weight': 'normal',
+#               'size': 24,
+#               }
+# params = {'xtick.labelsize': 'x-large',
+#           'ytick.labelsize': 'x-large',
+#           }
+# # Updates plots to apply the above formatting to all plots in doc
+# plt.rcParams.update(params)
 
 
 class Plotter:

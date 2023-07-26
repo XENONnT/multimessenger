@@ -83,6 +83,7 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     interpolated = itp.interp1d(rec_bins, y_vals, kind="cubic", fill_value="extrapolate")
     return interpolated
 
+
 def fetch_context(config):
     """ If context is updated, change it in here
     """
