@@ -263,9 +263,14 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
     sampled_times = np.sort(sampled_times)
 
     # fluxes at those times
-    fluxes_at_times = Model.model.get_initial_spectra(t=sampled_times * u.s,
-                                                      E=neutrino_energies * u.MeV,
-                                                      flavors=[flavor])[flavor]
+    # fluxes_at_times = Model.model.get_initial_spectra(t=sampled_times * u.s,
+    #                                                   E=neutrino_energies * u.MeV,
+    #                                                   flavors=[flavor])[flavor]
+    fluxes_at_times = np.zeros(shape=(len(sampled_times), len(neutrino_energies)))
+    for i, j in enumerate(sampled_times):
+        fluxes_at_times[i, :] = Model.model.get_initial_spectra(t=j * u.s,
+                                                                E=neutrino_energies * u.MeV,
+                                                                flavors=[flavor])[flavor]
     # get all the cross-sections for a range of neutrino energies
     crosssec = interaction.Nucleus[0].nN_cross_section(neutrino_energies * u.MeV,
                                                        recoil_energies * u.keV)
