@@ -7,7 +7,7 @@ snx/*.csv
 snax/Supernova_Signal-WFSim-2.ipynb
 *.ipynb_checkpoints*
 notebooks/tmp
-.egg*
+*.egg*
 .idea*
 *snx.egg*
 *__pycache__*
