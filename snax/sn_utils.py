@@ -86,6 +86,8 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
 
 def fetch_context(config):
     """ If context is updated, change it in here
+        Requires config to be a configparser object with ['wfsim']['sim_folder'] field
+        So that the strax data folder can be found
     """
     mc_folder = config["wfsim"]["sim_folder"]
     mc_data_folder = os.path.join(mc_folder, "strax_data")

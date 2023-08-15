@@ -1,13 +1,12 @@
 #!/usr/bin/python
-import json
+
 import warnings
 import numpy as np
 import pandas as pd
-import astropy
 from astropy import units as u
 from snewpy.neutrino import Flavor
 import copy
-from .sn_utils import isnotebook, see_simulated_contexts
+from .sn_utils import isnotebook, see_simulated_contexts, fetch_context
 from .Nucleus import Target
 import matplotlib.pyplot as plt
 from datetime import datetime
@@ -357,7 +356,7 @@ class Interactions:
             to_return = [st, instructions]
         return to_return
 
-    def simulate_many(self, context, runid, config=None,
+    def simulate_many(self, runid, context=None, config=None,
                       return_instructions=False,
                       force=False,
                       N_supernova=200,
@@ -374,7 +373,10 @@ class Interactions:
         from .Simulate import  _simulate_one, sample_times_energies, generate_sn_instructions
         from .sn_utils import add_strax_folder
         config = config or self.Model.config
-        _context = add_strax_folder(config, context) # to have access to common strax data folder
+        if context is None:
+            _context = fetch_context(config) # returns default context with output folder pointing to common strax data folder
+        else:
+            _context = add_strax_folder(config, context) # to have access to common strax data folder
 
         # sample times and recoil energies
         duration = np.ptp(self.Model.model.time).value

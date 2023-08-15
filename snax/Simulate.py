@@ -285,7 +285,18 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
     atom = interaction.Nucleus[maxabund]
 
     sampled_nues, sampled_recoils = np.zeros(len(sampled_times)), np.zeros(len(sampled_times))
-    for i, t in tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name ,leave=leave):
+    if not leave:
+        pbar = enumerate(sampled_times)
+        length = len(sampled_times)
+    else:
+        pbar = tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name)
+        length = None
+    for i, t in pbar:
+            # tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name ,leave=leave):
+        if length is not None:
+            if i / length in [length * 0.25, length * 0.5, length * 0.75]:
+                print(f"{i/length:.2%} of {flavor.name} done")
+
         bb = np.trapz(flux_xsec[i], axis=0)
         sampled_nues[i] = _inverse_transform_sampling(neutrino_energies, bb, 1)
         recspec = atom.nN_cross_section(sampled_nues[i] * u.MeV, recoil_energies * u.keV).value.flatten()
