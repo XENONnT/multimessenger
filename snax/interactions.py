@@ -96,21 +96,18 @@ class Interactions:
                                 Xe132, Xe134, Xe136]
         """
         self.Model = Model
-        self.interaction_file = ".".join(self.Model.object_name.split('.')[:-1])+"_interaction.pickle"
+        self.interaction_file = ".".join(self.Model.object_name.split('.')[:-1]
+                                         )+"_interaction.pickle"
         if Nuclei=="Xenon":
-            from .Xenon_Atom import ATOM_TABLE
+            from nuclei.Xenon_Atom import ATOM_TABLE
+        elif Nuclei=="Argon":
+            from nuclei.Argon_Atom import ATOM_TABLE
         else:
-            raise NotImplementedError(f"Requested {Nuclei} but only have Xenon for now")
+            raise NotImplementedError(f"Requested {Nuclei} but only have Xenon and Argon for now.")
+        
         if isotope=='mix':
-            self.Nucleus = [Target(ATOM_TABLE["Xe124"], pure=False),
-                            Target(ATOM_TABLE["Xe126"], pure=False),
-                            Target(ATOM_TABLE["Xe128"], pure=False),
-                            Target(ATOM_TABLE["Xe129"], pure=False),
-                            Target(ATOM_TABLE["Xe130"], pure=False),
-                            Target(ATOM_TABLE["Xe131"], pure=False),
-                            Target(ATOM_TABLE["Xe132"], pure=False),
-                            Target(ATOM_TABLE["Xe134"], pure=False),
-                            Target(ATOM_TABLE["Xe136"], pure=False)]
+            self.Nucleus = [Target(ATOM_TABLE[iso], pure=False) 
+                            for iso in ATOM_TABLE]
         else:
             self.Nucleus = [Target(ATOM_TABLE[isotope], pure=True)]
 
