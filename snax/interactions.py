@@ -360,12 +360,13 @@ class Interactions:
                       return_instructions=False,
                       force=False,
                       N_supernova=200,
-                      shift_method='random',
+                      shift_time=120,
                       **kw):
-        """ Simulate many SN using WFSim
+        """ Simulate many SN using WFSim move 2min forward in time after each simulation
             see also simulate_automatically()
             :param N_supernova: `int` number of supernova to simulate
-            :param shift_method: `str` random, oneafterother
+            :param force: `bool` even if data exists, recreate from scratch
+            :param shift_time: `int` time in seconds to shift the next SN
 
             Returns:
             context, (instructions)
@@ -378,19 +379,22 @@ class Interactions:
         else:
             _context = add_strax_folder(config, context) # to have access to common strax data folder
 
-        # sample times and recoil energies
-        duration = np.ptp(self.Model.model.time).value
-        if shift_method=='random':
-            shifts = np.random.uniform(0, 10, N_supernova)
-        elif shift_method=='oneafterother':
-            # put a supernova at the beginning of every 2 minutes
-            # shifts = np.repeat(duration, N_supernova)
-            shifts = np.repeat(120, N_supernova)
-        else:
-            warnings.warn(f"The shift_method={shift_method} is not recognized, shifting randomly")
-            shifts = np.random.uniform(0, 10, N_supernova)
+        if not force:
+            # first check if the requested simulations exist
+            if _context.is_stored(runid, "peak_basics"):
+                print(f">>> Data for {runid} exists, skipping")
+                # load the instructions
+                csv_folder = config["wfsim"]["instruction_path"]
+                csv_path = os.path.join(csv_folder, runid + ".csv")
+                fetched_instructions = pd.read_csv(csv_path)
+                if return_instructions:
+                    return _context, fetched_instructions
+                else:
+                    return _context
+        # else continue with the simulation
 
-        # max_time = 0
+        shift_time = int(shift_time)
+        shifts = np.arange(0, shift_time*N_supernova, shift_time)
         _, _, foo = sample_times_energies(self, size='infer', leave=False)
         single_sample_size = len(foo['Total'])
         time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
@@ -404,10 +408,7 @@ class Interactions:
             _to = int((i + 1) * single_sample_size)
             recoil_energy_samples[_from:_to] = recoil_energy_sample
             time_samples[_from:_to] = time_sample
-            time_samples[_from:_to] += 120*i  # shift by 2 min so that each SN starts at a later time. (ensure no overlap)
-            # time_samples[_from:_to] += max_time   # shift by the max time so that each SN starts at a later time. (ensure no overlap)
-            # time_samples[_from:_to] += shifts[i]  # add the requested shift.
-            # max_time = np.max(time_samples)      # max time of *all* registered times
+            time_samples[_from:_to] += shifts[i]  # shift by 2 min so that each SN starts at a later time. (ensure no overlap)
             identifier[_from:_to] = i
 
         # default field file
