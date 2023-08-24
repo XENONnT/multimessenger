@@ -400,9 +400,12 @@ class Interactions:
         time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
         recoil_energy_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
         identifier = np.zeros(single_sample_size*N_supernova, dtype=int)
+        nu_energies = np.zeros(single_sample_size * N_supernova, dtype=float)
         for i in range(N_supernova):
-            time_sample, _, recoil_energy_sample = sample_times_energies(self, size='infer', leave=False)
+            # sample times in seconds and energies in keV
+            time_sample, nu_energy, recoil_energy_sample = sample_times_energies(self, size='infer', leave=False)
             time_sample, recoil_energy_sample = time_sample['Total'], recoil_energy_sample['Total']
+            nu_energy = nu_energy['Total']
             # adjust arrays
             _from = int(i * single_sample_size)
             _to = int((i + 1) * single_sample_size)
@@ -410,6 +413,7 @@ class Interactions:
             time_samples[_from:_to] = time_sample
             time_samples[_from:_to] += shifts[i]  # shift by 2 min so that each SN starts at a later time. (ensure no overlap)
             identifier[_from:_to] = i
+            nu_energies[_from:_to] = nu_energy
 
         # default field file
         field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
@@ -421,12 +425,13 @@ class Interactions:
                                                              **kw)
         instructions = pd.DataFrame(instructions)
         st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
-        to_return = st
         if return_instructions:
             # also add the identifier
             instructions['identifier'] = identifier.repeat(2)[nonzeromask]
-            to_return = [st, instructions]
-        return to_return
+            instructions['nu_energy'] = nu_energies.repeat(2)[nonzeromask]
+            return [st, instructions]
+        else:
+            return st
 
     def _make_metadata(self, sim_id, config):
         """ Make a json file that contains the metadata of the simulation
