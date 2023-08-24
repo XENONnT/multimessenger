@@ -383,12 +383,14 @@ class Interactions:
         if shift_method=='random':
             shifts = np.random.uniform(0, 10, N_supernova)
         elif shift_method=='oneafterother':
-            shifts = np.repeat(duration, N_supernova)
+            # put a supernova at the beginning of every 2 minutes
+            # shifts = np.repeat(duration, N_supernova)
+            shifts = np.repeat(120, N_supernova)
         else:
             warnings.warn(f"The shift_method={shift_method} is not recognized, shifting randomly")
             shifts = np.random.uniform(0, 10, N_supernova)
 
-        max_time = 0
+        # max_time = 0
         _, _, foo = sample_times_energies(self, size='infer', leave=False)
         single_sample_size = len(foo['Total'])
         time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
@@ -402,9 +404,10 @@ class Interactions:
             _to = int((i + 1) * single_sample_size)
             recoil_energy_samples[_from:_to] = recoil_energy_sample
             time_samples[_from:_to] = time_sample
-            time_samples[_from:_to] += max_time   # shift by the max time so that each SN starts at a later time. (ensure no overlap)
-            time_samples[_from:_to] += shifts[i]  # add the requested shift.
-            max_time = np.max(time_samples)      # max time of *all* registered times
+            time_samples[_from:_to] += 120*i  # shift by 2 min so that each SN starts at a later time. (ensure no overlap)
+            # time_samples[_from:_to] += max_time   # shift by the max time so that each SN starts at a later time. (ensure no overlap)
+            # time_samples[_from:_to] += shifts[i]  # add the requested shift.
+            # max_time = np.max(time_samples)      # max time of *all* registered times
             identifier[_from:_to] = i
 
         # default field file
