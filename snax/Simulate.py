@@ -69,8 +69,8 @@ def generate_local_fields(fmap, pos):
                         straxen.get_resource(downloader.download_single(fmap), fmt="json.gz"),
                         method="RegularGridInterpolator")
         local_field = fmap(np.array([np.sqrt(x ** 2 + y ** 2), z]).T).repeat(2)
-    elif type(fmap)==float:
-        local_field = np.repeat(fmap, len(x))
+    elif type(fmap)==float or type(fmap)==int:
+        local_field = np.repeat(fmap, len(x)*2) #x has s1 and s2 signals
     else:
         raise TypeError(f"Expected electric field to be either string or float got {type(fmap)}")
     return local_field
