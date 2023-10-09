@@ -330,9 +330,9 @@ def _simulate_one(df, runid, config, context, force):
     if not context.is_stored(runid, "truth") or force:
         df.to_csv(csv_path, index=False) # save the instructions
         context.set_config(dict(fax_file=csv_path))
-        context.make(runid, "truth")
-        context.make(runid, "peak_basics")
-        context.make(runid, "peak_positions")
+        context.make(runid, "truth", _skip_if_built=False)
+        context.make(runid, "peak_basics", _skip_if_built=False)
+        context.make(runid, "peak_positions", _skip_if_built=False)
         click.secho(f"\t> {runid} 'truth', 'peak_basics' and 'peak_positions' are created!", fg='blue')
     else:
         # truth exists, check if the other data types exists
