@@ -327,7 +327,7 @@ def _simulate_one(df, runid, config, context, force):
     csv_path = os.path.join(csv_folder, runid + ".csv")
 
     # check if data exists
-    if not context.is_stored(runid, "truth") or force:
+    if (not context.is_stored(runid, "truth")) or force:
         df.to_csv(csv_path, index=False) # save the instructions
         context.set_config(dict(fax_file=csv_path))
         context.make(runid, "truth", _skip_if_built=False)
