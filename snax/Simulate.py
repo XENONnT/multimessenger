@@ -317,13 +317,16 @@ def _simulate_one(df, runid, config, context, force):
     """ from a given instruction (see Simulate.generate_sn_instruction)
         simulate data with name=`runid` using the `config` and with the given context
     """
+    # check if the required libraries are installed
     for libexists, libname in zip([WFSIMEXIST, CUTAXEXIST, STRAXEXIST], ["WFSim", "cutax", "strax"]):
         if not libexists:
             raise ImportError(f"{libname} not installed and is required for simulation!")
 
+    # get the instruction path
     csv_folder = config["wfsim"]["instruction_path"]
     csv_path = os.path.join(csv_folder, runid + ".csv")
 
+    # check if data exists
     if not context.is_stored(runid, "truth") or force:
         df.to_csv(csv_path, index=False) # save the instructions
         context.set_config(dict(fax_file=csv_path))
@@ -332,6 +335,7 @@ def _simulate_one(df, runid, config, context, force):
         context.make(runid, "peak_positions")
         click.secho(f"\t>{runid} 'truth', 'peak_basics' and 'peak_positions' are created!", fg='blue')
     else:
+        # truth exists, check if the other data types exists
         for datatype in ["peak_basics", "peak_positions"]:
             if not context.is_stored(runid, datatype) or force:
                 context.make(runid, datatype)
