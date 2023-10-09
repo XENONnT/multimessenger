@@ -294,6 +294,7 @@ def generate_sn_instructions(energy_deposition,
     instr['y'][:] = y.repeat(2)
     instr['z'][:] = z.repeat(2)
     instr['recoil'][:] = nestpy.NR
+    instr['g4id'] = np.arange(n_tot).repeat(2)  # identifier for each event
     # getting local field from field map
     instr['local_field'] = generate_local_fields(field, [x,y,z])
     # get the light and charge yields
