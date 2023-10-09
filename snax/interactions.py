@@ -220,12 +220,13 @@ class Interactions:
         """ Sum over all isotopes the get total rates per flavor
             Then also sum over all flavor to get the actual total.
         """
-        # get the total fluxes and rates
+        # get the total fluxes and rates, all same length
         dEr_example = self.rates_per_recoil_iso[self.all_targets[0].name][Flavor.NU_E]
         dt_example = self.rates_per_time_iso[self.all_targets[0].name][Flavor.NU_E]
 
         self.rates_per_recoil = {f: np.zeros_like(dEr_example) for f in Flavor}
         self.rates_per_time = {f: np.zeros_like(dt_example) for f in Flavor}
+        # iterate over all flavors and isotopes, sum the total contribution
         for f in Flavor:
             for xe in self.all_targets:
                 self.rates_per_recoil[f] += self.rates_per_recoil_iso[xe.name][f]
@@ -234,7 +235,7 @@ class Interactions:
         # add the total
         self.rates_per_recoil['Total'] = np.zeros_like(self.rates_per_recoil[Flavor.NU_E])
         self.rates_per_time['Total']  = np.zeros_like(self.rates_per_time[Flavor.NU_E])
-        for f in Flavor:
+        for f in Flavor: # (nu_e, anti nu_e, nu_x, anti nu_x)
             _rate1 = self.rates_per_recoil[f]
             _rate2 = self.rates_per_time[f]
             if not f.is_electron:
@@ -271,8 +272,6 @@ class Interactions:
         """
         for k, v in self.rates_per_recoil_scaled.items():
             self.expected_total[k] = np.trapz(v, self.recoil_energies)
-
-
 
     def scale_rates(self, distance, volume, N_Xe=4.6e27*u.count/u.tonne):
         """ Scale the rates  based on distance and number of atoms
@@ -397,10 +396,12 @@ class Interactions:
         shifts = np.arange(0, shift_time*N_supernova, shift_time)
         _, _, foo = sample_times_energies(self, size='infer', leave=False)
         single_sample_size = len(foo['Total'])
+
         time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
         recoil_energy_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
         identifier = np.zeros(single_sample_size*N_supernova, dtype=int)
         nu_energies = np.zeros(single_sample_size * N_supernova, dtype=float)
+
         for i in range(N_supernova):
             # sample times in seconds and energies in keV
             time_sample, nu_energy, recoil_energy_sample = sample_times_energies(self, size='infer', leave=False)

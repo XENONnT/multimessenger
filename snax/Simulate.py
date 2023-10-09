@@ -172,6 +172,7 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
     #                                                   flavors=[flavor])[flavor]
     # internal snewpy vectorization error, do it manually
     fluxes_at_times = np.zeros(shape=(len(sampled_times), len(neutrino_energies)))
+    # given neutrino flavor, get the fluxes at the sampled times
     for i, j in enumerate(sampled_times):
         fluxes_at_times[i, :] = Model.model.get_initial_spectra(t=j * u.s,
                                                                 E=neutrino_energies * u.MeV,
@@ -191,16 +192,14 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
 
     sampled_nues, sampled_recoils = np.zeros(len(sampled_times)), np.zeros(len(sampled_times))
     if not leave:
-        pbar = enumerate(sampled_times)
-        length = len(sampled_times)
+        pbar, length = enumerate(sampled_times), len(sampled_times)
     else:
-        pbar = tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name)
-        length = None
+        pbar, length = tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name), None
+
     for i, t in pbar:
-            # tqdm(enumerate(sampled_times), total=len(sampled_times), desc=flavor.name ,leave=leave):
         if length is not None:
             if i / length in [length * 0.25, length * 0.5, length * 0.75]:
-                print(f"{i/length:.2%} of {flavor.name} done")
+                print(f"\t{i/length:.2%} of {flavor.name} done")
 
         bb = np.trapz(flux_xsec[i], axis=0)
         sampled_nues[i] = _inverse_transform_sampling(neutrino_energies, bb, 1)
@@ -224,6 +223,7 @@ def sample_times_energies(interaction, size='infer', **kw):
     time_samples = dict()
     neutrino_energy_samples = dict()
     recoil_energy_samples = dict()
+    # check how many interactions to sample from each flavor
     if type(size)==str:
         size = []
         for f in Flavor:
@@ -333,16 +333,16 @@ def _simulate_one(df, runid, config, context, force):
         context.make(runid, "truth")
         context.make(runid, "peak_basics")
         context.make(runid, "peak_positions")
-        click.secho(f"\t>{runid} 'truth', 'peak_basics' and 'peak_positions' are created!", fg='blue')
+        click.secho(f"\t> {runid} 'truth', 'peak_basics' and 'peak_positions' are created!", fg='blue')
     else:
         # truth exists, check if the other data types exists
         for datatype in ["peak_basics", "peak_positions"]:
             if not context.is_stored(runid, datatype) or force:
                 context.make(runid, datatype)
-                click.secho(f"\t>{runid} '{datatype}' is created!", fg='blue')
-        click.secho(f"\t>{runid} already exists and force=False!", fg='green')
+                click.secho(f"\t> {runid} '{datatype}' is created!", fg='blue')
+        click.secho(f"\t> {runid} already exists and force=False!", fg='green')
         if not os.path.isfile(csv_path):
-            click.secho(f"\t>{runid} exists in straxen storage, but the {csv_path} does not!"
+            click.secho(f"\t> {runid} exists in straxen storage, but the {csv_path} does not!"
                         f" Maybe manually deleted? Returning the simulation anyway", fg='red')
         context.make(runid, "truth")
         click.secho(f"\t>{runid} is fetched! Returning context!", fg='green')
