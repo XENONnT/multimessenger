@@ -10,6 +10,7 @@ if isnotebook():
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
+
 try:
     import wfsim
     WFSIMEXIST = True
@@ -28,6 +29,9 @@ try:
 except ImportError as e:
     CUTAXEXIST = False
 
+# default parameters
+NEUTRINO_ENERGIES = np.linspace(0,250,500)
+RECOIL_ENERGIES = np.linspace(0,30,100)
 
 def generate_vertex(r_range=(0, 66.4),
                     z_range=(-148.15, 0), size=1):
@@ -39,7 +43,7 @@ def generate_vertex(r_range=(0, 66.4),
     return x, y, z
 
 def generate_times(rate, size, timemode='realistic'):
-    # generating event times from exponential
+    """ Generate times for the wfsim instructions """
     if timemode == "realistic":
         dt = np.random.exponential(1 / rate, size=size - 1)
         times = np.append([1.0], 1.0 + dt.cumsum()) * 1e9
@@ -50,10 +54,11 @@ def generate_times(rate, size, timemode='realistic'):
         times = np.append([1.0], 1.0 + dt.cumsum()) * 1e9
         times = times.round().astype(np.int64)
         return times
+    else:
+        raise ValueError(f"Time mode {timemode} not supported")
 
 def generate_local_fields(fmap, pos):
-    """ Generate local fields for the wfsim instructions
-    """
+    """ Generate local fields for the wfsim instructions """
     # the interaction sites
     x, y, z = pos
     # getting local field from field map
@@ -100,72 +105,6 @@ def generate_yields(nc, n_tot, instr):
         instr['n_excitons'][2 * i:2 * (i + 1)] = q_.excitons
     return instr
 
-def generate_sn_instructions(energy_deposition,
-                             times="realistic",
-                             time_offset=0,
-                             n_tot=1000,
-                             rate=20.,
-                             field=None,
-                             nc=None,
-                             r_range=(0, 66.4), z_range=(-148.15, 0),
-                             mode="all",
-                             return_nonzero_mask=False,
-                             **kwargs
-                             ):
-    """ Generate WFSim instructions for Supernova Signal
-        :param energy_deposition: recoil energies in keV, or mono energy
-        :param times: interaction times either manually in nanoseconds or as str
-            "shifted", or "realistic" or "uniform"
-        :param time_offset: if times are sampled via string, offset amount in ns
-        :param n_tot: total interactions to simulate.
-        :param rate: rate of sampling
-        :param field: either a float (V/m) or a str with field map name
-        :param nc: either a modified nestpy instance, or use the default
-        :param r_range/z_range: the boundaries of the TPC
-        :param mode: whether full sim, or s1/ s2 only
-        :param return_nonzero_mask: to fetch entries with amp=0
-    """
-    if type(times) != str:
-        times = times
-    else:
-        if times== "shifted":
-            kwargs.pop("self")
-            energy_deposition, times, n_tot = shifted_times(**kwargs)
-        else:
-            times = generate_times(rate=rate, size=n_tot, timemode=times) + time_offset
-    if not WFSIMEXIST:
-        raise ImportError("WFSim is not installed and is required for instructions!")
-
-    # create instructions frame
-    instr = np.zeros(2 * n_tot, dtype=wfsim.instruction_dtype)
-    instr['event_number'] = np.arange(1, n_tot + 1).repeat(2)    # same event two output S1,S2
-    instr['type'][:] = np.tile([1, 2], n_tot)
-    instr['e_dep'][:] = energy_deposition.repeat(2)
-    instr['time'][:] = times.repeat(2)                           # same event time, S2 delay added later in wfsim
-    # generating uniformly distributed events for given R and Z range
-    x, y, z = generate_vertex(r_range=r_range, z_range=z_range, size=n_tot)
-    instr['x'][:] = x.repeat(2)
-    instr['y'][:] = y.repeat(2)
-    instr['z'][:] = z.repeat(2)
-    instr['recoil'][:] = nestpy.NR
-    # getting local field from field map
-    instr['local_field'] = generate_local_fields(field, [x,y,z])
-    # get the light and charge yields
-    instr = generate_yields(nc, n_tot, instr)
-    if mode == "s1":
-        instr = instr[instr['type'] == 1]
-    elif mode == "s2":
-        instr = instr[instr['type'] == 2]
-    elif mode == "all":
-        pass
-    else:
-        raise RuntimeError("Unknown mode: ", mode)
-    # to avoid zero size interactions
-    _instr = instr[instr['amp'] > 0]
-    if return_nonzero_mask:
-        return _instr, instr['amp']>0
-    return _instr
-
 def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate_in_oneSN):
     from .sn_utils import _inverse_transform_sampling
     xaxis_er = recoil_energies.value
@@ -201,37 +140,6 @@ def shifted_times(recoil_energies, times, rates_per_Er, rates_per_t, total, rate
     # te remaining 10 will just confuse more.
     return sampled_er, sampled_t, rolled_total
 
-def _simulate_one(df, runid, config, context, force):
-    """ from a given instruction (see Simulate.generate_sn_instruction)
-        simulate data with name=`runid` using the `config` and with the given context
-    """
-    for libexists, libname in zip([WFSIMEXIST, CUTAXEXIST, STRAXEXIST], ["WFSim", "cutax", "strax"]):
-        if not libexists:
-            raise ImportError(f"{libname} not installed and is required for simulation!")
-
-    csv_folder = config["wfsim"]["instruction_path"]
-    csv_path = os.path.join(csv_folder, runid + ".csv")
-
-    if not context.is_stored(runid, "truth") or force:
-        df.to_csv(csv_path, index=False)
-        context.set_config(dict(fax_file=csv_path))
-        context.make(runid, "truth")
-        context.make(runid, "peak_basics")
-        context.make(runid, "peak_positions")
-        click.secho(f"{runid} 'truth', 'peak_basics' and 'peak_positions' are created!", fg='blue')
-    else:
-        for datatype in ["peak_basics", "peak_positions"]:
-            if not context.is_stored(runid, datatype) or force:
-                context.make(runid, datatype)
-                click.secho(f"{runid} '{datatype}' is created!", fg='blue')
-        click.secho(f"{runid} already exists and force=False!", fg='green')
-        if not os.path.isfile(csv_path):
-            click.secho(f"{runid} exists in straxen storage, but the {csv_path} does not!"
-                        f" Maybe manually deleted? Returning the simulation anyway", fg='red')
-        context.make(runid, "truth")
-        click.secho(f"{runid} is fetched! Returning context!", fg='green')
-    return context
-
 def _inverse_transform_sampling(x_vals, y_vals, n_samples):
     cum_values = np.zeros(x_vals.shape)
     y_mid = (y_vals[1:] + y_vals[:-1]) * 0.5
@@ -239,10 +147,6 @@ def _inverse_transform_sampling(x_vals, y_vals, n_samples):
     inv_cdf = interp1d(cum_values / np.max(cum_values), x_vals)
     r = np.random.rand(n_samples)
     return inv_cdf(r)
-
-
-NEUTRINO_ENERGIES = np.linspace(0,250,500)
-RECOIL_ENERGIES = np.linspace(0,30,100)
 
 def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
     """
@@ -266,6 +170,7 @@ def _sample_times_energy(interaction, size, flavor=Flavor.NU_E, **kw):
     # fluxes_at_times = Model.model.get_initial_spectra(t=sampled_times * u.s,
     #                                                   E=neutrino_energies * u.MeV,
     #                                                   flavors=[flavor])[flavor]
+    # internal snewpy vectorization error, do it manually
     fluxes_at_times = np.zeros(shape=(len(sampled_times), len(neutrino_energies)))
     for i, j in enumerate(sampled_times):
         fluxes_at_times[i, :] = Model.model.get_initial_spectra(t=j * u.s,
@@ -339,3 +244,101 @@ def sample_times_energies(interaction, size='infer', **kw):
     recoil_energy_samples['Total'] = np.concatenate([recoil_energy_samples[f] for f in Flavor])
 
     return time_samples, neutrino_energy_samples, recoil_energy_samples
+
+
+def generate_sn_instructions(energy_deposition,
+                             times="realistic",
+                             time_offset=0,
+                             n_tot=1000,
+                             rate=20.,
+                             field=None,
+                             nc=None,
+                             r_range=(0, 66.4), z_range=(-148.15, 0),
+                             mode="all",
+                             return_nonzero_mask=False,
+                             **kwargs
+                             ):
+    """ Generate WFSim instructions for Supernova Signal
+        :param energy_deposition: recoil energies in keV, or mono energy
+        :param times: interaction times either manually in nanoseconds or as str
+            "shifted", or "realistic" or "uniform"
+        :param time_offset: if times are sampled via string, offset amount in ns
+        :param n_tot: total interactions to simulate.
+        :param rate: rate of sampling
+        :param field: either a float (V/m) or a str with field map name
+        :param nc: either a modified nestpy instance, or use the default
+        :param r_range/z_range: the boundaries of the TPC
+        :param mode: whether full sim, or s1/ s2 only
+        :param return_nonzero_mask: to fetch entries with amp=0
+    """
+    if type(times) != str:
+        times = times
+    else:
+        if times== "shifted":
+            kwargs.pop("self")
+            energy_deposition, times, n_tot = shifted_times(**kwargs)
+        else:
+            times = generate_times(rate=rate, size=n_tot, timemode=times) + time_offset
+    if not WFSIMEXIST:
+        raise ImportError("WFSim is not installed and is required for instructions!")
+
+    # create instructions frame
+    instr = np.zeros(2 * n_tot, dtype=wfsim.instruction_dtype)
+    instr['event_number'] = np.arange(1, n_tot + 1).repeat(2)    # same event two output S1,S2
+    instr['type'][:] = np.tile([1, 2], n_tot)
+    instr['e_dep'][:] = energy_deposition.repeat(2)
+    instr['time'][:] = times.repeat(2)                           # same event time, S2 delay added later in wfsim
+    # generating uniformly distributed events for given R and Z range
+    x, y, z = generate_vertex(r_range=r_range, z_range=z_range, size=n_tot)
+    instr['x'][:] = x.repeat(2)
+    instr['y'][:] = y.repeat(2)
+    instr['z'][:] = z.repeat(2)
+    instr['recoil'][:] = nestpy.NR
+    # getting local field from field map
+    instr['local_field'] = generate_local_fields(field, [x,y,z])
+    # get the light and charge yields
+    instr = generate_yields(nc, n_tot, instr)
+    if mode == "s1":
+        instr = instr[instr['type'] == 1]
+    elif mode == "s2":
+        instr = instr[instr['type'] == 2]
+    elif mode == "all":
+        pass
+    else:
+        raise RuntimeError("Unknown mode: ", mode)
+    # to avoid zero size interactions
+    _instr = instr[instr['amp'] > 0]
+    if return_nonzero_mask:
+        return _instr, instr['amp']>0
+    return _instr
+
+def _simulate_one(df, runid, config, context, force):
+    """ from a given instruction (see Simulate.generate_sn_instruction)
+        simulate data with name=`runid` using the `config` and with the given context
+    """
+    for libexists, libname in zip([WFSIMEXIST, CUTAXEXIST, STRAXEXIST], ["WFSim", "cutax", "strax"]):
+        if not libexists:
+            raise ImportError(f"{libname} not installed and is required for simulation!")
+
+    csv_folder = config["wfsim"]["instruction_path"]
+    csv_path = os.path.join(csv_folder, runid + ".csv")
+
+    if not context.is_stored(runid, "truth") or force:
+        df.to_csv(csv_path, index=False) # save the instructions
+        context.set_config(dict(fax_file=csv_path))
+        context.make(runid, "truth")
+        context.make(runid, "peak_basics")
+        context.make(runid, "peak_positions")
+        click.secho(f"\t>{runid} 'truth', 'peak_basics' and 'peak_positions' are created!", fg='blue')
+    else:
+        for datatype in ["peak_basics", "peak_positions"]:
+            if not context.is_stored(runid, datatype) or force:
+                context.make(runid, datatype)
+                click.secho(f"\t>{runid} '{datatype}' is created!", fg='blue')
+        click.secho(f"\t>{runid} already exists and force=False!", fg='green')
+        if not os.path.isfile(csv_path):
+            click.secho(f"\t>{runid} exists in straxen storage, but the {csv_path} does not!"
+                        f" Maybe manually deleted? Returning the simulation anyway", fg='red')
+        context.make(runid, "truth")
+        click.secho(f"\t>{runid} is fetched! Returning context!", fg='green')
+    return context
