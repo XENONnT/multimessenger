@@ -23,7 +23,6 @@ try:
 except ModuleNotFoundError:
     import pickle
 
-from .snewpy_models import SnewpyWrapper, models_list
 import configparser
 import astropy.units as u
 from snewpy.neutrino import Flavor
@@ -53,51 +52,50 @@ class Models:
     """
 
     def __init__(self,
-                 model_name,
+                 snewpy_model,
+                 save_name,
                  storage=None,
                  config_file=None,
                  ):
         """
         Parameters
         ----------
-        :param model_name: `str`, name of the model e.g. "Nakazato_2013"
+        :param snewpy_model: snewpy model object
         :param storage: `str` path of the output folder
         :param config_file: `str` config file that contains the default params
         """
         self.user = os.environ['USER']
         self.config = configparser.ConfigParser()
         self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
-        conf_path = config_file or self.default_conf_path
-        self.config.read(conf_path)
-        self.model_name = model_name
-        self.model_caller = SnewpyWrapper(self.model_name, self.config)
-        self.model = None
+        self.conf_path = config_file or self.default_conf_path
+        self.config.read(self.conf_path)
         self.storage = get_storage(storage, self.config)
-        self.object_name = ""
+        # model related attributes
+        self.model = snewpy_model
+        self.model_name = self.model.__module__.split(".")[-1]
+        self.object_name = save_name + ".pkl"
+        self.times = snewpy_model.time
         # parameters to use for computations
         self.neutrino_energies = np.linspace(0, 200, 100)*u.MeV
         self.time_range = (None, None)
-        self.times = None
         # computed attributes
         self.fluxes = None
         self.scaled_fluxes = None
-        print(f"> {self.model_name} is created, load a progenitor by function call.")
+        # retrieve object if exists
+        self.__call__()
 
-    def __call__(self, filename=None, index=None, force=False, savename=None, **model_kwargs):
-        # set the default name
-
-        if savename is None:
-            self.model = self.model_caller.load_model_data(filename, index, force)
-            savename = ("-".join(self.model_caller.selected_file.split("/")[-2:])).replace('.', '_') + ".pickle"
-
+    def __call__(self, force=False):
+        """ Call the model and save the output
+            :param force: `bool` if True, will overwrite the existing file
+        """
         # check if file exists
-        full_file_path = os.path.join(self.storage, savename)
+        full_file_path = os.path.join(self.storage, self.object_name)
         if os.path.isfile(full_file_path) and not force:
             # try to retrieve
-            self.retrieve_object(savename)
+            self.retrieve_object(self.object_name)
         else:
             # create that object and save
-            self.object_name = savename
+            self.object_name = self.object_name
             self.times = self.model.time
             self.time_range = (self.times[0], self.times[-1])
             self.save_object(update=True)
@@ -123,7 +121,6 @@ class Models:
             s += [f"|duration | {np.round(np.ptp(self.model.time), 2)}|"]
             s += [f"|time range| ({self.time_range[0]}, {self.time_range[1]})"]
         return '\n'.join(s)
-
 
     def set_params(self, time_samples=None, neutrino_energies=None):
         """ Set the parameters for calculations
@@ -156,7 +153,6 @@ class Models:
         self.neutrino_energies = neutrino_energies
         self.times = time_samples
 
-
     def save_object(self, update=False):
         """ Save the object for later calls
         """
@@ -165,7 +161,6 @@ class Models:
             with open(full_file_path, 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
                 click.secho(f'> Saved at <self.storage>/{self.object_name}!\n', fg='blue')
-            # self.history = make_history(self.history, "Data Saved!", self.__version__, self.user)
 
     def retrieve_object(self, name=None):
         file = name or self.object_name
@@ -220,7 +215,6 @@ class Models:
                 _fluxes[f][i, :] = _fluxes_dict[f]
         self.fluxes = _fluxes
         self.save_object(update=True)
-
 
     def scale_fluxes(self, distance, N_Xe=4.6e27*u.count/u.tonne):
         """ Scale fluxes based on distance and number of atoms

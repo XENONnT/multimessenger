@@ -21,7 +21,7 @@ from scipy import interpolate
 # read in the configurations, by default it is the basic conf
 # notice for wfsim related things, there is no field in the basic_conf
 # config = configparser.ConfigParser()
-# config.read('/dali/lgrandi/melih/mma/data/basic_conf.conf')
+# config.read("/project2/lgrandi/xenonnt/simulations/supernova/simple_config.conf")
 
 def isnotebook():
     """ Tell if the script is running on a notebook
@@ -83,8 +83,11 @@ def interpolate_recoil_energy_spectrum(y_vals, rec_bins):
     interpolated = itp.interp1d(rec_bins, y_vals, kind="cubic", fill_value="extrapolate")
     return interpolated
 
+
 def fetch_context(config):
     """ If context is updated, change it in here
+        Requires config to be a configparser object with ['wfsim']['sim_folder'] field
+        So that the strax data folder can be found
     """
     mc_folder = config["wfsim"]["sim_folder"]
     mc_data_folder = os.path.join(mc_folder, "strax_data")
@@ -213,14 +216,17 @@ def find_context_for_hash(data_type: str, lineage_hash: str,
                       )
     return df
 
-def see_simulated_contexts(config_file=None, sim_id=None):
+def see_simulated_contexts(config_file=None, sim_id=None, unique=True):
     """ See which simulations were made with what contexts
     """
     # check the lineages in the simulated files
-    config = configparser.ConfigParser()
-    default_config_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
-    config_path = config_file or default_config_path
-    config.read(config_path)
+    if config_file is None or type(config_file)==str:
+        config_file = config_file or os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
+        config = configparser.ConfigParser()
+        config.read(config_file)
+    else:
+        config = config_file
+
     sim_folder = os.path.join(config['wfsim']['sim_folder'], "strax_data")
     simdirs = glob(sim_folder + '/*/')
     files = [s.split("/")[-2] for s in simdirs if "-truth-" in s]
@@ -239,12 +245,28 @@ def see_simulated_contexts(config_file=None, sim_id=None):
         df["sim_id"] = [n] * len(df)
         list_of_df.append(df)
     df_final = pd.concat(list_of_df)
+    df_final['sn_model'] = df_final.apply(lambda row: "_".join(row['sim_id'].split("_")[:2]), axis=1)
     df_final.sort_values(by=['date_added', 'sim_id'], inplace=True)
     df_final.reset_index(inplace=True)
     df_final.drop(columns='index', inplace=True)
+    if unique:
+        df_final.drop_duplicates(subset=['name', 'tag', 'hash', 'sim_id', 'sn_model'], keep='last', inplace=True)
     if sim_id is not None:
         return df_final[df_final["sim_id"] == sim_id]
+    df_final.reset_index(inplace=True)
     return df_final
+
+def check_stored(st, df, keys=None):
+    """ Check if the given keys for the given run_id are stored in context st
+        by default checks for peak_basics and peak_positions
+    """
+    if keys is None:
+        keys = ["peak_basics", "peak_positions"]
+    if not isinstance(keys, list):
+        keys = [keys]
+    for k in keys:
+        df[f'{k}_stored'] = df.apply(lambda row: st.is_stored(row['sim_id'], k), axis=1)
+    return df
 
 
 def inject_in(small_signal, big_signal):
@@ -303,59 +325,109 @@ def get_config(config_file=None):
     """ On dali, get the default config from mma repo
     """
     config = configparser.ConfigParser()
-    config_file = config_file or '/dali/lgrandi/melih/mma/data/basic_conf.conf'
+    config_file = config_file or "/project2/lgrandi/xenonnt/simulations/supernova/simple_config.conf"
     config.read(config_file)
+    return config
 
 
-def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
-    model = inter.Model
-    snewpymodel = model.model
-    # where to save the json file
-    try:
-        store_at = model.config['wfsim']['sim_folder']
-    except Exception as e:
-        print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
-        store_at = "./"
-    # Check if json exists, create if not
-    output_json = os.path.join(store_at, jsonfilename)
-    # os.makedirs(output_json, exist_ok=True)
+# def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
+#     """ Make a json file that contains the metadata of the simulation
+#     """
+#     model = inter.Model
+#     snewpymodel = model.model
+#     # where to save the json file
+#     try:
+#         store_at = model.config['wfsim']['sim_folder']
+#     except Exception as e:
+#         print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
+#         store_at = "./"
+#     # Check if json exists, create if not
+#     output_json = os.path.join(store_at, jsonfilename)
+#     # os.makedirs(output_json, exist_ok=True)
+#
+#     # create some metadata
+#     meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
+#             'Sim File': model.object_name,
+#             'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
+#     # metadata from the snewpy model
+#     for k, v in snewpymodel.metadata.items():
+#         if isinstance(v, astropy.units.quantity.Quantity):
+#             v = f"{v}"
+#         meta[k] = v
+#     meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
+#     meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
+#     # metadata from the interaction object
+#     meta['Interaction File'] = inter.interaction_file
+#     meta['Nuclei Name'] = inter.Nuclei_name
+#     meta['Isotope Name'] = inter.isotope_name
+#     # metadata from the wfsim context
+#     df = see_simulated_contexts(config_file=config_file, sim_id=sim_id)
+#     df_dict = df.iloc[0].to_dict()
+#     df_dict['context_name'] = df_dict['name']
+#     df_dict['date_added'] = f"{df_dict['date_added']}"
+#     df_dict.pop('sim_id')
+#     df_dict.pop('name')
+#     # make a json entry
+#     json_entry = {sim_id: {"Model":meta, "Context": df_dict}}
+#     # Append this simulation
+#     if os.path.exists(output_json):
+#         #read existing file and append new data
+#         with open(output_json, "r") as f:
+#             dictObj = json.load(f)
+#         dictObj.update(json_entry)
+#     else:
+#         #create new json
+#         dictObj = json_entry
+#
+#     #overwrite/create file
+#     with open(output_json, "w") as f:
+#         json.dump(dictObj, f, indent=4, sort_keys=True)
 
-    # create some metadata
-    meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
-            'Sim File': model.object_name,
-            'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
-    # metadata from the snewpy model
-    for k, v in snewpymodel.metadata.items():
-        if isinstance(v, astropy.units.quantity.Quantity):
-            v = f"{v}"
-        meta[k] = v
-    meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
-    meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
-    # metadata from the interaction object
-    meta['Interaction File'] = inter.interaction_file
-    meta['Nuclei Name'] = inter.Nuclei_name
-    meta['Isotope Name'] = inter.isotope_name
-    # metadata from the wfsim context
-    df = see_simulated_contexts(config_file=config_file, sim_id=sim_id)
-    df_dict = df.iloc[0].to_dict()
-    df_dict['context_name'] = df_dict['name']
-    df_dict['date_added'] = f"{df_dict['date_added']}"
-    df_dict.pop('sim_id')
-    df_dict.pop('name')
-    # make a json entry
-    json_entry = {sim_id: {"Model":meta, "Context": df_dict}}
-    # Append this simulation
-    if os.path.exists(output_json):
-        #read existing file and append new data
-        with open(output_json, "r") as f:
-            dictObj = json.load(f)
-        dictObj.update(json_entry)
-    else:
-        #create new json
-        dictObj = json_entry
-
-    #overwrite/create file
-    with open(output_json, "w") as f:
-        json.dump(dictObj, f, indent=4, sort_keys=True)
+# def fetch_metadata(config_file, jsonfilename="simulation_metadata.json", full=False):
+#     """ Fetch the metadata of the simulations
+#     """
+#     config = get_config(config_file)
+#     store_at = config['wfsim']['sim_folder']
+#     meta_file = os.path.join(store_at, jsonfilename)
+#
+#     try:
+#         with open(meta_file, "r") as f:
+#             dictObj = json.load(f)
+#     except ValueError:
+#         # Read the file
+#         # Sometime there is a double closing bracket, fix it
+#         with open(meta_file, 'r') as file:
+#             lines = file.readlines()
+#         # Check the last line
+#         last_line = lines[-1].rstrip()
+#         if last_line.endswith('}}'):
+#             modified_last_line = last_line[:-1]
+#             # Update the last line in the list of lines
+#             lines[-1] = modified_last_line
+#         # Write the modified content back to the file
+#         with open(meta_file, 'w') as file:
+#             file.writelines(lines)
+#
+#         with open(meta_file, "r") as f:
+#             dictObj = json.load(f)
+#
+#     if full:
+#         dd ={k: {**v['Context'], **v['Model']} for k, v in dictObj.items()}
+#     else:
+#         dd = {k: v['Model'] for k, v in dictObj.items()}
+#     metaframe = pd.DataFrame(dd).T
+#     return metaframe
 
 
+def fetch_metadataframe(config_file, filename="simulation_metadata.csv", drop_duplicates=True):
+    """ Fetch the metadata of the simulations
+    """
+    config = get_config(config_file)
+    store_at = config['wfsim']['sim_folder']
+    meta_file = os.path.join(store_at, filename)
+    metaframe = pd.read_csv(meta_file)
+    collist = metaframe.columns.to_list()
+    collist.remove('date simulated')
+    if drop_duplicates:
+        metaframe.drop_duplicates(subset=collist, keep='first', inplace=True)
+    return metaframe

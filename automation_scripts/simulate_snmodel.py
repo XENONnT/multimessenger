@@ -3,7 +3,7 @@ import configparser
 
 from snax import Supernova_Models
 from snax.interactions import Interactions
-from snax.sn_utils import fetch_context, make_json
+from snax.sn_utils import fetch_context
 import numpy as np
 import straxen
 import os
@@ -75,12 +75,13 @@ def main():
     # simulate
     for realization in range(number_of_realization):
         try:
-            Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
-            # create a metadata for bookkeeping
-            try:
-                make_json(Interaction, f"{runid}_{realization:03}", config_file)
-            except Exception as e:
-                print(f">>> Problem making an entry to the JSON {runid}_{realization:03}\n{e}\n")
+            truth_exists = context.is_stored(f"{runid}_{realization:03}", "truth")
+            peak_basics_exists = context.is_stored(f"{runid}_{realization:03}", "peak_basics")
+            if truth_exists and peak_basics_exists:
+                print(f"Already simulated {runid}_{realization:03}, skipping")
+                continue
+            else:
+                Interaction.simulate_automatically(runid=f"{runid}_{realization:03}", context=context)
         except Exception as e:
             print(f"\n\n >>> Exception raised: for  < {runid}_{realization:03} >\n{e}\n\n")
         print(f"\t\t ##### {runid}_{realization:03} COMPLETED ####")
