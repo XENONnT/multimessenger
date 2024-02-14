@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """
-Last Update: 17-08-2022
-------------------------d
+Last Update: 13-02-2024
+-----------------------
 Supernova Models module.
 Methods to deal with supernova lightcurve and derived properties
 
@@ -15,8 +15,8 @@ How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle
 """
 import click
 import os
-
 import numpy as np
+import pandas as pd
 
 try:
     import cPickle as pickle
@@ -24,56 +24,43 @@ except ModuleNotFoundError:
     import pickle
 
 import configparser
+import astropy
 import astropy.units as u
 from snewpy.neutrino import Flavor
-from .sn_utils import isnotebook
-import copy
+from .sn_utils import isnotebook, deterministic_hash, validate_config_file
+import copy, sys
 if isnotebook():
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
 
-def get_storage(storage, config):
-    if storage is None:
-        # where the snewpy models saved, ideally we want a single place
-        try:
-            storage = config['paths']['processed_data']
-            os.path.isdir(storage) # check if we are on dali
-        except KeyError as e:
-            print(f"> KeyError: {e} \nSetting current directory as the storage, "
-                  f"pass storage=<path-to-your-storage> ")
-            storage = os.getcwd()
-    else:
-        storage = storage
-    return storage
-
-class Models:
-    """ Deal with a given SN lightcurve from snewpy
+class SnaxModel:
+    """ Build on top of snewpy model use either an external snewpy model
+        or a SnewpyModel object to get the models
     """
 
-    def __init__(self,
-                 snewpy_model,
-                 save_name,
-                 storage=None,
-                 config_file=None,
-                 ):
+    def __init__(self, snewpy_model, config_file=None):
         """
         Parameters
         ----------
-        :param snewpy_model: snewpy model object
-        :param storage: `str` path of the output folder
-        :param config_file: `str` config file that contains the default params
+        :param snewpy_model: snewpy model object, either from snewpy or from SnewpyModel
+        :param config_file: `str`, optional path to config file that contains the default params
+
+        example:
+        --------
+        from snewpy.models.ccsn import Nakazato_2013
+        nakazato = Nakazato_2013(progenitor_mass=20*u.solMass, revival_time=100*u.ms, metallicity=0.004, eos='shen')
+        snax = SnaxModel(nakazato)
+        --- or --- RECOMMENDED IF YOU ARE ON THE CLUSTER
+        snewpy_model = SnewpyModel()
+        nakazato = snewpy_model('Nakazato_2013', combination_index=1)
+        model = SnaxModel(nakazato)
         """
-        self.user = os.environ['USER']
-        self.config = configparser.ConfigParser()
-        self.default_conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
-        self.conf_path = config_file or self.default_conf_path
-        self.config.read(self.conf_path)
-        self.storage = get_storage(storage, self.config)
+        # get the proc_loc
+        self._get_config(config_file)
         # model related attributes
         self.model = snewpy_model
-        self.model_name = self.model.__module__.split(".")[-1]
-        self.object_name = save_name + ".pkl"
+        self.model_name = self.model.__class__.__name__
         self.times = snewpy_model.time
         # parameters to use for computations
         self.neutrino_energies = np.linspace(0, 200, 100)*u.MeV
@@ -81,15 +68,53 @@ class Models:
         # computed attributes
         self.fluxes = None
         self.scaled_fluxes = None
+        # find a deterministic hash for the model
+        self.model_hash = self._find_hash()
+        self.object_name = f"sn_{self.model_name}_{self.model_hash}.pkl"
         # retrieve object if exists
         self.__call__()
+
+    def _get_config(self, config_file):
+        """ Get the config file and the proc_loc
+            if not provided, use the default config file
+        """
+        self.user = os.environ['USER']
+        default_base_midway_path = "/project2/lgrandi/xenonnt/simulations/supernova"
+        if os.path.exists(default_base_midway_path):
+            # use the default config file
+            conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
+        else:
+            # use the local config file
+            conf_path = "temp_config.ini"
+
+        # test user input
+        if config_file is not None and os.path.exists(config_file):
+            is_valid, _ = validate_config_file(config_file)
+            if is_valid:
+                conf_path = config_file
+        self.config_path = conf_path
+        # read the config file
+        self.config = configparser.ConfigParser()
+        self.config.read(self.config_path)
+        # this is where we store the processed data
+        self.proc_loc = self.config['paths']['processed_data']
+
+
+    def _find_hash(self):
+        """ Find a deterministic hash for the model """
+        # get the parameters
+        _meta = {k: v.value if isinstance(v, astropy.units.quantity.Quantity) else v for k, v in self.model.metadata.items()}
+        _meta['nu_energy'] = self.neutrino_energies.value
+        _meta['time_range'] = self.time_range
+        # get the hash
+        return deterministic_hash(_meta)
 
     def __call__(self, force=False):
         """ Call the model and save the output
             :param force: `bool` if True, will overwrite the existing file
         """
         # check if file exists
-        full_file_path = os.path.join(self.storage, self.object_name)
+        full_file_path = os.path.join(self.proc_loc, self.object_name)
         if os.path.isfile(full_file_path) and not force:
             # try to retrieve
             self.retrieve_object(self.object_name)
@@ -157,23 +182,23 @@ class Models:
         """ Save the object for later calls
         """
         if update:
-            full_file_path = os.path.join(self.storage, self.object_name)
+            full_file_path = os.path.join(self.proc_loc, self.object_name)
             with open(full_file_path, 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'> Saved at <self.storage>/{self.object_name}!\n', fg='blue')
+                click.secho(f'> Saved at <self.proc_loc>/{self.object_name}!\n', fg='blue')
 
     def retrieve_object(self, name=None):
         file = name or self.object_name
-        full_file_path = os.path.join(self.storage, file)
+        full_file_path = os.path.join(self.proc_loc, file)
         with open(full_file_path, 'rb') as handle:
             print(f">>>>> {file}")
-            click.secho(f'> Retrieving object self.storage{file}', fg='blue')
+            click.secho(f'> Retrieving object self.proc_loc{file}', fg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
 
     def delete_object(self):
-        full_file_path = os.path.join(self.storage, self.object_name)
+        full_file_path = os.path.join(self.proc_loc, self.object_name)
         if input(f"> Are you sure you want to delete\n"
                  f"{full_file_path}?\n") == 'y':
             os.remove(full_file_path)
