@@ -99,7 +99,6 @@ class SnaxModel:
         # this is where we store the processed data
         self.proc_loc = self.config['paths']['processed_data']
 
-
     def _find_hash(self):
         """ Find a deterministic hash for the model """
         # get the parameters
