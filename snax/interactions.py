@@ -378,3 +378,4 @@ class Interactions:
         ax2.set_ylabel(f"Rates [{rates_recoil['Total'].unit}]\n (at {d}, for {v})")
         ax2.set_xlabel(f"Recoil Energies [{recoils.unit}]")
         ax2.legend()
+        return fig, (ax1, ax2)
