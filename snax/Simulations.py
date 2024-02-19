@@ -571,19 +571,25 @@ class SimulateSignal(SimulationInstructions):
         self.instruction_type = instruction_type
         self.model_hash = self.snax_interactions.Model.model_hash
 
-    def simulate_single(self, run_number, instructions=None, context=None):
-        """Simulate the signal using the microphysics model"""
+    def simulate_single(self, run_number, instructions=None, context=None, instruction_type=None):
+        """Simulate the signal using the microphysics model
+        :param run_number: string of digits
+        :param instructions: `df` generated instructions (self.instruction_type or param instruction_type should match!)
+        :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse")
+        :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim"
+        """
+        type_of_instruction = instruction_type or self.instruction_type
         # generate and save the instructions
         if instructions is None:
-            if self.instruction_type == "fuse_microphysics":
+            if type_of_instruction == "fuse_microphysics":
                 instructions = self.generate_fuse_microphysics_instructions()
-            elif self.instruction_type == "fuse_detectorphysics":
+            elif type_of_instruction == "fuse_detectorphysics":
                 instructions = self.generate_fuse_detectorphysics_instructions()
-            elif self.instruction_type == "wfsim":
+            elif type_of_instruction == "wfsim":
                 instructions = self.generate_wfsim_instructions_from_fuse(run_number)
             else:
                 raise ValueError(
-                    f"Instruction type {self.instruction_type} not recognized"
+                    f"Instruction type {type_of_instruction} not recognized"
                 )
 
         csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
@@ -667,7 +673,7 @@ class SimulateSignal(SimulationInstructions):
             # add the mc folder and return it
             output_folder_exists = False
             # check if the mc folder is already in the context
-            for i, stores in enumerate(context.proc_loc):
+            for i, stores in enumerate(context.storage):
                 if mc_data_folder in stores.path:
                     output_folder_exists = True
             # if it is not yet in the context, add a DataDirectory
@@ -676,7 +682,7 @@ class SimulateSignal(SimulationInstructions):
                     raise ImportError("strax not installed")
                 import strax
 
-                context.proc_loc += [
+                context.storage += [
                     strax.DataDirectory(mc_data_folder, readonly=False)
                 ]
 
