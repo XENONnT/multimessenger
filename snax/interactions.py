@@ -35,6 +35,8 @@ customstyle = os.path.join(os.path.dirname(os.path.realpath(__file__)), "customs
 plt.style.use(customstyle)
 
 class InteractionSingle:
+    """ Deal with a single isotope and a given SN model
+    """
     def __init__(self, Model, Target, recoil_energies):
         # read the SN model and the time and neutrino energies
         self.Model = Model
@@ -86,16 +88,21 @@ class InteractionSingle:
 
 
 class Interactions:
-    def __init__(self, Model, Nuclei="Xenon", isotope="mix"):
+    def __init__(self, Model, Nuclei="Xenon", isotope="mix", _ignore_if_exists=False):
         """ Set a Supernova Model and a Nuclei to interact
-            Model is a Supernova_Models.Models object
+            Model is a snax.models.SnaxModel object
             If isotope is mix, then a combination of isotopes is used with
             abundances used as weights.
             Possible isotopes; [Xe124, Xe126, Xe128, Xe129, Xe130, Xe131,
                                 Xe132, Xe134, Xe136]
         """
+        # get some attributes from the model
         self.Model = Model
-        self.interaction_file = ".".join(self.Model.object_name.split('.')[:-1])+"_interaction.pickle"
+        self.proc_loc = Model.proc_loc
+        self.times = Model.times
+        self.interaction_name = Model.object_name.split(".pkl")[0] + \
+                                f"_interaction_{Nuclei}_{isotope}.pkl"
+
         if Nuclei=="Xenon":
             from .Xenon_Atom import ATOM_TABLE
         else:
@@ -127,10 +134,18 @@ class Interactions:
         self.volume = None
         self.distance = None
         self.expected_total = dict()
+        force = True if _ignore_if_exists else False
+        self.__call__(force)
 
-        if os.path.isfile(self.interaction_file):
+    def __call__(self, force=False):
+        """ save the output
+            :param force: `bool` if True, will overwrite the existing file
+        """
+        # check if file exists
+        full_file_path = os.path.join(self.proc_loc, self.interaction_name)
+        if os.path.isfile(full_file_path) and not force:
             # try to retrieve
-            self.retrieve_object(self.interaction_file)
+            self.retrieve_object(self.interaction_name)
         else:
             self.save_object(update=True)
 
@@ -138,22 +153,22 @@ class Interactions:
         """ Save the object for later calls
         """
         if update:
-            full_file_path = os.path.join(self.Model.storage, self.interaction_file)
+            full_file_path = os.path.join(self.proc_loc, self.interaction_name)
             with open(full_file_path, 'wb') as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'> Saved at <self.storage>/{self.interaction_file}!\n', fg='green')
+                click.secho(f'> Saved at <self.proc_loc>/{self.interaction_name}!\n', fg='green')
 
     def retrieve_object(self, name=None):
-        file = name or self.interaction_file
-        full_file_path = os.path.join(self.Model.storage, file)
+        file = name or self.interaction_name
+        full_file_path = os.path.join(self.proc_loc, file)
         with open(full_file_path, 'rb') as handle:
-            click.secho(f'> Retrieving object self.storage/{file}', fg='blue')
+            click.secho(f'> Retrieving object self.proc_loc/{file}', fg='blue')
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
 
     def delete_object(self):
-        full_file_path = os.path.join(self.Model.storage, self.interaction_file)
+        full_file_path = os.path.join(self.proc_loc, self.interaction_name)
         if input(f"> Are you sure you want to delete\n"
                  f"{full_file_path}?\n") == 'y':
             os.remove(full_file_path)
@@ -173,10 +188,10 @@ class Interactions:
             _repr = f"**{self.Model.object_name}**"
 
         s = [_repr]
-        s += [f"|Interaction file| {self.interaction_file}"]
+        s += [f"|Interaction file| {self.interaction_name}"]
         s += [f"|Target | {self.isotope_name} {self.Nuclei_name}"]
-        is_computed = type(self.rates_per_time) != type(None)
-        is_scaled = type(self.rates_per_recoil_scaled) != type(None)
+        is_computed = self.rates_per_time is not None
+        is_scaled = self.rates_per_recoil_scaled is not None
         s += [f"|Computed, scaled | {is_computed}, {is_scaled}"]
         if is_scaled:
             s += [f"|distance | {self.distance}"]
@@ -184,7 +199,8 @@ class Interactions:
             s += [f"|Expected Total | {self.expected_total['Total']:.0f}"]
         return '\n'.join(s)
 
-    def compute_interaction_rates(self, recoil_energies=None, force=False, leave_bar=False, **kw_model):
+    def compute_interaction_rates(self, recoil_energies=None, force=False,
+                                  leave_bar=False, **kw_model):
         """
         :param recoil_energies: `array` default 0-20 keV 100 samples
             the recoil energies at which the interactions are calculated
@@ -247,26 +263,6 @@ class Interactions:
         click.secho(f"> Computed the total rates at the source for 1 atom (not scaled)", fg='blue')
 
 
-    # def truncate_rates(self):
-    #     """ Truncate rates and recoil energies and times
-    #     Returns: rates_Er_tr, rates_t_tr, recen_tr, times_tr
-    #     """
-    #     recoil_energies = self.recoil_energies
-    #     rates_Er = self.rateper_Er
-    #     times = self.model.time
-    #     rates_t = self.rateper_t
-    #
-    #     # truncate all at position where total rate becomes 0
-    #     # rateper_Er
-    #     trunc_here = np.searchsorted(rates_Er['Total'][::-1], 0, side='right')
-    #     rates_Er_tr = {nu: rates_Er[nu][:-trunc_here] for nu in rates_Er.keys()}
-    #     recen_tr = recoil_energies[:-trunc_here]
-    #     # rateper_t
-    #     trunc_here = np.searchsorted(rates_t['Total'][::-1], 0, side='right')
-    #     rates_t_tr = {nu: rates_t[nu][:-trunc_here] for nu in rates_t.keys()}
-    #     times_tr = times[:-trunc_here]
-    #     return rates_Er_tr, rates_t_tr, recen_tr, times_tr
-
     def _compute_expected_total(self):
         """ for given scaled rates compute the total expected counts
         """
@@ -304,196 +300,6 @@ class Interactions:
         except:
             raise NotImplementedError("\t> Rates haven't been computed yet!\n"
                                       "\t>Compute them by calling `compute_interaction_rates()`")
-
-    def simulate_automatically(self, runid, context=None, config=None, return_instructions=False, force=False, **kw):
-        """ Simulate using WFSim automatically from your interactions
-            First sample times and energies
-            Next, generate sn instructions
-            Finally, simulate a single WFSim simulation from the instructions
-            kwargs can include:
-            :param nc: `nestpy.NESTcalc()` instance
-            :param fmap: `str` name of the electric field file, default
-                "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
-                or `straxen.InterpolatingMap`
-            :param field: `float` if no map is passed, fixed field
-            :param force: `bool` even if data exists, recreate from scratch
-
-            Returns:
-            context, (instructions)
-        """
-        from .Simulate import  _simulate_one, sample_times_energies, generate_sn_instructions
-        from .sn_utils import add_strax_folder, fetch_context
-        config = config or self.Model.config
-        if context is None:
-            _context = fetch_context(config) # returns default context with output folder pointing to common strax data folder
-        else:
-            _context = add_strax_folder(config, context) # to have access to common strax data folder
-
-        # sample times and recoil energies
-        time_samples, _, recoil_energy_samples = sample_times_energies(self, size='infer')
-
-        # default field file
-        field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
-
-        # shift all times by 10 sec to avoid negative times
-        instructions = generate_sn_instructions(energy_deposition=recoil_energy_samples['Total'],
-                                                n_tot=len(time_samples['Total']),  # times in ns
-                                                times=(time_samples['Total']+10) * 1e9,
-                                                fmap=field_file,
-                                                **kw)
-        instructions = pd.DataFrame(instructions)
-        st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
-        to_return = st
-
-        try:
-            self._make_metadata(runid, config)
-        except Exception as e:
-            print(f">>> Problem making an entry to the JSON {runid}\n{e}\n")
-
-        # Maybe no need to return the context again?
-        if return_instructions:
-            to_return = [st, instructions]
-        return to_return
-
-    def simulate_many(self, runid, context=None, config=None,
-                      return_instructions=False,
-                      force=False,
-                      N_supernova=200,
-                      shift_time=120,
-                      **kw):
-        """ Simulate many SN using WFSim move 2min forward in time after each simulation
-            see also simulate_automatically()
-            :param N_supernova: `int` number of supernova to simulate
-            :param force: `bool` even if data exists, recreate from scratch
-            :param shift_time: `int` time in seconds to shift the next SN
-
-            Returns:
-            context, (instructions)
-        """
-        from .Simulate import  _simulate_one, sample_times_energies, generate_sn_instructions
-        from .sn_utils import add_strax_folder
-        config = config or self.Model.config
-        if context is None:
-            _context = fetch_context(config) # returns default context with output folder pointing to common strax data folder
-        else:
-            _context = add_strax_folder(config, context) # to have access to common strax data folder
-
-        if not force:
-            # first check if the requested simulations exist
-            if _context.is_stored(runid, "peak_basics"):
-                print(f">>> Data for {runid} exists, skipping")
-                # load the instructions
-                csv_folder = config["wfsim"]["instruction_path"]
-                csv_path = os.path.join(csv_folder, runid + ".csv")
-                fetched_instructions = pd.read_csv(csv_path)
-                if return_instructions:
-                    return _context, fetched_instructions
-                else:
-                    return _context
-        # else continue with the simulation
-
-        shift_time = int(shift_time)
-        shifts = np.arange(0, shift_time*N_supernova, shift_time)
-        _, _, foo = sample_times_energies(self, size='infer', leave=False)
-        single_sample_size = len(foo['Total'])
-
-        time_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
-        recoil_energy_samples = np.zeros(single_sample_size*N_supernova, dtype=np.float32)
-        identifier = np.zeros(single_sample_size*N_supernova, dtype=int)
-        nu_energies = np.zeros(single_sample_size * N_supernova, dtype=float)
-
-        for i in range(N_supernova):
-            # sample times in seconds and energies in keV
-            time_sample, nu_energy, recoil_energy_sample = sample_times_energies(self, size='infer', leave=False)
-            time_sample, recoil_energy_sample = time_sample['Total'], recoil_energy_sample['Total']
-            nu_energy = nu_energy['Total']
-            # adjust arrays
-            _from = int(i * single_sample_size)
-            _to = int((i + 1) * single_sample_size)
-            recoil_energy_samples[_from:_to] = recoil_energy_sample
-            time_samples[_from:_to] = time_sample
-            time_samples[_from:_to] += shifts[i]  # shift by 2 min so that each SN starts at a later time. (ensure no overlap)
-            identifier[_from:_to] = i
-            nu_energies[_from:_to] = nu_energy
-
-        # default field file
-        field_file = "fieldmap_2D_B2d75n_C2d75n_G0d3p_A4d9p_T0d9n_PMTs1d3n_FSR0d65p_QPTFE_0d5n_0d4p.json.gz"
-        instructions, nonzeromask = generate_sn_instructions(energy_deposition=recoil_energy_samples,
-                                                             n_tot=len(time_samples),  # times in ns
-                                                             times=time_samples * 1e9,
-                                                             fmap=field_file,
-                                                             return_nonzero_mask=True,
-                                                             **kw)
-        instructions = pd.DataFrame(instructions)
-        st = _simulate_one(instructions, runid, config=config, context=_context, force=force)
-        if return_instructions:
-            # also add the identifier
-            instructions['identifier'] = identifier.repeat(2)[nonzeromask]
-            instructions['nu_energy'] = nu_energies.repeat(2)[nonzeromask]
-            return [st, instructions]
-        else:
-            return st
-
-    def _make_metadata(self, sim_id, config):
-        """ Make a json file that contains the metadata of the simulation
-        """
-        model = self.Model
-        snewpymodel = model.model
-        # where to save the json file
-        try:
-            store_at = model.config['wfsim']['sim_folder']
-        except Exception as e:
-            print(f"WFSim / sim_folder could not be found, storing the metadata in cwd,\n{e}")
-            store_at = "./"
-
-        # create some metadata
-        meta = {'User': model.user, 'Storage': model.storage, 'Model Name': model.model_name,
-                'Sim File': model.object_name,
-                'Time Range': f"{model.time_range[0]}, {model.time_range[1]}"}
-        # metadata from the snewpy model
-        snewpy_meta = snewpymodel.metadata
-        meta['Progenitor mass'] = snewpy_meta.get('Progenitor mass', "unknown")
-        snewpy_model_meta = ""
-        for i, (k, v) in enumerate(snewpy_meta.items()):
-            if i != 0:
-                snewpy_model_meta += ", "
-            snewpy_model_meta += f"{k} : {v}"
-        meta["snewpy meta"] = snewpy_model_meta
-        meta['date simulated'] = datetime.today()
-        meta['Model File'] = getattr(snewpymodel, "filename", "Unknown Snewpy Model Name")
-        meta['Object Name'] = self.Model.object_name
-        meta['Duration'] = f"{np.round(np.ptp(snewpymodel.time), 2)}"
-        # metadata from the interaction object
-        meta['Interaction File'] = self.interaction_file
-        meta['Nuclei Name'] = self.Nuclei_name
-        meta['Isotope Name'] = self.isotope_name
-        # metadata from the wfsim context
-        df = see_simulated_contexts(config_file=config, sim_id=sim_id)
-        df_dict = df.iloc[0].to_dict()
-        df_dict['context_name'] = df_dict['name']
-        df_dict['date_added'] = f"{df_dict['date_added']}"
-        df_dict.pop('sim_id')
-        df_dict.pop('name')
-        csv_entry = {**df_dict, **meta, 'sim_id': sim_id}
-        self._save_data_to_csv(csv_entry, os.path.join(store_at, "simulation_metadata.csv"))
-
-    def _save_data_to_csv(self, data, file_path):
-        # Create a DataFrame from the input dictionary
-        df = pd.DataFrame([data])
-        # Check if the file already exists
-        try:
-            existing_df = pd.read_csv(file_path)
-            # Check if the entry already exists in the DataFrame
-            if existing_df.isin(df.iloc[0]).all(1).any():
-                print("Skipping: Entry already exists in the DataFrame.")
-                return
-        except FileNotFoundError:
-            # If the file doesn't exist, create a new file with the DataFrame
-            df.to_csv(file_path, index=False)
-            return
-
-        # Append the new entry to the existing DataFrame and save it
-        df.to_csv(file_path, mode='a', header=False, index=False)
 
     def plot_rates(self, scaled=True):
         """ Plot the rates, scaled or total
