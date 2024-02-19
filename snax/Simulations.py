@@ -10,6 +10,7 @@ import pandas as pd
 import nestpy, os, click
 import warnings
 from astropy import units as u
+from collections.abc import Sequence
 import snewpy
 from snewpy.neutrino import Flavor
 from scipy.interpolate import interp1d
@@ -44,15 +45,20 @@ class SimulationInstructions:
         Generate and sample features.
         Deal with the context and metadata of the simulation.
     """
-    def __init__(self, snax_model=None, snax_interactions=None, simulator='fuse'):
-        """ If a snax model is given, obtain the energies and times from that
+    def __init__(self, snax_interactions=None, simulator='fuse'):
+        """ If a snax interactions is given, obtain the energies and times from that
             else, request energy and time arrays from the user
         """
         self.simulator = simulator
         self.quanta_from_NEST = np.vectorize(self._quanta_from_NEST)
-        self.snax_model = snax_model
         self.snax_interactions = snax_interactions
         self.EnergyTimeSampler = EnergyTimeSampling(snax_interactions)
+        is_computed = snax_interactions.rates_per_time is not None
+        is_scaled = snax_interactions.rates_per_recoil_scaled is not None
+        if not is_computed or not is_scaled:
+            warnings.warn(f"The interaction rates are {'' if is_computed else 'not'} computed, "
+                          f"and rates are {'' if is_scaled else 'not'} scaled!\n"
+                          f"interaction rates need to be computed first!")
 
     def generate_vertex(self,
                         r_range=(0, 66.4),
@@ -90,15 +96,23 @@ class SimulationInstructions:
             raise TypeError(f"Expected electric field to be either string or float got {type(fmap)}")
         return local_field
 
-    def _get_samples(self, energies, times, pos):
+    def _get_samples(self, times, energies, pos):
+        """ returns the times in seconds!
+            If energies and times are provided, return them back
+            If not, then sample by inferring the size
+        """
         # get the energies and times of interactions
         if self.snax_interactions is None:
-            if energies is None:
-                raise ValueError("Please provide energies for the FUSE simulator")
-            if times is None:
-                raise ValueError("Please provide times for the FUSE simulator")
+            if energies is None or times is None:
+                raise ValueError("Please provide both energies and times for the FUSE simulator.")
         else:
-            times, neutrino_energy_samples, energies = self.EnergyTimeSampler.sample_times_energies()
+            # if the interactions exists and either of times and energies passed, sample
+            if energies is None or times is None:
+                # Sample energies and times if not provided, times are sampled in seconds!
+                _times, neutrino_energy_samples, _energies = self.EnergyTimeSampler.sample_times_energies(
+                    return_totals=True)
+                energies = energies if energies is not None else _energies
+                times = times if times is not None else _times
 
         if not isinstance(energies, (list, np.ndarray)):
             raise TypeError(f"Expected energies to be either list or np.ndarray got {type(energies)}")
@@ -109,7 +123,7 @@ class SimulationInstructions:
             pos = self.generate_vertex(size=len(energies))
 
         assert len(energies) == len(times) == len(pos[0]), "The number of energies, times and positions should be the same"
-        return energies, times, pos
+        return times, energies, pos
 
     def generate_fuse_microphysics_instructions(self, times=None, energies=None, pos=None,
                                                 interaction_type="neutron", **kwargs):
@@ -118,8 +132,11 @@ class SimulationInstructions:
             by default the positions will be uniformly distributed in the TPC
             ["trackid", "parentid", "creaproc", "parenttype", "edproc"] can be passed as kwargs
         """
-        # get the energies, times and positions
-        energies, times, pos = self._get_samples(energies, times, pos)
+        # get the energies, times (in seconds) and positions
+        times, energies, pos = self._get_samples(times, energies, pos)
+        # convert the times into nanosec
+        times *= 1e9
+        times = times.round().astype(np.int64)
         # get the microphysics instructions, quanta is taken care within the fuse
         number_of_events = len(energies)
         instructions = {}
@@ -132,7 +149,7 @@ class SimulationInstructions:
         instructions['zp_pri'] = instructions['zp']
         # energy deposition and sampled times
         instructions["ed"] = energies
-        instructions['time'] = np.repeat(1, number_of_events)
+        instructions['time'] = times
         instructions["type"] = np.repeat(interaction_type, number_of_events)  # assuming all is NR
 
         # geant4 related
@@ -152,7 +169,11 @@ class SimulationInstructions:
         return pd.DataFrame(instructions)
 
     def generate_fuse_detectorphysics_instructions(self, times=None, energies=None, pos=None, fmap=None):
-        energies, times, pos = self._get_samples(energies, times, pos)
+        # get the energies, times (in seconds) and positions
+        times, energies, pos = self._get_samples(times, energies, pos)
+        # convert the times into nanosec
+        times *= 1e9
+        times = times.round().astype(np.int64)
         number_of_events = len(energies)
         instructions = pd.DataFrame()
         instructions['x'] = pos[0]
@@ -164,7 +185,7 @@ class SimulationInstructions:
         local_fields = self.generate_local_fields(pos, fmap)
         instructions['e_field'] = local_fields
 
-        photons, electrons, excitons = self._quanta_from_NEST(energies, local_fields)
+        photons, electrons, excitons = self.quanta_from_NEST(energies, local_fields)
         instructions['photons'] = photons
         instructions['electrons'] = electrons
         instructions["excitons"] = excitons
@@ -176,7 +197,7 @@ class SimulationInstructions:
     def generate_wfsim_instructions_from_fuse(self, run_number, times=None, energies=None, pos=None,
                                                 interaction_type="neutron", **kwargs):
         """ Generate the wfsim instructions from the FUSE simulator
-            Requires FUSE to be installed and the microphysics instructions to be generated
+            Requires FUSE to be installed and the micro-physics instructions to be generated
         """
         instructions = self.generate_fuse_microphysics_instructions(times, energies, pos, interaction_type, **kwargs)
         if not FUSEEXIST:
@@ -239,6 +260,59 @@ class SimulationInstructions:
 
         return photons, electrons, excitons
 
+    def uniform_time_instructions(self, rate, size, instruction_type='fuse_microphysics', **kw):
+        """ Get the instructions for the shape of the signal
+            This is useful for the time-independent signal shape
+            i.e. the times of the models are ignored
+            :rate: the rate of the signal
+            :size: the size of the signal
+            Notes:
+                here the times are given in seconds, the respective `generate_XXX` function converts them to ns
+        """
+        _, _, recoil_energy_samples = self.EnergyTimeSampler.sample_times_energies(size=size, **kw)
+        # the function samples size*4 for each flavor, since times are uniform and random, sample equal amount of E_r
+        recoil_energy_samples = np.random.choice(recoil_energy_samples, size)
+
+        # overwrite the times with a uniform distribution
+        time_samples = self.EnergyTimeSampler.generate_times(rate, size) # here in seconds, below converted to ns
+        if instruction_type == 'fuse_microphysics':
+            instructions = self.generate_fuse_microphysics_instructions(time_samples, recoil_energy_samples, **kw)
+        elif instruction_type == 'fuse_detectorphysics':
+            instructions = self.generate_fuse_detectorphysics_instructions(time_samples, recoil_energy_samples, **kw)
+        elif instruction_type == 'wfsim':
+            instructions = self.generate_wfsim_instructions_from_fuse(time_samples, recoil_energy_samples, **kw)
+        else:
+            raise ValueError(f"Instruction type {instruction_type} not recognized")
+        return instructions
+
+    def spaced_time_instructions(self, number_of_supernova,
+                                 time_spacing_in_minutes=2,
+                                 instruction_type='fuse_microphysics', run_number="00000",**kw):
+        """ Get the instructions for N supernova signal, spaced in time
+            :rate: the rate of the signal
+            :size: the size of the signal
+        """
+        energy_list, time_list = [], []
+        for i in tqdm(range(number_of_supernova), total=number_of_supernova):
+            # get the energy and time samples (in seconds) from the model
+            times, _, energies = self.EnergyTimeSampler.sample_times_energies(return_totals=True, **kw)
+            energy_list.append(energies)
+            time_list.append(times + i * time_spacing_in_minutes * 60) # here shift in seconds! Later converted to ns
+
+        recoil_energy_samples = np.concatenate(energy_list)
+        time_samples = np.concatenate(time_list)
+
+        # generate instructions, notice times are converted to ns within the generate function
+        if instruction_type == 'fuse_microphysics':
+            instructions = self.generate_fuse_microphysics_instructions(time_samples, recoil_energy_samples, **kw)
+        elif instruction_type == 'fuse_detectorphysics':
+            instructions = self.generate_fuse_detectorphysics_instructions(time_samples, recoil_energy_samples, **kw)
+        elif instruction_type == 'wfsim':
+            instructions = self.generate_wfsim_instructions_from_fuse(run_number, time_samples, recoil_energy_samples, **kw)
+        else:
+            raise ValueError(f"Instruction type {instruction_type} not recognized")
+        return instructions
+
 
 class EnergyTimeSampling:
     """ Class to properly sample times and energies from a supernova model
@@ -248,19 +322,18 @@ class EnergyTimeSampling:
         self.snax_interactions = snax_interactions
 
     def generate_times(self, rate, size, timemode='realistic'):
-        """ Generate times for the wfsim instructions """
+        """ Generate times for the wfsim instructions
+            times returned are in seconds
+        """
         if timemode == "realistic":
             dt = np.random.exponential(1 / rate, size=size - 1)
-            times = np.append([1.0], 1.0 + dt.cumsum()) * 1e9
-            times = times.round().astype(np.int64)
-            return times
         elif timemode == "uniform":
             dt = (1 / rate) * np.ones(size - 1)
-            times = np.append([1.0], 1.0 + dt.cumsum()) * 1e9
-            times = times.round().astype(np.int64)
-            return times
         else:
             raise ValueError(f"Time mode {timemode} not supported")
+        times = np.append([1.0], 1.0 + dt.cumsum())
+        # times = times.round().astype(np.int64)
+        return times
 
     @staticmethod
     def _inverse_transform_sampling(x_vals, y_vals, n_samples):
@@ -271,7 +344,7 @@ class EnergyTimeSampling:
         r = np.random.rand(n_samples)
         return inv_cdf(r)
 
-    def sample_times_energies(self, size='infer', **kw):
+    def sample_times_energies(self, size='infer', return_totals=True, **kw):
         """ Sample interaction times and neutrino energies at those times
             also sample recoil energies based on those neutrino energies and
             the atomic cross-section at that energies.
@@ -280,8 +353,12 @@ class EnergyTimeSampling:
                         can also be a list of expected counts for each flavor
                         [nue, nue_bar, nux, nux_bar]
             neutrino_energies & recoil_energies can be passed as kwargs
-            :returns: sampled_times, sampled_neutrino_energies, sampled_recoils
+            :return_totals: `bool` if True, returns the Totals, else returns all dict
+            :returns: sampled_times (in seconds!), sampled_neutrino_energies, sampled_recoils
         """
+        if self.snax_interactions is None:
+            raise ValueError("No SNAX model is given")
+
         time_samples = dict()
         neutrino_energy_samples = dict()
         recoil_energy_samples = dict()
@@ -306,7 +383,8 @@ class EnergyTimeSampling:
         time_samples['Total'] = np.concatenate([time_samples[f] for f in Flavor])
         neutrino_energy_samples['Total'] = np.concatenate([neutrino_energy_samples[f] for f in Flavor])
         recoil_energy_samples['Total'] = np.concatenate([recoil_energy_samples[f] for f in Flavor])
-
+        if return_totals:
+            return time_samples["Total"], neutrino_energy_samples["Total"], recoil_energy_samples["Total"]
         return time_samples, neutrino_energy_samples, recoil_energy_samples
 
     def _sample_times_energy(self, interaction, size, flavor=Flavor.NU_E, **kw):
@@ -314,13 +392,14 @@ class EnergyTimeSampling:
         For the sampling, I could in principle, sample an isotope for each interaction
         based on their abundance. However, this would slow down the sampling heavily,
         therefore, I select always the isotope that has the highest abundance
+        To get a progress bar pass a leave=True kwarg
         """
         # fetch the attributes
         Model = interaction.Model
-        times = Model.times.value
+        times = Model.times.value # in seconds
         neutrino_energies = kw.get("neutrino_energies", None) or self.snax_interactions.Model.neutrino_energies.value
         recoil_energies = kw.get("recoil_energies", None) or self.snax_interactions.recoil_energies.value
-        leave = kw.get("leave", True)
+        leave = kw.get("leave", False)
         totrates = self.snax_interactions.rates_per_time_scaled[flavor]
 
         # sample times
@@ -368,76 +447,9 @@ class EnergyTimeSampling:
             sampled_recoils[i] = self._inverse_transform_sampling(recoil_energies, recspec / np.sum(recspec), 1)[0]
         return sampled_times, sampled_nues, sampled_recoils
 
-    def _get_samples_from_model(self):
-        """ Get the energies and times from the SNAX model """
-        if self.snax_interactions is None:
-            raise ValueError("No SNAX model is given")
-
-        # get the energies and times from the model
-        # sample times and recoil energies
-        time_samples, neutrino_energy_samples, recoil_energy_samples = self.sample_times_energies()
-        return time_samples, neutrino_energy_samples, recoil_energy_samples
 
 
-class MultiSupernovaSimulations(SimulationInstructions):
-    """ Class to handle multiple supernova simulations
-        Creates individual supernova simulation instructions for each supernova
-        Then distributes the times with specified spacings
-        Also allows for time-independent instructions to study the signal shape
-    """
-    def __init__(self, snax_interactions):
-        super().__init__(snax_interactions)
-
-
-    def uniform_time_instructions(self, rate, size, instruction_type='fuse_microphysics', **kw):
-        """ Get the instructions for the shape of the signal
-            This is useful for the time-independent signal shape
-            i.e. the times of the models are ignored
-            :rate: the rate of the signal
-            :size: the size of the signal
-        """
-        time_samples, neutrino_energy_samples, recoil_energy_samples= self.EnergyTimeSampler.sample_times_energies(size=size, **kw)
-        # overwrite the times with a uniform distribution
-        time_samples = self.EnergyTimeSampler.generate_times(rate, size)
-        if instruction_type == 'fuse_microphysics':
-            instructions = self.generate_fuse_microphysics_instructions(time_samples, recoil_energy_samples, **kw)
-        elif instruction_type == 'fuse_detectorphysics':
-            instructions = self.generate_fuse_detectorphysics_instructions(time_samples, recoil_energy_samples, **kw)
-        elif instruction_type == 'wfsim':
-            instructions = self.generate_wfsim_instructions_from_fuse(time_samples, recoil_energy_samples, **kw)
-        else:
-            raise ValueError(f"Instruction type {instruction_type} not recognized")
-        return instructions
-
-    def spaced_time_instructions(self, number_of_supernova,
-                                 time_spacing_in_minutes=2,
-                                 instruction_type='fuse_microphysics', **kw):
-        """ Get the instructions for N supernova signal, spaced in time
-            :rate: the rate of the signal
-            :size: the size of the signal
-        """
-        energy_list, time_list = [], []
-        for i in range(number_of_supernova):
-            # get the energy and time samples from the model
-            energies, times, _ = self._get_samples(None, None)
-            energy_list.append(energies)
-            # add the times with the specified spacing, convert the added times into nanoseconds
-            time_list.append(times + i * time_spacing_in_minutes * 60 * 1e9)
-
-        recoil_energy_samples = np.concatenate(energy_list)
-        time_samples = np.concatenate(time_list)
-
-        if instruction_type == 'fuse_microphysics':
-            instructions = self.generate_fuse_microphysics_instructions(time_samples, recoil_energy_samples, **kw)
-        elif instruction_type == 'fuse_detectorphysics':
-            instructions = self.generate_fuse_detectorphysics_instructions(time_samples, recoil_energy_samples, **kw)
-        elif instruction_type == 'wfsim':
-            instructions = self.generate_wfsim_instructions_from_fuse(time_samples, recoil_energy_samples, **kw)
-        else:
-            raise ValueError(f"Instruction type {instruction_type} not recognized")
-        return instructions
-
-class SimulateSignal(MultiSupernovaSimulations):
+class SimulateSignal(SimulationInstructions):
     """ Use either fuse or wfsim to simulate the signal
         It allows for simulating single or multiple supernova signals
     """
