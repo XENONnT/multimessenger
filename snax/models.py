@@ -16,7 +16,6 @@ How to pickle yourself https://stackoverflow.com/questions/2709800/how-to-pickle
 import click
 import os
 import numpy as np
-import pandas as pd
 
 try:
     import cPickle as pickle
@@ -28,7 +27,7 @@ import astropy
 import astropy.units as u
 from snewpy.neutrino import Flavor
 from .sn_utils import isnotebook, deterministic_hash, validate_config_file
-import copy, sys
+import copy
 if isnotebook():
     from tqdm.notebook import tqdm
 else:
