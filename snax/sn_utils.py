@@ -147,11 +147,11 @@ def add_strax_folder(config, context):
 
         st = context
         output_folder_exists = False
-        for i, stores in enumerate(st.proc_loc):
+        for i, stores in enumerate(st.storage):
             if mc_data_folder in stores.path:
                 output_folder_exists = True
         if not output_folder_exists:
-            st.proc_loc += [strax.DataDirectory(mc_data_folder, readonly=False)]
+            st.storage += [strax.DataDirectory(mc_data_folder, readonly=False)]
         return st
     except Exception as e:
         click.secho(f"> {e}", fg="red")
