@@ -4,14 +4,11 @@ for both fuse (microphysics, detectorphysisc) and WFSim
 The core for instructions is taken from Andrii Terliuk's script
 """
 
-import sys
 import numpy as np
 import pandas as pd
-import nestpy, os, click
+import nestpy, os
 import warnings
 from astropy import units as u
-from collections.abc import Sequence
-import snewpy
 from snewpy.neutrino import Flavor
 from scipy.interpolate import interp1d
 from .sn_utils import isnotebook
@@ -239,6 +236,7 @@ class SimulationInstructions:
         )
         if not FUSEEXIST:
             raise ImportError("FUSE is not installed")
+        import fuse
         st = fuse.context.full_chain_context(output_folder="./fuse_data")
         st.register(fuse.micro_physics.output_plugin)
         # try saving the instructions to a file and simulating the microphysics first
@@ -304,13 +302,14 @@ class SimulationInstructions:
         return photons, electrons, excitons
 
     def uniform_time_instructions(
-        self, rate, size, instruction_type="fuse_microphysics", **kw
+        self, rate, size, instruction_type="fuse_microphysics", run_number="00000", **kw
     ):
         """Get the instructions for the shape of the signal
         This is useful for the time-independent signal shape
         i.e. the times of the models are ignored
         :rate: the rate of the signal i.e. entry per sec
         :size: the size of the signal i.e. total entry
+        :param run_number: run number, required for wfsim instructions
         Notes:
             here the times are given in seconds, the respective `generate_XXX` function converts them to ns
             example; rate=10, size=50 would return 50 data points spread within ~5 sec
@@ -335,7 +334,7 @@ class SimulationInstructions:
             )
         elif instruction_type == "wfsim":
             instructions = self.generate_wfsim_instructions_from_fuse(
-                time_samples, recoil_energy_samples, **kw
+                run_number, time_samples, recoil_energy_samples, **kw
             )
         else:
             raise ValueError(f"Instruction type {instruction_type} not recognized")
@@ -596,10 +595,10 @@ class SimulateSignal(SimulationInstructions):
         csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
         instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
         # get the context
-        simulator = "fuse" if "fuse" in self.instruction_type else "wfsim"
+        simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
         st = self.fetch_context(context, simulator)
         # make the simulation
-        if self.instruction_type == "fuse_microphysics":
+        if type_of_instruction == "fuse_microphysics":
             st.set_config(
                 {
                     "path": self.csv_folder,
@@ -608,9 +607,10 @@ class SimulateSignal(SimulationInstructions):
                 }
             )
             st.make(run_number, "microphysics_summary")
-        elif self.instruction_type == "fuse_detectorphysics":
+        elif type_of_instruction == "fuse_detectorphysics":
+            import fuse
+            # ChunkCsvInput needs to be registered
             st.register(fuse.detector_physics.ChunkCsvInput)
-
             st.set_config(
                 {
                     "input_file": "./random_detectorphysics_instructions.csv",
@@ -618,12 +618,12 @@ class SimulateSignal(SimulationInstructions):
                 }
             )
             st.make(run_number, "raw_records", progress_bar=True)
-        elif self.instruction_type == "wfsim":
+        elif type_of_instruction == "wfsim":
             st.set_config(dict(fax_file=f"{self.csv_folder}/{csv_name}"))
             st.make(run_number, "truth")
             st.make(run_number, "raw_records")
         else:
-            raise ValueError(f"Instruction type {self.instruction_type} not recognized")
+            raise ValueError(f"Instruction type {type_of_instruction} not recognized")
         return st
 
     def simulate_multiple(
@@ -634,6 +634,7 @@ class SimulateSignal(SimulationInstructions):
         size=None,
         time_spacing_in_minutes=None,
         context=None,
+        instruction_type=None,
     ):
         """Simulate multiple supernova signals
         If (number of supernova, time spacing) is provided, simulate that many signals,
@@ -643,9 +644,8 @@ class SimulateSignal(SimulationInstructions):
         Return: simulation context
         """
         is_time_independent = (rate is not None) and (size is not None)
-        is_time_dependent = (number_of_supernova is not None) and (
-            time_spacing_in_minutes is not None
-        )
+        is_time_dependent = (number_of_supernova is not None) and (time_spacing_in_minutes is not None)
+        type_of_instruction = instruction_type or self.instruction_type
 
         if not is_time_dependent and not is_time_independent:
             raise ValueError(
@@ -654,11 +654,11 @@ class SimulateSignal(SimulationInstructions):
 
         if is_time_independent:
             instructions = self.uniform_time_instructions(
-                rate, size, self.instruction_type
+                rate, size, type_of_instruction
             )
         else:
             instructions = self.spaced_time_instructions(
-                run_number, time_spacing_in_minutes
+                run_number, time_spacing_in_minutes, instruction_type=type_of_instruction
             )
 
         return self.simulate_single(run_number, instructions=instructions, context=context)
