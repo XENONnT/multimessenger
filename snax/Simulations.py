@@ -577,6 +577,7 @@ class SimulateSignal(SimulationInstructions):
         :param instructions: `df` generated instructions (self.instruction_type or param instruction_type should match!)
         :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse")
         :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim"
+        Returns: Simulation context
         """
         type_of_instruction = instruction_type or self.instruction_type
         # generate and save the instructions
@@ -623,6 +624,7 @@ class SimulateSignal(SimulationInstructions):
             st.make(run_number, "raw_records")
         else:
             raise ValueError(f"Instruction type {self.instruction_type} not recognized")
+        return st
 
     def simulate_multiple(
         self,
@@ -638,6 +640,7 @@ class SimulateSignal(SimulationInstructions):
         properly spaced in time and using actual model times
         else if (rate, size) is provided, simulate the signals with that rate and size
         ignore the model times and simulate a uniform distribution of signals in time
+        Return: simulation context
         """
         is_time_independent = (rate is not None) and (size is not None)
         is_time_dependent = (number_of_supernova is not None) and (
@@ -658,7 +661,7 @@ class SimulateSignal(SimulationInstructions):
                 run_number, time_spacing_in_minutes
             )
 
-        self.simulate_single(run_number, instructions=instructions, context=context)
+        return self.simulate_single(run_number, instructions=instructions, context=context)
 
     def fetch_context(self, context, simulator):
         """Fetch the context for the simulation
