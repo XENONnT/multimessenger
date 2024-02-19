@@ -28,14 +28,16 @@ import astropy.units as u
 from snewpy.neutrino import Flavor
 from .sn_utils import isnotebook, deterministic_hash, validate_config_file
 import copy
+
 if isnotebook():
     from tqdm.notebook import tqdm
 else:
     from tqdm import tqdm
 
+
 class SnaxModel:
-    """ Build on top of snewpy model use either an external snewpy model
-        or a SnewpyModel object to get the models
+    """Build on top of snewpy model use either an external snewpy model
+    or a SnewpyModel object to get the models
     """
 
     def __init__(self, snewpy_model, config_file=None):
@@ -62,7 +64,7 @@ class SnaxModel:
         self.model_name = self.model.__class__.__name__
         self.times = snewpy_model.time
         # parameters to use for computations
-        self.neutrino_energies = np.linspace(0, 200, 100)*u.MeV
+        self.neutrino_energies = np.linspace(0, 200, 100) * u.MeV
         self.time_range = (None, None)
         # computed attributes
         self.fluxes = None
@@ -74,14 +76,16 @@ class SnaxModel:
         self.__call__()
 
     def _get_config(self, config_file):
-        """ Get the config file and the proc_loc
-            if not provided, use the default config file
+        """Get the config file and the proc_loc
+        if not provided, use the default config file
         """
-        self.user = os.environ['USER']
+        self.user = os.environ["USER"]
         default_base_midway_path = "/project2/lgrandi/xenonnt/simulations/supernova"
         if os.path.exists(default_base_midway_path):
             # use the default config file
-            conf_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf")
+            conf_path = os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), "..", "simple_config.conf"
+            )
         else:
             # use the local config file
             conf_path = "temp_config.ini"
@@ -96,20 +100,23 @@ class SnaxModel:
         self.config = configparser.ConfigParser()
         self.config.read(self.config_path)
         # this is where we store the processed data
-        self.proc_loc = self.config['paths']['processed_data']
+        self.proc_loc = self.config["paths"]["processed_data"]
 
     def _find_hash(self):
-        """ Find a deterministic hash for the model """
+        """Find a deterministic hash for the model"""
         # get the parameters
-        _meta = {k: v.value if isinstance(v, astropy.units.quantity.Quantity) else v for k, v in self.model.metadata.items()}
-        _meta['nu_energy'] = self.neutrino_energies.value
-        _meta['time_range'] = self.time_range
+        _meta = {
+            k: v.value if isinstance(v, astropy.units.quantity.Quantity) else v
+            for k, v in self.model.metadata.items()
+        }
+        _meta["nu_energy"] = self.neutrino_energies.value
+        _meta["time_range"] = self.time_range
         # get the hash
         return deterministic_hash(_meta)
 
     def __call__(self, force=False):
-        """ Call the model and save the output
-            :param force: `bool` if True, will overwrite the existing file
+        """Call the model and save the output
+        :param force: `bool` if True, will overwrite the existing file
         """
         # check if file exists
         full_file_path = os.path.join(self.proc_loc, self.object_name)
@@ -124,14 +131,12 @@ class SnaxModel:
             self.save_object(update=True)
 
     def __repr__(self):
-        """Default representation of the model.
-        """
+        """Default representation of the model."""
         _repr = self.model.__repr__()
         return _repr
 
     def _repr_markdown_(self):
-        """Markdown representation of the model, for Jupyter notebooks.
-        """
+        """Markdown representation of the model, for Jupyter notebooks."""
         try:
             _repr = self.model._repr_markdown_()
         except AttributeError:
@@ -143,20 +148,24 @@ class SnaxModel:
             s += [f"|file name| {self.object_name}"]
             s += [f"|duration | {np.round(np.ptp(self.model.time), 2)}|"]
             s += [f"|time range| ({self.time_range[0]}, {self.time_range[1]})"]
-        return '\n'.join(s)
+        return "\n".join(s)
 
     def set_params(self, time_samples=None, neutrino_energies=None):
-        """ Set the parameters for calculations
-            If the fluxes have already been computed this will ask for a confirmation
+        """Set the parameters for calculations
+        If the fluxes have already been computed this will ask for a confirmation
 
-            :param neutrino_energies: `array` default np.linspace(0,200,100)*u.MeV
-                if provided without units, assumes MeV
-            :param time_samples: `array` if given, time_range is ignored, default = model times
-                if no unit is given, assumes seconds
+        :param neutrino_energies: `array` default np.linspace(0,200,100)*u.MeV
+            if provided without units, assumes MeV
+        :param time_samples: `array` if given, time_range is ignored, default = model times
+            if no unit is given, assumes seconds
 
         """
-        neutrino_energies = neutrino_energies if type(neutrino_energies)!=type(None) else self.neutrino_energies
-        time_samples = time_samples if type(time_samples)!=type(None) else self.times
+        neutrino_energies = (
+            neutrino_energies
+            if type(neutrino_energies) != type(None)
+            else self.neutrino_energies
+        )
+        time_samples = time_samples if type(time_samples) != type(None) else self.times
 
         if not type(neutrino_energies) == u.quantity.Quantity:
             # assume MeV
@@ -167,9 +176,13 @@ class SnaxModel:
             time_samples *= u.s
 
         # if the user has changed something the rates needs to be recomputed
-        if not (np.array_equal(neutrino_energies, self.neutrino_energies) and
-                np.array_equal(time_samples, self.times)) and \
-                self.fluxes is not None:
+        if (
+            not (
+                np.array_equal(neutrino_energies, self.neutrino_energies)
+                and np.array_equal(time_samples, self.times)
+            )
+            and self.fluxes is not None
+        ):
             self.fluxes = None
 
         # set those params
@@ -177,36 +190,34 @@ class SnaxModel:
         self.times = time_samples
 
     def save_object(self, update=False):
-        """ Save the object for later calls
-        """
+        """Save the object for later calls"""
         if update:
             full_file_path = os.path.join(self.proc_loc, self.object_name)
-            with open(full_file_path, 'wb') as output:  # Overwrites any existing file.
+            with open(full_file_path, "wb") as output:  # Overwrites any existing file.
                 pickle.dump(self, output, -1)  # pickle.HIGHEST_PROTOCOL
-                click.secho(f'> Saved at <self.proc_loc>/{self.object_name}!\n', fg='blue')
+                click.secho(
+                    f"> Saved at <self.proc_loc>/{self.object_name}!\n", fg="blue"
+                )
 
     def retrieve_object(self, name=None):
         file = name or self.object_name
         full_file_path = os.path.join(self.proc_loc, file)
-        with open(full_file_path, 'rb') as handle:
+        with open(full_file_path, "rb") as handle:
             print(f">>>>> {file}")
-            click.secho(f'> Retrieving object self.proc_loc{file}', fg='blue')
+            click.secho(f"> Retrieving object self.proc_loc{file}", fg="blue")
             tmp_dict = pickle.load(handle)
         self.__dict__.update(tmp_dict.__dict__)
         return None
 
     def delete_object(self):
         full_file_path = os.path.join(self.proc_loc, self.object_name)
-        if input(f"> Are you sure you want to delete\n"
-                 f"{full_file_path}?\n") == 'y':
+        if input(f"> Are you sure you want to delete\n" f"{full_file_path}?\n") == "y":
             os.remove(full_file_path)
 
-    def compute_model_fluxes(self,
-                             time_samples=None,
-                             neutrino_energies=None,
-                             force=False,
-                             leave=False, **kw):
-        """ Compute fluxes for each time and neutrino combination for each neutrino flavor
+    def compute_model_fluxes(
+        self, time_samples=None, neutrino_energies=None, force=False, leave=False, **kw
+    ):
+        """Compute fluxes for each time and neutrino combination for each neutrino flavor
             Result is a dictionary saved in self.fluxes with keys representing each flavor,
             and each key having MxN matrix for fluxes
         :param neutrino_energies: `array` default np.linspace(0, 200, 100) * u.MeV
@@ -218,32 +229,40 @@ class SnaxModel:
         """
         if self.fluxes is not None and not force:
             # already computed
-            click.secho("Fluxes already exist in `self.fluxes`, and force=False, doing nothing.")
+            click.secho(
+                "Fluxes already exist in `self.fluxes`, and force=False, doing nothing."
+            )
             return None
 
         # sets the object attributes, and resets the fluxes if things have changed
         self.set_params(time_samples=time_samples, neutrino_energies=neutrino_energies)
 
         # get fluxes at each time and at each neutrino energy
-        flux_unit = self.model.get_initial_spectra(1*u.s, 100*u.MeV, **kw)[Flavor.NU_E].unit
+        flux_unit = self.model.get_initial_spectra(1 * u.s, 100 * u.MeV, **kw)[
+            Flavor.NU_E
+        ].unit
 
         # create a flux dictionary for each flavor
         _fluxes = np.zeros((len(self.times), len(self.neutrino_energies))) * flux_unit
         _fluxes = {f: _fluxes.copy() for f in Flavor}
 
-        for i, sec in tqdm(enumerate(self.times), total=len(self.times), desc="Looping", leave=leave):
-            _fluxes_dict = self.model.get_initial_spectra(sec, self.neutrino_energies, **kw)
+        for i, sec in tqdm(
+            enumerate(self.times), total=len(self.times), desc="Looping", leave=leave
+        ):
+            _fluxes_dict = self.model.get_initial_spectra(
+                sec, self.neutrino_energies, **kw
+            )
             # for f in tqdm(Flavor, total=len(Flavor), leave=False):
             for f in Flavor:
                 _fluxes[f][i, :] = _fluxes_dict[f]
         self.fluxes = _fluxes
         self.save_object(update=True)
 
-    def scale_fluxes(self, distance, N_Xe=4.6e27*u.count/u.tonne):
-        """ Scale fluxes based on distance and number of atoms
-            distance is assumed to be given in kpc or with units
+    def scale_fluxes(self, distance, N_Xe=4.6e27 * u.count / u.tonne):
+        """Scale fluxes based on distance and number of atoms
+        distance is assumed to be given in kpc or with units
 
-            Return: scaled fluxes
+        Return: scaled fluxes
         """
         # each time copy from the fluxes
         self.scaled_fluxes = copy.deepcopy(self.fluxes)
@@ -251,10 +270,12 @@ class SnaxModel:
             # assume kpc
             distance *= u.kpc
 
-        scale = N_Xe / (4 * np.pi * distance ** 2).to(u.m ** 2)
+        scale = N_Xe / (4 * np.pi * distance**2).to(u.m**2)
         try:
             for f in self.scaled_fluxes.keys():
                 self.scaled_fluxes[f] *= scale
             return self.scaled_fluxes
         except Exception as e:
-            raise NotImplementedError(f"{e}\nfluxes does not exist\nCreate them by calling `compute_model_fluxes()`")
+            raise NotImplementedError(
+                f"{e}\nfluxes does not exist\nCreate them by calling `compute_model_fluxes()`"
+            )
