@@ -1,8 +1,8 @@
-
 import os, sys
 import numpy as np
 import pandas as pd
 import snewpy
+
 try:
     import cPickle as pickle
 except ModuleNotFoundError:
@@ -10,9 +10,10 @@ except ModuleNotFoundError:
 
 snewpy_models_path = "/project2/lgrandi/xenonnt/simulations/supernova/SNEWPY_models/"
 
+
 class SnewpyModel:
-    """ snewpy wrapper
-    """
+    """snewpy wrapper"""
+
     def __init__(self, local_models_path=None):
         # if manually given
         if local_models_path is not None:
@@ -25,15 +26,19 @@ class SnewpyModel:
             snewpy.model_path = "./SNEWPY_models/"
         else:
             import warnings
-            warnings.warn("Not on the cluster, snewpy models are not available. "
-                          "Get models first \nimport snewpy; snewpy.get_models()")
+
+            warnings.warn(
+                "Not on the cluster, snewpy models are not available. "
+                "Get models first \nimport snewpy; snewpy.get_models()"
+            )
         from snewpy import _model_urls
+
         self.model_urls = _model_urls.model_urls
         self.model_keys = self.model_urls.keys()
         self.imported_snewpy_models = {}
 
-    def _import_models(self, base, sntype='ccsn'):
-        """ Import the models if not already imported """
+    def _import_models(self, base, sntype="ccsn"):
+        """Import the models if not already imported"""
         if base not in self.model_keys:
             print(f"Model {base} not available")
             sys.exit()
@@ -45,29 +50,31 @@ class SnewpyModel:
             package = f"snewpy.models.{sntype}"
             model = getattr(__import__(package, fromlist=[base]), base)
             par_combinations = pd.DataFrame(model.get_param_combinations())
-            par_combinations['Combination Index'] = np.arange(len(par_combinations)) + 1
-            par_combinations.set_index('Combination Index', inplace=True)
+            par_combinations["Combination Index"] = np.arange(len(par_combinations)) + 1
+            par_combinations.set_index("Combination Index", inplace=True)
             self.imported_snewpy_models[base] = (model, par_combinations)
             return None
 
-    def display_models(self, base=None, sntype='ccsn'):
-        """ Display the available models
-            Get the model by calling `get_model('{base}', combination_index=#)`
-            or by calling `get_model('{base}', **kwargs)`
+    def display_models(self, base=None, sntype="ccsn"):
+        """Display the available models
+        Get the model by calling `get_model('{base}', combination_index=#)`
+        or by calling `get_model('{base}', **kwargs)`
         """
         if base is None:
             print(self.model_keys)
         else:
             self._import_models(base, sntype)
-            print(f"\t Get the model by calling `get_model('{base}', combination_index=#)`\n"
-                  f"\t or by calling `get_model('{base}', **kwargs)`")
+            print(
+                f"\t Get the model by calling `get_model('{base}', combination_index=#)`\n"
+                f"\t or by calling `get_model('{base}', **kwargs)`"
+            )
             return self.imported_snewpy_models[base][1]
 
-    def get_model(self, base, sntype='ccsn', combination_index=None, **kwargs):
-        """ Get the model
-            either use an index or pass the parameters
-            To display the combinations `display_models` method
-            To display the specific kwargs of a model see self.imported_snewpy_models[base][1]
+    def get_model(self, base, sntype="ccsn", combination_index=None, **kwargs):
+        """Get the model
+        either use an index or pass the parameters
+        To display the combinations `display_models` method
+        To display the specific kwargs of a model see self.imported_snewpy_models[base][1]
         """
         # import and get the model with parameter combinations
         self._import_models(base, sntype)
@@ -82,5 +89,5 @@ class SnewpyModel:
             return model(**kwargs)
 
     def __call__(self, model_name, combination_index=None, **kwargs):
-        """ Call snewpy model either with a combination index or with parameters """
+        """Call snewpy model either with a combination index or with parameters"""
         return self.get_model(model_name, nr_combination=combination_index, **kwargs)
