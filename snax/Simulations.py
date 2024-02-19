@@ -154,7 +154,7 @@ class SimulationInstructions:
         # get the energies, times (in seconds) and positions
         times, energies, pos = self._get_samples(times, energies, pos)
         # convert the times into nanosec
-        times *= 1e9
+        times = times * 1e9 # A very weird bug if times *= 1e9
         times = times.round().astype(np.int64)
         # get the microphysics instructions, quanta is taken care within the fuse
         number_of_events = len(energies)
@@ -197,7 +197,7 @@ class SimulationInstructions:
         # get the energies, times (in seconds) and positions
         times, energies, pos = self._get_samples(times, energies, pos)
         # convert the times into nanosec
-        times *= 1e9
+        times = times * 1e9 # A very weird bug if times *= 1e9
         times = times.round().astype(np.int64)
         number_of_events = len(energies)
         instructions = pd.DataFrame()
@@ -606,6 +606,7 @@ class SimulateSignal(SimulationInstructions):
                     "path": self.csv_folder,
                     "file_name": csv_name,
                     "n_interactions_per_chunk": 250,
+                    "source_rate": 0,
                 }
             )
             st.make(run_number, "microphysics_summary")
@@ -617,6 +618,7 @@ class SimulateSignal(SimulationInstructions):
                 {
                     "input_file": f"{self.csv_folder}/{csv_name}",
                     "n_interactions_per_chunk": 50,
+                    "source_rate":0,
                 }
             )
             st.make(run_number, "raw_records", progress_bar=True)
