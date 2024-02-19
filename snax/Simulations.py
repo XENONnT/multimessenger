@@ -88,7 +88,9 @@ class SimulationInstructions:
                 straxen.get_resource(downloader.download_single(fmap), fmt="json.gz"),
                 method="RegularGridInterpolator",
             )
-            local_field = fmap(np.array([np.sqrt(x**2 + y**2), z]).T).repeat(2)
+            local_field = fmap(np.array([np.sqrt(x**2 + y**2), z]).T)
+            # wfsim has 2 entries per interaction while fuse has 1
+            local_field = local_field if self.simulator != "wfsim" else local_field.repeat(2)
         elif not STRAXENEXIST:
             raise ImportError(
                 f"Straxen is not installed, cannot load the field map: {fmap}"
@@ -613,7 +615,7 @@ class SimulateSignal(SimulationInstructions):
             st.register(fuse.detector_physics.ChunkCsvInput)
             st.set_config(
                 {
-                    "input_file": "./random_detectorphysics_instructions.csv",
+                    "input_file": f"{self.csv_folder}/{csv_name}",
                     "n_interactions_per_chunk": 50,
                 }
             )
