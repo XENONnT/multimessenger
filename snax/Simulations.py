@@ -264,10 +264,11 @@ class SimulationInstructions:
         """ Get the instructions for the shape of the signal
             This is useful for the time-independent signal shape
             i.e. the times of the models are ignored
-            :rate: the rate of the signal
-            :size: the size of the signal
+            :rate: the rate of the signal i.e. entry per sec
+            :size: the size of the signal i.e. total entry
             Notes:
                 here the times are given in seconds, the respective `generate_XXX` function converts them to ns
+                example; rate=10, size=50 would return 50 data points spread within ~5 sec
         """
         _, _, recoil_energy_samples = self.EnergyTimeSampler.sample_times_energies(size=size, **kw)
         # the function samples size*4 for each flavor, since times are uniform and random, sample equal amount of E_r
