@@ -37,6 +37,9 @@ FUSEEXIST = module_exists.get("FUSEEXIST", False)
 NEUTRINO_ENERGIES = np.linspace(0, 250, 500)
 RECOIL_ENERGIES = np.linspace(0, 30, 100)
 
+DEFAULT_XEDOCS_VERSION = 'global_v14'
+DEFAULT_SIMULATION_VERSION = 'fax_config_nt_sr0_v4.json'
+
 
 class SimulationInstructions:
     """Deal with the FUSE, and WFSim type instructions at different levels.
@@ -707,12 +710,22 @@ class SimulateSignal(SimulationInstructions):
                 output_folder=mc_data_folder
             )
         elif simulator == "fuse":
-            if not FUSEEXIST:
-                raise ImportError("fuse not installed")
+            if not CUTAXEXIST or not FUSEEXIST:
+                raise ImportError("cutax or fuse not installed")
             import fuse, cutax
+            from cutax.cut_lists.basic import BasicCuts
+
             # this cutax context has the proper detector conditions
-            context = cutax.contexts.xenonnt_fuse_full_chain_simulation(output_folder=mc_data_folder)
-            # context = fuse.context.full_chain_context(output_folder=mc_data_folder)
+            # do this if you are using the fuse_context branch (21.02.2024, it'll be merged soon)
+            # context = cutax.contexts.xenonnt_fuse_full_chain_simulation(output_folder=mc_data_folder)
+
+            # otherwise do this
+            context = fuse.context.full_chain_context(output_folder=mc_data_folder,
+                corrections_version = DEFAULT_XEDOCS_VERSION,
+                simulation_config_file = DEFAULT_SIMULATION_VERSION,
+                corrections_run_id = "026000",
+                cut_list = BasicCuts,
+                auto_register = False,)
         else:
             raise ValueError(f"Simulator {simulator} not recognized")
         # add the strax folder to the context
