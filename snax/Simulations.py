@@ -192,7 +192,12 @@ class SimulationInstructions:
                         f"Length of {column} does not match the number of events, ignoring"
                     )
 
-        return pd.DataFrame(instructions)
+        instructions = pd.DataFrame(instructions)
+        # microphysics instructions use mm instead of cm
+        for col in ['xp', 'yp', 'zp', 'xp_pri', 'yp_pri', 'zp_pri']:
+            instructions.loc[:, col] *= 10
+
+        return instructions
 
     def generate_fuse_detectorphysics_instructions(
         self, times=None, energies=None, pos=None, fmap=None
@@ -609,7 +614,7 @@ class SimulateSignal(SimulationInstructions):
                     "path": self.csv_folder,
                     "file_name": csv_name,
                     "n_interactions_per_chunk": 250,
-                    "source_rate": 0,
+                    # "source_rate": 0,
                 }
             )
             st.make(run_number, "microphysics_summary")
@@ -621,7 +626,7 @@ class SimulateSignal(SimulationInstructions):
                 {
                     "input_file": f"{self.csv_folder}/{csv_name}",
                     "n_interactions_per_chunk": 50,
-                    "source_rate":0,
+                    # "source_rate":0,
                 }
             )
             st.make(run_number, "raw_records", progress_bar=True)
