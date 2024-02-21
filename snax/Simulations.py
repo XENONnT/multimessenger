@@ -728,9 +728,7 @@ class SimulateSignal(SimulationInstructions):
             context = fuse.context.full_chain_context(output_folder=mc_data_folder,
                 corrections_version = DEFAULT_XEDOCS_VERSION,
                 simulation_config_file = DEFAULT_SIMULATION_VERSION,
-                corrections_run_id = "026000",
-                cut_list = BasicCuts,
-                auto_register = False,)
+                corrections_run_id = "026000",)
         else:
             raise ValueError(f"Simulator {simulator} not recognized")
         # add the strax folder to the context
