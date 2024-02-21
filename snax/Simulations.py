@@ -709,9 +709,10 @@ class SimulateSignal(SimulationInstructions):
         elif simulator == "fuse":
             if not FUSEEXIST:
                 raise ImportError("fuse not installed")
-            import fuse
-
-            context = fuse.context.full_chain_context(output_folder=mc_data_folder)
+            import fuse, cutax
+            # this cutax context has the proper detector conditions
+            context = cutax.contexts.xenonnt_fuse_full_chain_simulation(output_folder=mc_data_folder)
+            # context = fuse.context.full_chain_context(output_folder=mc_data_folder)
         else:
             raise ValueError(f"Simulator {simulator} not recognized")
         # add the strax folder to the context
