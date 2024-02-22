@@ -26,7 +26,7 @@ import configparser
 import astropy
 import astropy.units as u
 from snewpy.neutrino import Flavor
-from .sn_utils import isnotebook, deterministic_hash, validate_config_file
+from .sn_utils import isnotebook, deterministic_hash, validate_config_file, get_hash_from_model
 import copy
 
 if isnotebook():
@@ -70,7 +70,8 @@ class SnaxModel:
         self.fluxes = None
         self.scaled_fluxes = None
         # find a deterministic hash for the model
-        self.model_hash = self._find_hash()
+        self.snewpy_hash = get_hash_from_model(snewpy_model)
+        self.model_hash = self._find_hash() # allow for different neutrino energy range and time range
         self.object_name = f"sn_{self.model_name}_{self.model_hash}.pkl"
         # retrieve object if exists
         self.__call__()
@@ -105,12 +106,8 @@ class SnaxModel:
     def _find_hash(self):
         """Find a deterministic hash for the model"""
         # get the parameters
-        _meta = {
-            k: v.value if isinstance(v, astropy.units.quantity.Quantity) else v
-            for k, v in self.model.metadata.items()
-        }
-        _meta["nu_energy"] = self.neutrino_energies.value
-        _meta["time_range"] = self.time_range
+        _meta = {"snewpy_hash": self.snewpy_hash, "nu_energy": self.neutrino_energies.value,
+                 "time_range": self.time_range}
         # get the hash
         return deterministic_hash(_meta)
 

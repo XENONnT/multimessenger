@@ -2,6 +2,7 @@ import os, sys
 import numpy as np
 import pandas as pd
 import snewpy
+from .sn_utils import get_hash_from_model
 
 try:
     import cPickle as pickle
@@ -50,6 +51,12 @@ class SnewpyModel:
             package = f"snewpy.models.{sntype}"
             model = getattr(__import__(package, fromlist=[base]), base)
             par_combinations = pd.DataFrame(model.get_param_combinations())
+            # get hashes
+            model_hashes = []
+            for pars in par_combinations:
+                _hash = get_hash_from_model(model(**pars))
+                model_hashes.append(_hash)
+            par_combinations["hash"] = model_hashes
             par_combinations["Combination Index"] = np.arange(len(par_combinations)) + 1
             par_combinations.set_index("Combination Index", inplace=True)
             self.imported_snewpy_models[base] = (model, par_combinations)

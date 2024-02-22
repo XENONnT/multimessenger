@@ -589,6 +589,12 @@ class SimulateSignal(SimulationInstructions):
         Returns: Simulation context
         """
         type_of_instruction = instruction_type or self.instruction_type
+        # get the context
+        simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
+        st = self.fetch_context(context, simulator)
+        # check if the run number already exists
+        # run_number = self.get_run_number()
+
         # generate and save the instructions
         if instructions is None:
             if type_of_instruction == "fuse_microphysics":
@@ -604,9 +610,7 @@ class SimulateSignal(SimulationInstructions):
 
         csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
         instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
-        # get the context
-        simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
-        st = self.fetch_context(context, simulator)
+
         # make the simulation
         if type_of_instruction == "fuse_microphysics":
             st.set_config(
@@ -734,3 +738,9 @@ class SimulateSignal(SimulationInstructions):
         # add the strax folder to the context
         _add_strax_directory(context)
         return context
+
+    def get_run_number(self):
+        """ For simulations, check the hash and check existing simulated data
+            Assign a new runid for each simulation
+        """
+        return NotImplementedError

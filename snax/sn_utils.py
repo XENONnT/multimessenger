@@ -474,6 +474,15 @@ def hashablize(obj):
     else:
         return obj
 
+def get_hash_from_model(model):
+    """ Get the hash from imported snewpy model (initialized)
+        Uses the metadata and the model name to get a generic hash
+    """
+    import astropy
+    meta_items = model.metadata.items()
+    _meta = {k: v.value if isinstance(v, astropy.units.quantity.Quantity) else v for k, v in meta_items}
+    _meta['model_name'] = model.__name__
+    return deterministic_hash(_meta)
 
 # def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
 #     """ Make a json file that contains the metadata of the simulation
