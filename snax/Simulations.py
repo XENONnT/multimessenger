@@ -648,6 +648,7 @@ class SimulateSignal(SimulationInstructions):
             st.make(run_number, "raw_records")
         else:
             raise ValueError(f"Instruction type {type_of_instruction} not recognized")
+        print(f"Using {csv_name}\nSimulated run: {run_number}\nFor {type_of_instruction}")
         return st
 
     def simulate_multiple(
