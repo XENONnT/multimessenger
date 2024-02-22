@@ -580,9 +580,9 @@ class SimulateSignal(SimulationInstructions):
         self.instruction_type = instruction_type
         self.model_hash = self.snax_interactions.Model.model_hash
 
-    def simulate_single(self, run_number, instructions=None, context=None, instruction_type=None):
+    def simulate_single(self, run_number=None, instructions=None, context=None, instruction_type=None, force=False):
         """Simulate the signal using the microphysics model
-        :param run_number: string of digits
+        :param run_number: optional, if None, fetches next available number for given hash
         :param instructions: `df` generated instructions (self.instruction_type or param instruction_type should match!)
         :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse")
         :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim"
@@ -593,7 +593,9 @@ class SimulateSignal(SimulationInstructions):
         simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
         st = self.fetch_context(context, simulator)
         # check if the run number already exists
-        # run_number = self.get_run_number()
+        run_number, isdone = self.get_run_number(run_number, st, type_of_instruction)
+        if isdone and not force:
+            return st
 
         # generate and save the instructions
         if instructions is None:
@@ -739,8 +741,37 @@ class SimulateSignal(SimulationInstructions):
         _add_strax_directory(context)
         return context
 
-    def get_run_number(self):
+    def get_run_number(self, run_number, st, instruction_type):
         """ For simulations, check the hash and check existing simulated data
             Assign a new runid for each simulation
         """
-        return NotImplementedError
+        if instruction_type not in ["fuse_microphysics", "fuse_detectorphysics", "wfsim"]:
+            raise ValueError(f"{instruction_type} is not recognized")
+
+        exists = False
+        # if not None check if data exists
+        if run_number is not None:
+            if instruction_type=="fuse_microphysics":
+                if st.is_stored(run_number, "microphysics_summary"):
+                    print(f"microphysics summary exists for run number: {run_number}")
+                    exists = True
+            else:
+                if st.is_stored(run_number, "raw_records"):
+                    print(f"raw_records exists for run number: {run_number}")
+                    exists = True
+            # return run number and exist
+            return run_number, exists
+
+        # if the run number is not passed, make one
+        snewpyhash = self.Model.snewpy_hash
+        count = 0
+        while True:
+            run_number = snewpyhash + f"_{count:05d}"
+            if instruction_type == "fuse_microphysics":
+                if st.is_stored(run_number, "microphysics_summary"):
+                    break
+            else:
+                if st.is_stored(run_number, "raw_records"):
+                    break
+            count += 1
+        return run_number, exists
