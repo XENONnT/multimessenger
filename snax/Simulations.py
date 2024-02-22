@@ -580,12 +580,13 @@ class SimulateSignal(SimulationInstructions):
         self.instruction_type = instruction_type
         self.model_hash = self.snax_interactions.Model.model_hash
 
-    def simulate_single(self, run_number=None, instructions=None, context=None, instruction_type=None, force=False):
+    def simulate_single(self, run_number=None, instructions=None, context=None, instruction_type=None, force=False, _multi=False):
         """Simulate the signal using the microphysics model
         :param run_number: optional, if None, fetches next available number for given hash
         :param instructions: `df` generated instructions (self.instruction_type or param instruction_type should match!)
         :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse")
         :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim"
+        :param force: `bool`, simulate even if exists
         Returns: Simulation context
         """
         type_of_instruction = instruction_type or self.instruction_type
@@ -593,7 +594,7 @@ class SimulateSignal(SimulationInstructions):
         simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
         st = self.fetch_context(context, simulator)
         # check if the run number already exists
-        run_number, isdone = self.get_run_number(run_number, st, type_of_instruction)
+        run_number, isdone = self.get_run_number(run_number, st, type_of_instruction, is_multi=_multi)
         if isdone and not force:
             return st
 
@@ -646,7 +647,7 @@ class SimulateSignal(SimulationInstructions):
 
     def simulate_multiple(
         self,
-        run_number,
+        run_number=None,
         number_of_supernova=None,
         rate=None,
         size=None,
@@ -679,7 +680,7 @@ class SimulateSignal(SimulationInstructions):
                 run_number, time_spacing_in_minutes, instruction_type=type_of_instruction
             )
 
-        return self.simulate_single(run_number, instructions=instructions, context=context)
+        return self.simulate_single(run_number, instructions=instructions, context=context, _multi=True)
 
     def fetch_context(self, context, simulator):
         """Fetch the context for the simulation
@@ -741,7 +742,7 @@ class SimulateSignal(SimulationInstructions):
         _add_strax_directory(context)
         return context
 
-    def get_run_number(self, run_number, st, instruction_type):
+    def get_run_number(self, run_number, st, instruction_type, is_multi=False):
         """ For simulations, check the hash and check existing simulated data
             Assign a new runid for each simulation
         """
@@ -764,6 +765,8 @@ class SimulateSignal(SimulationInstructions):
 
         # if the run number is not passed, make one
         snewpyhash = self.Model.snewpy_hash
+        if is_multi:
+            snewpyhash = "multi_"+snewpyhash
         count = 0
         while True:
             run_number = snewpyhash + f"_{count:05d}"
