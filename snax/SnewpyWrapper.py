@@ -13,7 +13,10 @@ except ModuleNotFoundError:
     import pickle
 
 snewpy_models_path = "/project2/lgrandi/xenonnt/simulations/supernova/SNEWPY_models/"
-
+# all params file
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.join(script_dir, os.pardir)
+allparams_csv_path = os.path.join(parent_dir, 'all_parameters.csv')
 
 class SnewpyModel:
     """snewpy wrapper"""
@@ -40,6 +43,7 @@ class SnewpyModel:
         self.model_urls = _model_urls.model_urls
         self.model_keys = self.model_urls.keys()
         self.imported_snewpy_models = {}
+        self.all_params = None
 
     def _import_models(self, base, sntype="ccsn"):
         """Import the models if not already imported"""
@@ -67,7 +71,7 @@ class SnewpyModel:
             self.imported_snewpy_models[base] = (model, par_combinations)
             return None
 
-    def display_models(self, base=None, sntype="ccsn"):
+    def display_models(self, base=None, sntype="ccsn", verbose=True):
         """Display the available models
         Get the model by calling `get_model('{base}', combination_index=#)`
         or by calling `get_model('{base}', **kwargs)`
@@ -76,10 +80,11 @@ class SnewpyModel:
             print(self.model_keys)
         else:
             self._import_models(base, sntype)
-            print(
-                f"\t Get the model by calling `get_model('{base}', combination_index=#)`\n"
-                f"\t or by calling `get_model('{base}', **kwargs)`"
-            )
+            if verbose:
+                print(
+                    f"\t Get the model by calling `get_model('{base}', combination_index=#)`\n"
+                    f"\t or by calling `get_model('{base}', **kwargs)`"
+                )
             return self.imported_snewpy_models[base][1]
 
     def get_model(self, base, sntype="ccsn", combination_index=None, **kwargs):
@@ -100,6 +105,49 @@ class SnewpyModel:
         else:
             # if parameters are passed, return the model with given parameters
             return model(**kwargs)
+
+    def _get_all_model_params(self):
+        """ Get all the model parameters and hashes
+            This function goes through all the models and checks the
+            valid parameter combinations, frames everything with their names and hashes
+        """
+        # Initialize an empty list to store dataframes
+        if self.all_params is not None:
+            return self.all_params
+
+        try:
+            df = pd.read_csv(allparams_csv_path)
+            return df
+        except Exception as e:
+            # continue to check
+            print(f"{e} \nGetting all parameters")
+
+        dfs = []
+        ccsn_keys = [k for k in self.model_keys if k not in ["PISN", "Type_Ia", "presn-models"]]
+        for input_name in ccsn_keys:
+            # Call your function to get a dataframe for each input
+            df = self.display_models(input_name, verbose=False)
+            df['name'] = np.repeat(input_name, len(df))
+            # Append the dataframe to the list
+            dfs.append(df)
+
+        # Concatenate all dataframes in the list
+        result_df = pd.concat(dfs, ignore_index=True)
+
+        # Get unique column names across all dataframes
+        unique_columns = set().union(*(set(df.columns) for df in dfs))
+
+        # Fill missing columns with None
+        for missing_column in unique_columns:
+            if missing_column not in result_df.columns:
+                result_df[missing_column] = None
+
+        # rearrange columns
+        cols = [c for c in result_df.columns if c not in ["name", "hash"]]
+        cols = ["name", "hash"] + cols
+        result_df = result_df.loc[:, cols]
+        self.all_params = result_df
+        return result_df
 
     def __call__(self, model_name, combination_index=None, **kwargs):
         """Call snewpy model either with a combination index or with parameters"""

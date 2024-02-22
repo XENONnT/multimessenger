@@ -40,6 +40,11 @@ RECOIL_ENERGIES = np.linspace(0, 30, 100)
 DEFAULT_XEDOCS_VERSION = 'global_v14'
 DEFAULT_SIMULATION_VERSION = 'fax_config_nt_sr0_v4.json'
 
+# all params file
+script_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.join(script_dir, os.pardir)
+allparams_csv_path = os.path.join(parent_dir, 'all_parameters.csv')
+
 
 class SimulationInstructions:
     """Deal with the FUSE, and WFSim type instructions at different levels.
@@ -778,3 +783,23 @@ class SimulateSignal(SimulationInstructions):
                     break
             count += 1
         return run_number, exists
+
+    def what_is_hash_for(self, target_hash):
+        """ For a given hash, return the snewpy model parameters
+        """
+        all_parameters = pd.read_csv(allparams_csv_path)
+        try:
+            # Query the DataFrame based on the "hash" column
+            result_row = all_parameters[all_parameters['hash'] == target_hash].iloc[0]
+
+            # Extract non-None columns
+            non_none_columns = result_row[result_row.notnull()].index
+
+            # Create a new DataFrame with non-None columns
+            result_df = all_parameters.loc[all_parameters['hash'] == target_hash, non_none_columns]
+
+            return result_df
+        except IndexError:
+            # Handle the case where the hash is not found in the DataFrame
+            print(f"No entry found for hash: {target_hash}")
+            return pd.DataFrame()

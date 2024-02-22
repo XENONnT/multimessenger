@@ -23,7 +23,6 @@ except ModuleNotFoundError:
     import pickle
 
 import configparser
-import astropy
 import astropy.units as u
 from snewpy.neutrino import Flavor
 from .sn_utils import isnotebook, deterministic_hash, validate_config_file, get_hash_from_model
