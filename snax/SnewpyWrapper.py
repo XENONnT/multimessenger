@@ -60,6 +60,7 @@ class SnewpyModel:
                 _hash = get_hash_from_model(model(**pars))
                 model_hashes.append(_hash)
             par_combinations = pd.DataFrame(par_combinations)
+            # par_combinations["model_name"] = np.repeat(model.__name__, len(model_hashes))
             par_combinations["hash"] = model_hashes
             par_combinations["Combination Index"] = np.arange(len(par_combinations)) + 1
             par_combinations.set_index("Combination Index", inplace=True)
