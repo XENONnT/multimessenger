@@ -649,7 +649,7 @@ class SimulateSignal(SimulationInstructions):
         else:
             raise ValueError(f"Instruction type {type_of_instruction} not recognized")
         print(f"Using {csv_name}\nSimulated run: {run_number}\nFor {type_of_instruction}")
-        return st
+        return st, run_number
 
     def simulate_multiple(
         self,
@@ -777,10 +777,10 @@ class SimulateSignal(SimulationInstructions):
         while True:
             run_number = snewpyhash + f"_{count:05d}"
             if instruction_type == "fuse_microphysics":
-                if st.is_stored(run_number, "microphysics_summary"):
+                if not st.is_stored(run_number, "microphysics_summary"):
                     break
             else:
-                if st.is_stored(run_number, "raw_records"):
+                if not st.is_stored(run_number, "raw_records"):
                     break
             count += 1
         return run_number, exists
@@ -804,3 +804,46 @@ class SimulateSignal(SimulationInstructions):
             # Handle the case where the hash is not found in the DataFrame
             print(f"No entry found for hash: {target_hash}")
             return pd.DataFrame()
+
+    # def see_simulated_contexts(self, context=None, simulator='fuse'):
+    #     """See which simulations were made with what contexts"""
+    #     st = self.fetch_context(context, simulator)
+    #     data_folder = "fuse_data" if simulator == "fuse" else "strax_data"
+    #     mc_data_folder = os.path.join(self.sim_folder, data_folder)
+    #     from glob import glob
+    #     simdirs = glob(mc_data_folder + "/*/")
+    #     if
+    #     files = set([s.split("/")[-2] for s in simdirs if "-" in s])
+    #     hashes = np.array([h.split("-")[-1] for h in files])
+    #     names = np.array([n.split("-")[0] for n in files])
+    #     # unique hashes
+    #     uh = np.unique([h for h in hashes if "temp" not in h])
+    #     df_dict = {k: find_context_for_hash("truth", k) for k in uh}
+    #     unames, uindex = np.unique(
+    #         names, return_index=True
+    #     )  # unique names and their indices
+    #     uhashes = hashes[uindex]
+    #     list_of_df = []
+    #     for n, h in zip(unames, uhashes):
+    #         h = h.split("_temp")[0]  # if there is a missing data
+    #         df = df_dict[h].copy()  # copy the already-fetched dfs
+    #         df["hash"] = [h] * len(df)  # some context e.g. dev points to more than one set
+    #         df["sim_id"] = [n] * len(df)
+    #         list_of_df.append(df)
+    #     df_final = pd.concat(list_of_df)
+    #     df_final["sn_model"] = df_final.apply(
+    #         lambda row: "_".join(row["sim_id"].split("_")[:2]), axis=1
+    #     )
+    #     df_final.sort_values(by=["date_added", "sim_id"], inplace=True)
+    #     df_final.reset_index(inplace=True)
+    #     df_final.drop(columns="index", inplace=True)
+    #     if unique:
+    #         df_final.drop_duplicates(
+    #             subset=["name", "tag", "hash", "sim_id", "sn_model"],
+    #             keep="last",
+    #             inplace=True,
+    #         )
+    #     if sim_id is not None:
+    #         return df_final[df_final["sim_id"] == sim_id]
+    #     df_final.reset_index(inplace=True)
+    #     return df_final
