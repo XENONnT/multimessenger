@@ -99,9 +99,10 @@ class SnewpyModel:
         model = self.imported_snewpy_models[base][0]
         # if a combination index is passed, select the parameters and return the model
         if combination_index is not None:
-            par_combinations.drop(columns='hash', inplace=True) # hash is not a par
-            selected_parameters = par_combinations.loc[combination_index].values
-            return model(**dict(zip(par_combinations.columns, selected_parameters)))
+            _par_combinations = par_combinations.copy() # copy so that self.imported_snewpy_models is not overwritten
+            _par_combinations.drop(columns='hash', inplace=True) # hash is not a par
+            selected_parameters = _par_combinations.loc[combination_index].values
+            return model(**dict(zip(_par_combinations.columns, selected_parameters)))
         else:
             # if parameters are passed, return the model with given parameters
             return model(**kwargs)

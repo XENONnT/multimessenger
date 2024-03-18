@@ -589,8 +589,8 @@ class SimulateSignal(SimulationInstructions):
         """Simulate the signal using the microphysics model
         :param run_number: optional, if None, fetches next available number for given hash
         :param instructions: `df` generated instructions (self.instruction_type or param instruction_type should match!)
-        :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse")
-        :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim"
+        :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse"))
+        :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim", if None, uses self.instruction_type
         :param force: `bool`, simulate even if exists
         Returns: Simulation context
         """
