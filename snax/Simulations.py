@@ -599,7 +599,7 @@ class SimulateSignal(SimulationInstructions):
         simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
         st = self.fetch_context(context, simulator)
         # check if the run number already exists
-        run_number, isdone = self.get_run_number(run_number, st, type_of_instruction, is_multi=_multi)
+        run_number, isdone = self.get_run_number(run_number, context, type_of_instruction, is_multi=_multi)
         if isdone and not force:
             return st
 
@@ -755,6 +755,10 @@ class SimulateSignal(SimulationInstructions):
         if instruction_type not in ["fuse_microphysics", "fuse_detectorphysics", "wfsim"]:
             raise ValueError(f"{instruction_type} is not recognized")
 
+        # unchanged, default context
+        simulator = "fuse" if "fuse" in instruction_type else "wfsim"
+        st = self.fetch_context(st, simulator)
+
         exists = False
         # if not None check if data exists
         if run_number is not None:
@@ -774,14 +778,24 @@ class SimulateSignal(SimulationInstructions):
         if is_multi:
             snewpyhash = "multi_"+snewpyhash
         count = 0
+
+        count = 0
         while True:
             run_number = snewpyhash + f"_{count:05d}"
-            if instruction_type == "fuse_microphysics":
-                if not st.is_stored(run_number, "microphysics_summary"):
-                    break
+            target = "microphysics_summary" if instruction_type == "fuse_microphysics" else "raw_records"
+            if not st.is_stored(run_number, target):
+                print(f" > {run_number} is not stored!!! , target={target}, context_hash={st._context_hash()}")
+                break
             else:
-                if not st.is_stored(run_number, "raw_records"):
-                    break
+                print(f" > {run_number} exists")        #
+        # while True:
+        #     run_number = snewpyhash + f"_{count:05d}"
+        #     if instruction_type == "fuse_microphysics":
+        #         if not st.is_stored(run_number, "microphysics_summary"):
+        #             break
+        #     else:
+        #         if not st.is_stored(run_number, "raw_records"):
+        #             break
             count += 1
         return run_number, exists
 
