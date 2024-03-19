@@ -586,3 +586,24 @@ def fetch_metadataframe(
     if drop_duplicates:
         metaframe.drop_duplicates(subset=collist, keep="first", inplace=True)
     return metaframe
+
+
+def split_sim_into_pieces(dataframe, timegap_seconds=100):
+    """ split a multi-simulation in single file, into several dataframes
+        if the user simulated N supernovae in one run, we can return a dictionary
+        with N dataframes inside.
+    """
+    time_diffs = np.diff(dataframe['time'])
+
+    # Define a threshold for the gap between clusters (assuming 2 minutes)
+    gap_threshold = timegap_seconds * 1e9
+
+    # Find the indices where the gap between timestamps exceeds the threshold
+    cluster_indices = np.where(time_diffs > gap_threshold)[0] + 1
+
+    # Split the DataFrame into separate clusters based on the identified indices
+    clusters = np.split(p, cluster_indices)
+
+    # Optionally, you can store these clusters in a dictionary for easy access
+    cluster_dict = {f'sim_{i}': cluster for i, cluster in enumerate(clusters)}
+    return cluster_dict
