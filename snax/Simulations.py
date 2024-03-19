@@ -670,19 +670,32 @@ class SimulateSignal(SimulationInstructions):
             return st, run_number
 
         csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+        full_path = os.path.join(self.csv_folder, csv_name)
         # generate and save the instructions
         if instructions is None:
             if type_of_instruction == "fuse_microphysics":
                 instructions = self.generate_fuse_microphysics_instructions()
-                instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
+                instructions.to_csv(f"{full_path}", index=False)
                 st.make(run_number, "microphysics_summary")
             elif type_of_instruction == "fuse_detectorphysics":
                 instructions = self.generate_fuse_detectorphysics_instructions()
-                instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
+                instructions.to_csv(f"{full_path}", index=False)
                 st.make(run_number, "raw_records", progress_bar=True)
             elif type_of_instruction == "wfsim":
                 instructions = self.generate_wfsim_instructions_from_fuse(run_number)
-                instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
+                instructions.to_csv(f"{full_path}", index=False)
+                st.make(run_number, "truth")
+                st.make(run_number, "raw_records")
+            else:
+                raise ValueError(
+                    f"Instruction type {type_of_instruction} not recognized"
+                )
+        else:
+            if type_of_instruction == "fuse_microphysics":
+                st.make(run_number, "microphysics_summary")
+            elif type_of_instruction == "fuse_detectorphysics":
+                st.make(run_number, "raw_records", progress_bar=True)
+            elif type_of_instruction == "wfsim":
                 st.make(run_number, "truth")
                 st.make(run_number, "raw_records")
             else:
@@ -905,6 +918,7 @@ class SimulateSignal(SimulationInstructions):
 
         if run_number is not None:
             csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+            full_path = os.path.join(self.csv_folder, csv_name)
             config = {
                 "path": self.csv_folder,
                 "file_name": csv_name,
@@ -918,11 +932,11 @@ class SimulateSignal(SimulationInstructions):
             elif instruction_type == "fuse_detectorphysics":
                 import fuse
                 st.register(fuse.detector_physics.ChunkCsvInput)
-                config["input_file"] = f"{self.csv_folder}/{csv_name}"
+                config["input_file"] = f"{full_path}"
                 st.set_config(config)
                 exists = st.is_stored(run_number, "raw_records")
             else:
-                config["fax_file"] = f"{self.csv_folder}/{csv_name}"
+                config["fax_file"] = f"{full_path}"
                 st.set_config(config)
                 exists = st.is_stored(run_number, "raw_records")
 
@@ -936,6 +950,7 @@ class SimulateSignal(SimulationInstructions):
         while True:
             run_number = f"{snewpyhash}_{count:05d}"
             csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+            full_path = os.path.join(self.csv_folder, csv_name)
 
             config = {
                 "path": self.csv_folder,
@@ -949,10 +964,10 @@ class SimulateSignal(SimulationInstructions):
             elif instruction_type == "fuse_detectorphysics":
                 import fuse
                 st.register(fuse.detector_physics.ChunkCsvInput)
-                config["input_file"] = f"{self.csv_folder}/{csv_name}"
+                config["input_file"] = f"{full_path}"
                 st.set_config(config)
             else:
-                config["fax_file"] = f"{self.csv_folder}/{csv_name}"
+                config["fax_file"] = f"{full_path}"
                 st.set_config(config)
 
             if not st.is_stored(run_number,
