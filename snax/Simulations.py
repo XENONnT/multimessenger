@@ -739,7 +739,7 @@ class SimulateSignal(SimulationInstructions):
 
         return self.simulate_single(run_number, instructions=instructions, context=context, _multi=True)
 
-    def fetch_context(self, context, simulator):
+    def fetch_context(self, context=None, simulator="fuse"):
         """Fetch the context for the simulation
         If context is updated, change it in here
         Requires config to be a configparser object with ['wfsim']['sim_folder'] field
