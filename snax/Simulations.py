@@ -585,6 +585,72 @@ class SimulateSignal(SimulationInstructions):
         self.instruction_type = instruction_type
         self.model_hash = self.snax_interactions.Model.model_hash
 
+    # def simulate_single(self, run_number=None, instructions=None, context=None, instruction_type=None, force=False, _multi=False):
+    #     """Simulate the signal using the microphysics model
+    #     :param run_number: optional, if None, fetches next available number for given hash
+    #     :param instructions: `df` generated instructions (self.instruction_type or param instruction_type should match!)
+    #     :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse"))
+    #     :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim", if None, uses self.instruction_type
+    #     :param force: `bool`, simulate even if exists
+    #     Returns: Simulation context
+    #     """
+    #     type_of_instruction = instruction_type or self.instruction_type
+    #     # get the context
+    #     simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
+    #     st = self.fetch_context(context, simulator)
+    #     # check if the run number already exists
+    #     run_number, isdone = self.get_run_number(run_number, st, type_of_instruction, is_multi=_multi)
+    #     if isdone and not force:
+    #         return st, run_number
+    #
+    #     # generate and save the instructions
+    #     if instructions is None:
+    #         if type_of_instruction == "fuse_microphysics":
+    #             instructions = self.generate_fuse_microphysics_instructions()
+    #         elif type_of_instruction == "fuse_detectorphysics":
+    #             instructions = self.generate_fuse_detectorphysics_instructions()
+    #         elif type_of_instruction == "wfsim":
+    #             instructions = self.generate_wfsim_instructions_from_fuse(run_number)
+    #         else:
+    #             raise ValueError(
+    #                 f"Instruction type {type_of_instruction} not recognized"
+    #             )
+    #
+    #     csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+    #     instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
+    #
+    #     # make the simulation
+    #     if type_of_instruction == "fuse_microphysics":
+    #         st.set_config(
+    #             {
+    #                 "path": self.csv_folder,
+    #                 "file_name": csv_name,
+    #                 "n_interactions_per_chunk": 250,
+    #                 "source_rate": 0,
+    #             }
+    #         )
+    #         st.make(run_number, "microphysics_summary")
+    #     elif type_of_instruction == "fuse_detectorphysics":
+    #         import fuse
+    #         # ChunkCsvInput needs to be registered
+    #         st.register(fuse.detector_physics.ChunkCsvInput)
+    #         st.set_config(
+    #             {
+    #                 "input_file": f"{self.csv_folder}/{csv_name}",
+    #                 "n_interactions_per_chunk": 50,
+    #                 "source_rate":0,
+    #             }
+    #         )
+    #         st.make(run_number, "raw_records", progress_bar=True)
+    #     elif type_of_instruction == "wfsim":
+    #         st.set_config(dict(fax_file=f"{self.csv_folder}/{csv_name}"))
+    #         st.make(run_number, "truth")
+    #         st.make(run_number, "raw_records")
+    #     else:
+    #         raise ValueError(f"Instruction type {type_of_instruction} not recognized")
+    #     print(f"Using {csv_name}\nSimulated run: {run_number}\nFor {type_of_instruction}")
+    #     return st, run_number
+
     def simulate_single(self, run_number=None, instructions=None, context=None, instruction_type=None, force=False, _multi=False):
         """Simulate the signal using the microphysics model
         :param run_number: optional, if None, fetches next available number for given hash
@@ -598,56 +664,31 @@ class SimulateSignal(SimulationInstructions):
         # get the context
         simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
         st = self.fetch_context(context, simulator)
-        # check if the run number already exists
-        run_number, isdone = self.get_run_number(run_number, context, type_of_instruction, is_multi=_multi)
+        # check if the run number already exists (also returns modified context)
+        run_number, isdone, st = self.get_run_number(run_number, st, type_of_instruction, is_multi=_multi)
         if isdone and not force:
-            return st
+            return st, run_number
 
+        csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
         # generate and save the instructions
         if instructions is None:
             if type_of_instruction == "fuse_microphysics":
                 instructions = self.generate_fuse_microphysics_instructions()
+                instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
+                st.make(run_number, "microphysics_summary")
             elif type_of_instruction == "fuse_detectorphysics":
                 instructions = self.generate_fuse_detectorphysics_instructions()
+                instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
+                st.make(run_number, "raw_records", progress_bar=True)
             elif type_of_instruction == "wfsim":
                 instructions = self.generate_wfsim_instructions_from_fuse(run_number)
+                instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
+                st.make(run_number, "truth")
+                st.make(run_number, "raw_records")
             else:
                 raise ValueError(
                     f"Instruction type {type_of_instruction} not recognized"
                 )
-
-        csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
-        instructions.to_csv(f"{self.csv_folder}/{csv_name}", index=False)
-
-        # make the simulation
-        if type_of_instruction == "fuse_microphysics":
-            st.set_config(
-                {
-                    "path": self.csv_folder,
-                    "file_name": csv_name,
-                    "n_interactions_per_chunk": 250,
-                    "source_rate": 0,
-                }
-            )
-            st.make(run_number, "microphysics_summary")
-        elif type_of_instruction == "fuse_detectorphysics":
-            import fuse
-            # ChunkCsvInput needs to be registered
-            st.register(fuse.detector_physics.ChunkCsvInput)
-            st.set_config(
-                {
-                    "input_file": f"{self.csv_folder}/{csv_name}",
-                    "n_interactions_per_chunk": 50,
-                    "source_rate":0,
-                }
-            )
-            st.make(run_number, "raw_records", progress_bar=True)
-        elif type_of_instruction == "wfsim":
-            st.set_config(dict(fax_file=f"{self.csv_folder}/{csv_name}"))
-            st.make(run_number, "truth")
-            st.make(run_number, "raw_records")
-        else:
-            raise ValueError(f"Instruction type {type_of_instruction} not recognized")
         print(f"Using {csv_name}\nSimulated run: {run_number}\nFor {type_of_instruction}")
         return st, run_number
 
@@ -683,7 +724,10 @@ class SimulateSignal(SimulationInstructions):
             )
         else:
             instructions = self.spaced_time_instructions(
-                run_number, time_spacing_in_minutes, instruction_type=type_of_instruction
+                number_of_supernova= number_of_supernova,
+                time_spacing_in_minutes=time_spacing_in_minutes,
+                run_number=run_number,
+                instruction_type=type_of_instruction
             )
 
         return self.simulate_single(run_number, instructions=instructions, context=context, _multi=True)
@@ -748,56 +792,180 @@ class SimulateSignal(SimulationInstructions):
         _add_strax_directory(context)
         return context
 
+    # def get_run_number(self, run_number, st, instruction_type, is_multi=False):
+    #     """ For simulations, check the hash and check existing simulated data
+    #         Assign a new runid for each simulation
+    #     """
+    #     if instruction_type not in ["fuse_microphysics", "fuse_detectorphysics", "wfsim"]:
+    #         raise ValueError(f"{instruction_type} is not recognized")
+    #
+    #     # unchanged, default context
+    #     simulator = "fuse" if "fuse" in instruction_type else "wfsim"
+    #     st = self.fetch_context(st, simulator)
+    #
+    #     exists = False
+    #     # if not None check if data exists
+    #     if run_number is not None:
+    #         csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+    #         if instruction_type=="fuse_microphysics":
+    #             st.set_config(
+    #                 {
+    #                     "path": self.csv_folder,
+    #                     "file_name": csv_name,
+    #                     "n_interactions_per_chunk": 250,
+    #                     "source_rate": 0,
+    #                 }
+    #             )
+    #             if st.is_stored(run_number, "microphysics_summary"):
+    #                 print(f"microphysics summary exists for run number: {run_number}")
+    #                 exists = True
+    #         elif instruction_type=="fuse_detectorphysics":
+    #             import fuse
+    #             # ChunkCsvInput needs to be registered
+    #             st.register(fuse.detector_physics.ChunkCsvInput)
+    #             st.set_config(
+    #                 {
+    #                     "input_file": f"{self.csv_folder}/{csv_name}",
+    #                     "n_interactions_per_chunk": 50,
+    #                     "source_rate": 0,
+    #                 }
+    #             )
+    #             exists = True
+    #
+    #         else:
+    #             st.set_config(dict(fax_file=f"{self.csv_folder}/{csv_name}"))
+    #             if st.is_stored(run_number, "raw_records"):
+    #                 print(f"raw_records exists for run number: {run_number}")
+    #                 exists = True
+    #         # return run number and exist
+    #         return run_number, exists
+    #
+    #     # if the run number is not passed, make one
+    #     snewpyhash = self.Model.snewpy_hash
+    #     if is_multi:
+    #         snewpyhash = "multi_"+snewpyhash
+    #
+    #     count = 0
+    #     while True:
+    #         run_number = snewpyhash + f"_{count:05d}"
+    #         csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+    #
+    #         if instruction_type=="fuse_microphysics":
+    #             st.set_config(
+    #                 {
+    #                     "path": self.csv_folder,
+    #                     "file_name": csv_name,
+    #                     "n_interactions_per_chunk": 250,
+    #                     "source_rate": 0,
+    #                 }
+    #             )
+    #             if not st.is_stored(run_number, "microphysics_summary"):
+    #                 print(f" > {run_number} is not stored!!! , target=microphysics_summary, context_hash={st._context_hash()}")
+    #                 break
+    #             else:
+    #                 print(f" > {run_number} exists")
+    #
+    #         elif instruction_type=="fuse_detectorphysics":
+    #             import fuse
+    #             # ChunkCsvInput needs to be registered
+    #             st.register(fuse.detector_physics.ChunkCsvInput)
+    #             st.set_config(
+    #                 {
+    #                     "input_file": f"{self.csv_folder}/{csv_name}",
+    #                     "n_interactions_per_chunk": 50,
+    #                     "source_rate": 0,
+    #                 }
+    #             )
+    #             if not st.is_stored(run_number, "raw_records"):
+    #                 print(f" > {run_number} is not stored!!! , target=raw_records, context_hash={st._context_hash()}")
+    #                 break
+    #             else:
+    #                 print(f" > {run_number} exists")
+    #
+    #         else:
+    #             st.set_config(dict(fax_file=f"{self.csv_folder}/{csv_name}"))
+    #             if not st.is_stored(run_number, "raw_records"):
+    #                 print(f" > {run_number} is not stored!!! , target=raw_records, context_hash={st._context_hash()}")
+    #                 break
+    #             else:
+    #                 print(f" > {run_number} exists")
+    #         count += 1
+    #     return run_number, exists
+
     def get_run_number(self, run_number, st, instruction_type, is_multi=False):
         """ For simulations, check the hash and check existing simulated data
             Assign a new runid for each simulation
+            returns, (run_number, exists, context)
         """
         if instruction_type not in ["fuse_microphysics", "fuse_detectorphysics", "wfsim"]:
             raise ValueError(f"{instruction_type} is not recognized")
 
-        # unchanged, default context
         simulator = "fuse" if "fuse" in instruction_type else "wfsim"
         st = self.fetch_context(st, simulator)
 
-        exists = False
-        # if not None check if data exists
         if run_number is not None:
-            if instruction_type=="fuse_microphysics":
-                if st.is_stored(run_number, "microphysics_summary"):
-                    print(f"microphysics summary exists for run number: {run_number}")
-                    exists = True
-            else:
-                if st.is_stored(run_number, "raw_records"):
-                    print(f"raw_records exists for run number: {run_number}")
-                    exists = True
-            # return run number and exist
-            return run_number, exists
+            csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+            config = {
+                "path": self.csv_folder,
+                "file_name": csv_name,
+                "n_interactions_per_chunk": 250 if instruction_type == "fuse_microphysics" else 50,
+                "source_rate": 0
+            }
 
-        # if the run number is not passed, make one
+            if instruction_type == "fuse_microphysics":
+                st.set_config(config)
+                exists = st.is_stored(run_number, "microphysics_summary")
+            elif instruction_type == "fuse_detectorphysics":
+                import fuse
+                st.register(fuse.detector_physics.ChunkCsvInput)
+                config["input_file"] = f"{self.csv_folder}/{csv_name}"
+                st.set_config(config)
+                exists = st.is_stored(run_number, "raw_records")
+            else:
+                config["fax_file"] = f"{self.csv_folder}/{csv_name}"
+                st.set_config(config)
+                exists = st.is_stored(run_number, "raw_records")
+
+            return run_number, exists, st
+
         snewpyhash = self.Model.snewpy_hash
         if is_multi:
-            snewpyhash = "multi_"+snewpyhash
-        count = 0
+            snewpyhash = "multi_" + snewpyhash
 
         count = 0
         while True:
-            run_number = snewpyhash + f"_{count:05d}"
-            target = "microphysics_summary" if instruction_type == "fuse_microphysics" else "raw_records"
-            if not st.is_stored(run_number, target):
-                print(f" > {run_number} is not stored!!! , target={target}, context_hash={st._context_hash()}")
+            run_number = f"{snewpyhash}_{count:05d}"
+            csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
+
+            config = {
+                "path": self.csv_folder,
+                "file_name": csv_name,
+                "n_interactions_per_chunk": 250 if instruction_type == "fuse_microphysics" else 50,
+                "source_rate": 0
+            }
+
+            if instruction_type == "fuse_microphysics":
+                st.set_config(config)
+            elif instruction_type == "fuse_detectorphysics":
+                import fuse
+                st.register(fuse.detector_physics.ChunkCsvInput)
+                config["input_file"] = f"{self.csv_folder}/{csv_name}"
+                st.set_config(config)
+            else:
+                config["fax_file"] = f"{self.csv_folder}/{csv_name}"
+                st.set_config(config)
+
+            if not st.is_stored(run_number,
+                                "microphysics_summary" if instruction_type == "fuse_microphysics" else "raw_records"):
+                print(
+                    f" > {run_number} is not stored!!! , target={'microphysics_summary' if instruction_type == 'fuse_microphysics' else 'raw_records'}, context_hash={st._context_hash()}")
                 break
             else:
-                print(f" > {run_number} exists")        #
-        # while True:
-        #     run_number = snewpyhash + f"_{count:05d}"
-        #     if instruction_type == "fuse_microphysics":
-        #         if not st.is_stored(run_number, "microphysics_summary"):
-        #             break
-        #     else:
-        #         if not st.is_stored(run_number, "raw_records"):
-        #             break
+                print(f" > {run_number} exists")
+
             count += 1
-        return run_number, exists
+
+        return run_number, False, st
 
     def what_is_hash_for(self, target_hash):
         """ For a given hash, return the snewpy model parameters
