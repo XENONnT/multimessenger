@@ -691,6 +691,7 @@ class SimulateSignal(SimulationInstructions):
                     f"Instruction type {type_of_instruction} not recognized"
                 )
         else:
+            instructions.to_csv(f"{full_path}", index=False)
             if type_of_instruction == "fuse_microphysics":
                 st.make(run_number, "microphysics_summary")
             elif type_of_instruction == "fuse_detectorphysics":
