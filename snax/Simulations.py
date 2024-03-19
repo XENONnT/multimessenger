@@ -675,34 +675,27 @@ class SimulateSignal(SimulationInstructions):
         if instructions is None:
             if type_of_instruction == "fuse_microphysics":
                 instructions = self.generate_fuse_microphysics_instructions()
-                instructions.to_csv(f"{full_path}", index=False)
-                st.make(run_number, "microphysics_summary")
             elif type_of_instruction == "fuse_detectorphysics":
                 instructions = self.generate_fuse_detectorphysics_instructions()
-                instructions.to_csv(f"{full_path}", index=False)
-                st.make(run_number, "raw_records", progress_bar=True)
             elif type_of_instruction == "wfsim":
                 instructions = self.generate_wfsim_instructions_from_fuse(run_number)
-                instructions.to_csv(f"{full_path}", index=False)
-                st.make(run_number, "truth")
-                st.make(run_number, "raw_records")
             else:
                 raise ValueError(
                     f"Instruction type {type_of_instruction} not recognized"
                 )
+
+        instructions.to_csv(f"{full_path}", index=False)
+        if type_of_instruction == "fuse_microphysics":
+            st.make(run_number, "microphysics_summary")
+        elif type_of_instruction == "fuse_detectorphysics":
+            st.make(run_number, "raw_records", progress_bar=True)
+        elif type_of_instruction == "wfsim":
+            st.make(run_number, "truth")
+            st.make(run_number, "raw_records")
         else:
-            instructions.to_csv(f"{full_path}", index=False)
-            if type_of_instruction == "fuse_microphysics":
-                st.make(run_number, "microphysics_summary")
-            elif type_of_instruction == "fuse_detectorphysics":
-                st.make(run_number, "raw_records", progress_bar=True)
-            elif type_of_instruction == "wfsim":
-                st.make(run_number, "truth")
-                st.make(run_number, "raw_records")
-            else:
-                raise ValueError(
-                    f"Instruction type {type_of_instruction} not recognized"
-                )
+            raise ValueError(
+                f"Instruction type {type_of_instruction} not recognized"
+            )
         print(f"Using {csv_name}\nSimulated run: {run_number}\nFor {type_of_instruction}")
         return st, run_number
 
