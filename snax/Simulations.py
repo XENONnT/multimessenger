@@ -186,7 +186,7 @@ class SimulationInstructions:
         instructions["parentid"] = np.zeros(number_of_events, dtype=np.int32)
         instructions["creaproc"] = np.repeat("None", number_of_events)
         instructions["parenttype"] = np.repeat("None", number_of_events)
-        instructions["edproc"] = np.repeat("None", number_of_events)
+        instructions["edproc"] = np.repeat("hadElastic", number_of_events)
         # Update DataFrame columns based on kwargs
         for column, value in kwargs.items():
             if column in ["trackid", "parentid", "creaproc", "parenttype", "edproc"]:
