@@ -739,7 +739,7 @@ class SimulateSignal(SimulationInstructions):
 
         return self.simulate_single(run_number, instructions=instructions, context=context, _multi=True)
 
-    def fetch_context(self, context=None, simulator="fuse"):
+    def fetch_context(self, context=None, simulator="fuse", instruction_type="fuse_microphysics"):
         """Fetch the context for the simulation
         If context is updated, change it in here
         Requires config to be a configparser object with ['wfsim']['sim_folder'] field
@@ -778,6 +778,8 @@ class SimulateSignal(SimulationInstructions):
             context = cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(
                 output_folder=mc_data_folder
             )
+            # do we have to modify config here?
+
         elif simulator == "fuse":
             if not CUTAXEXIST or not FUSEEXIST:
                 raise ImportError("cutax or fuse not installed")
@@ -793,6 +795,14 @@ class SimulateSignal(SimulationInstructions):
                 corrections_version = DEFAULT_XEDOCS_VERSION,
                 simulation_config_file = DEFAULT_SIMULATION_VERSION,
                 corrections_run_id = "026000",)
+
+            if instruction_type=="fuse_microphysics":
+                config = {"path": self.csv_folder,
+                          "n_interactions_per_chunk": 250,
+                          "source_rate": 0 }
+                context.set_config(config)
+            elif instruction_type=="fuse_detectorphysics":
+                context.register(fuse.detector_physics.ChunkCsvInput)
         else:
             raise ValueError(f"Simulator {simulator} not recognized")
         # add the strax folder to the context
