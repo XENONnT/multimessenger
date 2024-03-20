@@ -791,10 +791,12 @@ class SimulateSignal(SimulationInstructions):
             # context = cutax.contexts.xenonnt_fuse_full_chain_simulation(output_folder=mc_data_folder)
 
             # otherwise do this
+            # make sure you are checked out at fuse 1.1.0 version!! (git checkout 1.1.0)
             context = fuse.context.full_chain_context(output_folder=mc_data_folder,
                 corrections_version = DEFAULT_XEDOCS_VERSION,
-                simulation_config_file = DEFAULT_SIMULATION_VERSION,
+                # simulation_config_file = DEFAULT_SIMULATION_VERSION,
                 corrections_run_id = "026000",)
+
 
             if instruction_type=="fuse_microphysics":
                 config = {"path": self.csv_folder,
