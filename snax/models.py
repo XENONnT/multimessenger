@@ -69,7 +69,7 @@ class SnaxModel:
         self.fluxes = None
         self.scaled_fluxes = None
         # find a deterministic hash for the model
-        self.snewpy_hash = get_hash_from_model(snewpy_model)
+        self.snewpy_hash = get_hash_from_model(snewpy_model, snewpy_model.__name__)
         self.model_hash = self._find_hash() # allow for different neutrino energy range and time range
         self.object_name = f"sn_{self.model_name}_{self.model_hash}.pkl"
         # retrieve object if exists
