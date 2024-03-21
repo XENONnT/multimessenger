@@ -481,7 +481,8 @@ def get_hash_from_model(model):
     import astropy
     meta_items = model.metadata.items()
     _meta = {k: v.value if isinstance(v, astropy.units.quantity.Quantity) else v for k, v in meta_items}
-    _meta['model_name'] = model.filename
+    # _meta['model_name'] = model.filename # not all models have a file name
+    _meta['model_name'] = model.__name__
     return deterministic_hash(_meta)
 
 # def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
