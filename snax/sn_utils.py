@@ -602,7 +602,7 @@ def split_sim_into_pieces(dataframe, timegap_seconds=100):
     cluster_indices = np.where(time_diffs > gap_threshold)[0] + 1
 
     # Split the DataFrame into separate clusters based on the identified indices
-    clusters = np.split(p, cluster_indices)
+    clusters = np.split(dataframe, cluster_indices)
 
     # Optionally, you can store these clusters in a dictionary for easy access
     cluster_dict = {f'sim_{i}': cluster for i, cluster in enumerate(clusters)}
