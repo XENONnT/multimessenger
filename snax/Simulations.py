@@ -583,7 +583,7 @@ class SimulateSignal(SimulationInstructions):
         self.csv_folder = self.Model.config["wfsim"]["instruction_path"]
         # self.instruction_generator = MultiSupernovaSimulations(snax_interactions)
         self.instruction_type = instruction_type
-        self.model_hash = self.snax_interactions.Model.model_hash
+        self.model_hash = self.snax_interactions.Model.snax_hash
 
     def simulate_single(self, run_number=None, instructions=None, context=None, instruction_type=None, force=False, _multi=False):
         """Simulate the signal using the microphysics model

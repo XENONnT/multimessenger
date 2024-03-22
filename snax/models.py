@@ -69,9 +69,9 @@ class SnaxModel:
         self.fluxes = None
         self.scaled_fluxes = None
         # find a deterministic hash for the model
-        self.snewpy_hash = get_hash_from_model(snewpy_model, snewpy_model.__name__)
-        self.model_hash = self._find_hash() # allow for different neutrino energy range and time range
-        self.object_name = f"sn_{self.model_name}_{self.model_hash}.pkl"
+        self.snewpy_hash = get_hash_from_model(self.model)
+        self.snax_hash = self._find_hash() # allow for different neutrino energy range and time range
+        self.object_name = f"sn_{self.model_name}_{self.snax_hash}.pkl"
         # retrieve object if exists
         self.__call__()
 
@@ -103,7 +103,8 @@ class SnaxModel:
         self.proc_loc = self.config["paths"]["processed_data"]
 
     def _find_hash(self):
-        """Find a deterministic hash for the model"""
+        """Find a deterministic hash for the SNAX model
+            This is different than snewpy model hash, it adds nu energies and t range considered"""
         # get the parameters
         _meta = {"snewpy_hash": self.snewpy_hash, "nu_energy": self.neutrino_energies.value,
                  "time_range": self.time_range}
