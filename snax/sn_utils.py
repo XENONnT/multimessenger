@@ -786,10 +786,11 @@ def fetch_metadataframe(
     return metaframe
 
 
-def split_sim_into_pieces(dataframe, timegap_seconds=100):
+def split_sim_into_pieces(dataframe, timegap_seconds=100, return_df=False):
     """ split a multi-simulation in single file, into several dataframes
         if the user simulated N supernovae in one run, we can return a dictionary
         with N dataframes inside.
+        if return_df is True concatenates all dictionary values into one df
     """
     unique_runids = dataframe['run_id'].unique()
 
@@ -810,6 +811,10 @@ def split_sim_into_pieces(dataframe, timegap_seconds=100):
         clusters = np.split(part_sim, cluster_indices)
 
         for j, cluster in enumerate(clusters):
-            subruns[f"{ri}_sim_{j}"] = cluster
-
+            unique_key = f"{ri}_sim_{j}"
+            cluster["run_id"] = f"{ri}_sim_{j}"
+            subruns[unique_key] = cluster
+    if return_df:
+        df = pd.concat(list(subruns.values()))
+        return df
     return subruns
