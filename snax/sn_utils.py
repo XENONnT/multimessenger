@@ -486,6 +486,35 @@ def get_hash_from_model(initiated_model):
     return deterministic_hash(_meta)
 
 
+def what_is_hash_for(target_hash):
+    """ For a given hash, return the snewpy model parameters
+    """
+    # all params file
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    parent_dir = os.path.join(script_dir, os.pardir)
+    allparams_csv_path = os.path.join(parent_dir, 'all_parameters.csv')
+    all_parameters = pd.read_csv(allparams_csv_path)
+    if "_" in target_hash:
+        parts = target_hash.split('_')
+        target_hash = '_'.join(parts[1:-1]) if len(parts) > 2 else parts[0]
+
+    try:
+        # Query the DataFrame based on the "hash" column
+        result_row = all_parameters[all_parameters['hash'] == target_hash].iloc[0]
+
+        # Extract non-None columns
+        non_none_columns = result_row[result_row.notnull()].index
+
+        # Create a new DataFrame with non-None columns
+        result_df = all_parameters.loc[all_parameters['hash'] == target_hash, non_none_columns]
+
+        return result_df
+    except IndexError:
+        # Handle the case where the hash is not found in the DataFrame
+        print(f"No entry found for hash: {target_hash}")
+        return pd.DataFrame()
+
+
 def fetch_context(context=None,
                   simulator="fuse",
                   instruction_type="fuse_microphysics",
@@ -498,10 +527,6 @@ def fetch_context(context=None,
     Requires config to know mc data storage, and where the csv files are written
     So that the strax data folder can be found
     """
-    if csv_folder=='./':
-        import warnings
-        warnings.warn(f"If trying to access a simulation, csv path should be the same as that of simulations.")
-
     # check if all modules exists
     modules = ["wfsim", "strax", "straxen", "cutax", "fuse"]
     module_exists = {}
