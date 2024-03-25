@@ -618,8 +618,8 @@ def return_what_exists():
         simhash = '_'.join(parts[1:-1]) if len(parts) > 2 else parts[0]
         metadata = what_is_hash_for(simhash)
         model_name = metadata["name"].iloc[0]
-        model_attr[id_part] = (model_name, simhash)
         metadata = "; ".join([i for i in metadata.drop(columns=["hash", "name"]).iloc[0].values.astype(str)])
+        model_attr[id_part] = (model_name, simhash, metadata)
         existing_data_types[id_part].add(existing_data)
 
     df_data = []
@@ -628,7 +628,7 @@ def return_what_exists():
             'run_id': run_id,
             'model_name': model_attr[run_id][0],
             'snax_hash': model_attr[run_id][1],
-            'metadata': metadata,
+            'metadata': model_attr[run_id][2],
         }
         for data_type in data_types:
             data_row[data_type] = True
