@@ -11,7 +11,7 @@ import warnings
 from astropy import units as u
 from snewpy.neutrino import Flavor
 from scipy.interpolate import interp1d
-from .sn_utils import isnotebook
+from .sn_utils import isnotebook, fetch_context
 
 if isnotebook():
     from tqdm.notebook import tqdm
@@ -589,7 +589,7 @@ class SimulateSignal(SimulationInstructions):
         """Simulate the signal using the microphysics model
         :param run_number: optional, if None, fetches next available number for given hash
         :param instructions: `df` generated instructions (self.instruction_type or param instruction_type should match!)
-        :param context: fuse/wfsim context, if None uses default (see self.fetch_context(None, "fuse"))
+        :param context: fuse/wfsim context, if None uses default (see self._fetch_context(None, "fuse"))
         :param instruction_type: `str` either "fuse_microphysics", "fuse_detectorphysics", "wfsim", if None, uses self.instruction_type
         :param force: `bool`, simulate even if exists
         Returns: Simulation context
@@ -597,7 +597,7 @@ class SimulateSignal(SimulationInstructions):
         type_of_instruction = instruction_type or self.instruction_type
         # get the context
         simulator = "fuse" if "fuse" in type_of_instruction else "wfsim"
-        st = self.fetch_context(context, simulator)
+        st = self._fetch_context(context, simulator)
         # check if the run number already exists (also returns modified context)
         run_number, isdone, st = self.get_run_number(run_number, st, type_of_instruction, is_multi=_multi)
         if isdone and not force:
@@ -673,77 +673,17 @@ class SimulateSignal(SimulationInstructions):
 
         return self.simulate_single(run_number, instructions=instructions, context=context, _multi=True)
 
-    def fetch_context(self, context=None, simulator="fuse", instruction_type="fuse_microphysics"):
-        """Fetch the context for the simulation
-        If context is updated, change it in here
-        Requires config to be a configparser object with ['wfsim']['sim_folder'] field
-        So that the strax data folder can be found
+    def _fetch_contect(self,
+                       context=None,
+                      simulator="fuse",
+                      instruction_type="fuse_microphysics"):
+        """ Fetch context with certain hash
+            Either pass a context, or provide simulator type, and instruction type
         """
         data_folder = "fuse_data" if simulator == "fuse" else "strax_data"
-        mc_data_folder = os.path.join(self.sim_folder, data_folder)
-
-        def _add_strax_directory(context):
-            # add the mc folder and return it
-            output_folder_exists = False
-            # check if the mc folder is already in the context
-            for i, stores in enumerate(context.storage):
-                if mc_data_folder in stores.path:
-                    output_folder_exists = True
-            # if it is not yet in the context, add a DataDirectory
-            if not output_folder_exists:
-                if not STRAXEXIST:
-                    raise ImportError("strax not installed")
-                import strax
-
-                context.storage += [
-                    strax.DataDirectory(mc_data_folder, readonly=False)
-                ]
-
-        # if a context is given, check if the storage is correct
-        if context is not None:
-            _add_strax_directory(context)
-            return context
-        # if no context is given, create a new one
-        if simulator == "wfsim":
-            if not WFSIMEXIST or not CUTAXEXIST:
-                raise ImportError("wfsim or cutax not installed")
-            import cutax
-
-            context = cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(
-                output_folder=mc_data_folder
-            )
-            # do we have to modify config here?
-
-        elif simulator == "fuse":
-            if not CUTAXEXIST or not FUSEEXIST:
-                raise ImportError("cutax or fuse not installed")
-            import fuse, cutax
-            from cutax.cut_lists.basic import BasicCuts
-
-            # this cutax context has the proper detector conditions
-            # do this if you are using the fuse_context branch (21.02.2024, it'll be merged soon)
-            # context = cutax.contexts.xenonnt_fuse_full_chain_simulation(output_folder=mc_data_folder)
-
-            # otherwise do this
-            # make sure you are checked out at fuse 1.1.0 version!! (git checkout 1.1.0)
-            context = fuse.context.full_chain_context(output_folder=mc_data_folder,
-                corrections_version = DEFAULT_XEDOCS_VERSION,
-                # simulation_config_file = DEFAULT_SIMULATION_VERSION,
-                corrections_run_id = "026000",)
-
-
-            if instruction_type=="fuse_microphysics":
-                config = {"path": self.csv_folder,
-                          "n_interactions_per_chunk": 250,
-                          "source_rate": 0 }
-                context.set_config(config)
-            elif instruction_type=="fuse_detectorphysics":
-                context.register(fuse.detector_physics.ChunkCsvInput)
-        else:
-            raise ValueError(f"Simulator {simulator} not recognized")
-        # add the strax folder to the context
-        _add_strax_directory(context)
-        return context
+        mcdata_folder = os.path.join(self.sim_folder, data_folder)
+        fetch_context(context=context, simulator=simulator, instruction_type=instruction_type,
+                      mcdata_folder=mcdata_folder, csv_folder=self.csv_folder)
 
 
     def get_run_number(self, run_number, st, instruction_type, is_multi=False):
@@ -755,7 +695,7 @@ class SimulateSignal(SimulationInstructions):
             raise ValueError(f"{instruction_type} is not recognized")
 
         simulator = "fuse" if "fuse" in instruction_type else "wfsim"
-        st = self.fetch_context(st, simulator)
+        st = self._fetch_context(st, simulator)
 
         if run_number is not None:
             csv_name = f"instructions_{self.model_hash}_{run_number}.csv"
@@ -845,7 +785,7 @@ class SimulateSignal(SimulationInstructions):
 
     # def see_simulated_contexts(self, context=None, simulator='fuse'):
     #     """See which simulations were made with what contexts"""
-    #     st = self.fetch_context(context, simulator)
+    #     st = self._fetch_context(context, simulator)
     #     data_folder = "fuse_data" if simulator == "fuse" else "strax_data"
     #     mc_data_folder = os.path.join(self.sim_folder, data_folder)
     #     from glob import glob

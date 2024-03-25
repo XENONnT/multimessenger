@@ -485,6 +485,94 @@ def get_hash_from_model(initiated_model):
     _meta['model_name'] = initiated_model.__class__.__name__
     return deterministic_hash(_meta)
 
+
+def fetch_context(context=None,
+                  simulator="fuse",
+                  instruction_type="fuse_microphysics",
+                  mcdata_folder=None,
+                  csv_folder="./",
+                  corrections_version='global_v14'):
+    """
+    Fetch the context for the simulation
+    If context is updated, change it in here
+    Requires config to know mc data storage, and where the csv files are written
+    So that the strax data folder can be found
+    """
+    if csv_folder=='./':
+        import warnings
+        warnings.warn(f"If trying to access a simulation, csv path should be the same as that of simulations.")
+
+    # check if all modules exists
+    modules = ["wfsim", "strax", "straxen", "cutax", "fuse"]
+    module_exists = {}
+    for module in modules:
+        try:
+            __import__(module)
+            module_exists[module.upper() + "EXIST"] = True
+        except ImportError:
+            module_exists[module.upper() + "EXIST"] = False
+
+    WFSIMEXIST = module_exists.get("WFSIMEXIST", False)
+    STRAXEXIST = module_exists.get("STRAXEXIST", False)
+    CUTAXEXIST = module_exists.get("CUTAXEXIST", False)
+    FUSEEXIST = module_exists.get("FUSEEXIST", False)
+
+    def _add_strax_directory(context):
+        # add the mc folder and return it
+        output_folder_exists = False
+        # check if the mc folder is already in the context
+        for i, stores in enumerate(context.storage):
+            if mcdata_folder in stores.path:
+                output_folder_exists = True
+        # if it is not yet in the context, add a DataDirectory
+        if not output_folder_exists:
+            if not STRAXEXIST:
+                raise ImportError("strax not installed")
+            import strax
+
+            context.storage += [
+                strax.DataDirectory(mcdata_folder, readonly=False)
+            ]
+
+    # if a context is given, check if the storage is correct
+    if context is not None:
+        _add_strax_directory(context)
+        return context
+    # if no context is given, create a new one
+    if simulator == "wfsim":
+        if not WFSIMEXIST or not CUTAXEXIST:
+            raise ImportError("wfsim or cutax not installed")
+        import cutax
+
+        context = cutax.contexts.xenonnt_sim_SR0v4_cmt_v9(
+            output_folder=mcdata_folder
+        )
+        # do we have to modify config here?
+
+    elif simulator == "fuse":
+        if not CUTAXEXIST or not FUSEEXIST:
+            raise ImportError("cutax or fuse not installed")
+        import fuse, cutax
+        # make sure you are checked out at fuse 1.1.0 version!! (git checkout 1.1.0)
+        context = fuse.context.full_chain_context(output_folder=mcdata_folder,
+            corrections_version = corrections_version,
+            # simulation_config_file = DEFAULT_SIMULATION_VERSION,
+            corrections_run_id = "026000",)
+
+
+        if instruction_type=="fuse_microphysics":
+            config = {"path": csv_folder,
+                      "n_interactions_per_chunk": 250,
+                      "source_rate": 0 }
+            context.set_config(config)
+        elif instruction_type=="fuse_detectorphysics":
+            context.register(fuse.detector_physics.ChunkCsvInput)
+    else:
+        raise ValueError(f"Simulator {simulator} not recognized")
+    # add the strax folder to the context
+    _add_strax_directory(context)
+    return context
+
 # def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
 #     """ Make a json file that contains the metadata of the simulation
 #     """
