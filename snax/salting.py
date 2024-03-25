@@ -99,15 +99,15 @@ def select_runids(runids, Nsim=10, verbose=True):
     return selected_sims
 
 
-def inject_in_SR0(bg_data, sim_data, Npoints,
-                  return_selected_sims=False, min_seperation_sec=240):
+def inject_in_background(bg_data, sim_data, Npoints,
+                  return_selected_sims=False, min_seperation_sec=240, verbose=True):
     """ Inject `Npoints` in `bg_data`, selecting the injected data from `sim_data`
         without or `with_replacement` (has to be True if you request more than 21 points)
         The injection points are selected `min_seperation_sec` seconds away from the edges and
         from each other.
         `return_selected_sims` for further comparison
     """
-    print(f"\t Sampling {Npoints} time-points..")
+    if verbose: print(f"\t Sampling {Npoints} time-points..")
     # sample times inject SN signal
     sample = try_sample(bg_data, Npoints, mindist=min_seperation_sec, trial=20)
     sampled_injection_points = sample * int(1e9)  # needs to be in nanoseconds
@@ -116,11 +116,11 @@ def inject_in_SR0(bg_data, sim_data, Npoints,
     Npoints = len(sampled_injection_points)
     sim_ids_selected = select_runids(sim_data.run_id, Nsim=Npoints, verbose=False)
 
-    print(f"\t Selecting simulations..")
+    if verbose: print(f"\t Selecting simulations..")
     subsims = sim_data[sim_data['run_id'].isin(sim_ids_selected)]
     assert len(sampled_injection_points) == len(sim_ids_selected), "mismatching injection points and simulations"
 
-    print(f"\t Adjusting time columns for injection..")
+    if verbose: print(f"\t Adjusting time columns for injection..")
     # change the columns with the "time" for injection
     # there can be more than one selection for the same data, so it needs to be added each time
     _subsims_2 = []
@@ -142,7 +142,7 @@ def inject_in_SR0(bg_data, sim_data, Npoints,
     subsims_2 = subsims_2.astype({"time": int, "endtime": int, "run_id": str})
 
     # combine and make a new frame
-    print(f"\t Creating an injected & combined data..")
+    if verbose: print(f"\t Creating an injected & combined data..")
     combined_df = pd.concat([bg_data, subsims_2])
     combined_df = combined_df.sort_values(by='time').reset_index(drop=True)
     make_time_index(combined_df, inplace=True)
