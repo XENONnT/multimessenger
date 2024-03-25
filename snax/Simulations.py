@@ -571,11 +571,9 @@ class SimulateSignal(SimulationInstructions):
 
     def __init__(self, snax_interactions, instruction_type="fuse_microphysics"):
         super().__init__(snax_interactions)
-        # self.Interaction = snax_interactions
         self.Model = snax_interactions.Model
         self.sim_folder = self.Model.config["wfsim"]["sim_folder"]
         self.csv_folder = self.Model.config["wfsim"]["instruction_path"]
-        # self.instruction_generator = MultiSupernovaSimulations(snax_interactions)
         self.instruction_type = instruction_type
         self.model_hash = self.snax_interactions.Model.snax_hash
 
@@ -676,8 +674,8 @@ class SimulateSignal(SimulationInstructions):
         """
         data_folder = "fuse_data" if simulator == "fuse" else "strax_data"
         mcdata_folder = os.path.join(self.sim_folder, data_folder)
-        fetch_context(context=context, simulator=simulator, instruction_type=instruction_type,
-                      mcdata_folder=mcdata_folder, csv_folder=self.csv_folder)
+        return fetch_context(context=context, simulator=simulator, instruction_type=instruction_type,
+                            mcdata_folder=mcdata_folder, csv_folder=self.csv_folder)
 
 
     def get_run_number(self, run_number, st, instruction_type, is_multi=False):
