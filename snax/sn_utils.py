@@ -18,6 +18,7 @@ from scipy import interpolate
 from base64 import b32encode
 from hashlib import sha1
 from collections.abc import Mapping
+from collections import defaultdict
 
 
 # read in the configurations, by default it is the basic conf
@@ -597,6 +598,89 @@ def fetch_context(context=None,
     # add the strax folder to the context
     _add_strax_directory(context)
     return context
+
+def return_what_exists():
+    """ See what has been simulated and what data already exists
+    """
+    simulation_files = glob("/project2/lgrandi/xenonnt/simulations/supernova/fuse_data/*")
+    simulation_files = [i.split("/")[-1] for i in simulation_files if "temp" not in i]
+
+    existing_data_types = defaultdict(set)
+    model_attr = {}
+
+    for filename in simulation_files:
+        parts = filename.split("-")
+        id_part = parts[0]
+        existing_data = parts[1]
+
+        if "_" in id_part:
+            parts = id_part.split('_')
+        simhash = '_'.join(parts[1:-1]) if len(parts) > 2 else parts[0]
+        metadata = what_is_hash_for(simhash)
+        model_name = metadata["name"].iloc[0]
+        model_attr[id_part] = (model_name, simhash)
+        metadata = "; ".join([i for i in metadata.drop(columns=["hash", "name"]).iloc[0].values.astype(str)])
+        existing_data_types[id_part].add(existing_data)
+
+    df_data = []
+    for run_id, data_types in existing_data_types.items():
+        data_row = {
+            'run_id': run_id,
+            'model_name': model_attr[run_id][0],
+            'snax_hash': model_attr[run_id][1],
+            'metadata': metadata,
+        }
+        for data_type in data_types:
+            data_row[data_type] = True
+        df_data.append(data_row)
+
+    final_frame = pd.DataFrame(df_data)
+    final_frame = final_frame.fillna(False)
+    return final_frame
+
+    # def see_simulated_contexts(self, context=None, simulator='fuse'):
+    #     """See which simulations were made with what contexts"""
+    #     st = self._fetch_context(context, simulator)
+    #     data_folder = "fuse_data" if simulator == "fuse" else "strax_data"
+    #     mc_data_folder = os.path.join(self.sim_folder, data_folder)
+    #     from glob import glob
+    #     simdirs = glob(mc_data_folder + "/*/")
+    #     if
+    #     files = set([s.split("/")[-2] for s in simdirs if "-" in s])
+    #     hashes = np.array([h.split("-")[-1] for h in files])
+    #     names = np.array([n.split("-")[0] for n in files])
+    #     # unique hashes
+    #     uh = np.unique([h for h in hashes if "temp" not in h])
+    #     df_dict = {k: find_context_for_hash("truth", k) for k in uh}
+    #     unames, uindex = np.unique(
+    #         names, return_index=True
+    #     )  # unique names and their indices
+    #     uhashes = hashes[uindex]
+    #     list_of_df = []
+    #     for n, h in zip(unames, uhashes):
+    #         h = h.split("_temp")[0]  # if there is a missing data
+    #         df = df_dict[h].copy()  # copy the already-fetched dfs
+    #         df["hash"] = [h] * len(df)  # some context e.g. dev points to more than one set
+    #         df["sim_id"] = [n] * len(df)
+    #         list_of_df.append(df)
+    #     df_final = pd.concat(list_of_df)
+    #     df_final["sn_model"] = df_final.apply(
+    #         lambda row: "_".join(row["sim_id"].split("_")[:2]), axis=1
+    #     )
+    #     df_final.sort_values(by=["date_added", "sim_id"], inplace=True)
+    #     df_final.reset_index(inplace=True)
+    #     df_final.drop(columns="index", inplace=True)
+    #     if unique:
+    #         df_final.drop_duplicates(
+    #             subset=["name", "tag", "hash", "sim_id", "sn_model"],
+    #             keep="last",
+    #             inplace=True,
+    #         )
+    #     if sim_id is not None:
+    #         return df_final[df_final["sim_id"] == sim_id]
+    #     df_final.reset_index(inplace=True)
+    #     return df_final
+
 
 # def make_json(inter, sim_id, config_file, jsonfilename="simulation_metadata.json"):
 #     """ Make a json file that contains the metadata of the simulation
