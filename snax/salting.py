@@ -145,12 +145,12 @@ def inject_in_background(bg_data, sim_data, Npoints,
     if verbose: print(f"\t Creating an injected & combined data..")
     combined_df = pd.concat([bg_data, subsims_2])
     combined_df = combined_df.sort_values(by='time').reset_index(drop=True)
-    make_time_index(combined_df, inplace=True)
+    # make_time_index(combined_df, inplace=True)
     combined_df = combined_df.astype({"time": int, "endtime": int, "run_id": str})
 
     if return_selected_sims:
         # return subsims
-        make_time_index(subsims_2, inplace=True)
+        # make_time_index(subsims_2, inplace=True)
         return combined_df, (sim_ids_selected, subsims_2), sampled_injection_points
     return combined_df, sampled_injection_points
 
