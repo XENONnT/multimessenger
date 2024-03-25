@@ -667,7 +667,7 @@ class SimulateSignal(SimulationInstructions):
 
         return self.simulate_single(run_number, instructions=instructions, context=context, _multi=True)
 
-    def _fetch_contect(self,
+    def _fetch_context(self,
                        context=None,
                       simulator="fuse",
                       instruction_type="fuse_microphysics"):
