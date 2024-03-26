@@ -54,13 +54,13 @@ def _get_run_intervals(df_bg, mindist_sec):
     run_ids = df_bg.run_id.unique()
     nruns = len(run_ids)
     # get the min time in sec (avoid first mindist seconds)
-    intervals = np.zeros((nruns, 4), dtype=int)
+    intervals = np.zeros((nruns, 2), dtype=int)
 
     for i, r in enumerate(run_ids):
         start_sec = np.min(df_bg[df_bg["run_id"] == r]['time']) * 1e-9 + mindist_sec
         end_sec = np.max(df_bg[df_bg["run_id"] == r]['endtime']) * 1e-9 - mindist_sec
-        livetime = end_sec - start_sec
-        intervals[i] = [start_sec, end_sec, r, livetime]
+        # livetime = end_sec - start_sec
+        intervals[i] = [start_sec, end_sec] #, r, livetime]
 
     # make a running seconds for each interval and concatanate
     # imagine runs with seconds from [1,15], [20,35], [45,60]
@@ -130,15 +130,6 @@ def inject_in_background(bg_data, sim_data, Npoints,
         dd.loc[:, 'time'] = dd.loc[:, 'time'] - mintime_subsim + sampled_injection_points[i]
         dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] - mintime_subsim + sampled_injection_points[i]
         dd.loc[:, 'time'] = dd.loc[:, 'center_time'] - mintime_subsim + sampled_injection_points[i]
-        # dd.loc[:, 'time'] = dd.loc[:, 'time'] - mintime_subsim  # from 0 to t, in ns
-        # dd.loc[:, 'time'] = dd.loc[:, 'time'] + sampled_injection_points[i]
-        #
-        # dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] - mintime_subsim  # from 0 to t, in ns
-        # dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] + sampled_injection_points[i]
-        #
-        # dd.loc[:, 'time'] = dd.loc[:, 'center_time'] - mintime_subsim  # from 0 to t, in ns
-        # dd.loc[:, 'time'] = dd.loc[:, 'center_time'] + sampled_injection_points[i]
-
         _subsims_2.append(dd)
 
     subsims_2 = pd.concat(_subsims_2)
@@ -156,6 +147,9 @@ def inject_in_background(bg_data, sim_data, Npoints,
         # make_time_index(subsims_2, inplace=True)
         return combined_df, (sim_ids_selected, subsims_2), sampled_injection_points
     return combined_df, sampled_injection_points
+
+
+
 
 
 
