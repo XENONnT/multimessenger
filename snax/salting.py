@@ -127,14 +127,17 @@ def inject_in_background(bg_data, sim_data, Npoints,
     for i, runid in tqdm(enumerate(sim_ids_selected), total=len(sim_ids_selected)):
         dd = subsims[subsims['run_id'] == runid].copy()
         mintime_subsim = np.min(dd['time'])
-        dd.loc[:, 'time'] = dd.loc[:, 'time'] - mintime_subsim  # from 0 to t, in ns
-        dd.loc[:, 'time'] = dd.loc[:, 'time'] + sampled_injection_points[i]
-
-        dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] - mintime_subsim  # from 0 to t, in ns
-        dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] + sampled_injection_points[i]
-
-        dd.loc[:, 'time'] = dd.loc[:, 'center_time'] - mintime_subsim  # from 0 to t, in ns
-        dd.loc[:, 'time'] = dd.loc[:, 'center_time'] + sampled_injection_points[i]
+        dd.loc[:, 'time'] = dd.loc[:, 'time'] - mintime_subsim + sampled_injection_points[i]
+        dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] - mintime_subsim + sampled_injection_points[i]
+        dd.loc[:, 'time'] = dd.loc[:, 'center_time'] - mintime_subsim + sampled_injection_points[i]
+        # dd.loc[:, 'time'] = dd.loc[:, 'time'] - mintime_subsim  # from 0 to t, in ns
+        # dd.loc[:, 'time'] = dd.loc[:, 'time'] + sampled_injection_points[i]
+        #
+        # dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] - mintime_subsim  # from 0 to t, in ns
+        # dd.loc[:, 'endtime'] = dd.loc[:, 'endtime'] + sampled_injection_points[i]
+        #
+        # dd.loc[:, 'time'] = dd.loc[:, 'center_time'] - mintime_subsim  # from 0 to t, in ns
+        # dd.loc[:, 'time'] = dd.loc[:, 'center_time'] + sampled_injection_points[i]
 
         _subsims_2.append(dd)
 
