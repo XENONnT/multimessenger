@@ -374,6 +374,9 @@ class SimulationInstructions:
 
         recoil_energy_samples = np.concatenate(energy_list)
         time_samples = np.concatenate(time_list)
+        # some models have negative times, which confises fuse
+        if np.sum(time_samples<0) > 0:
+            time_samples = time_samples + np.abs(np.min(time_samples))
 
         # generate instructions, notice times are converted to ns within the generate function
         if instruction_type == "fuse_microphysics":
