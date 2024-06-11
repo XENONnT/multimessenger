@@ -468,12 +468,13 @@ class EnergyTimeSampling:
             recoil_energy_samples[f] = _recoil_energy
 
         time_samples["Total"] = np.concatenate([time_samples[f] for f in Flavor])
-        neutrino_energy_samples["Total"] = np.concatenate(
-            [neutrino_energy_samples[f] for f in Flavor]
-        )
-        recoil_energy_samples["Total"] = np.concatenate(
-            [recoil_energy_samples[f] for f in Flavor]
-        )
+        neutrino_energy_samples["Total"] = np.concatenate([neutrino_energy_samples[f] for f in Flavor])
+        recoil_energy_samples["Total"] = np.concatenate([recoil_energy_samples[f] for f in Flavor])
+        # resort the times
+        argsorter = np.argsort(time_samples["Total"])
+        time_samples["Total"] = time_samples["Total"][argsorter]
+        neutrino_energy_samples["Total"] = neutrino_energy_samples["Total"][argsorter]
+        recoil_energy_samples["Total"] = recoil_energy_samples["Total"][argsorter]
         if return_totals:
             return (
                 time_samples["Total"],
