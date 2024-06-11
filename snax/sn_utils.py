@@ -792,7 +792,11 @@ def split_sim_into_pieces(dataframe, timegap_seconds=100, return_df=False):
         with N dataframes inside.
         if return_df is True concatenates all dictionary values into one df
     """
-    unique_runids = dataframe['run_id'].unique()
+    try:
+        unique_runids = dataframe['run_id'].unique()
+    except KeyError:
+        print("No run_id column in the dataframe, returning the original dataframe")
+        unique_runids = ["single_run"]
 
     subruns = {}
     for i, ri in enumerate(unique_runids):
