@@ -616,11 +616,14 @@ def return_what_exists():
         if "_" in id_part:
             parts = id_part.split('_')
         simhash = '_'.join(parts[1:-1]) if len(parts) > 2 else parts[0]
-        metadata = what_is_hash_for(simhash)
-        model_name = metadata["name"].iloc[0]
-        metadata = "; ".join([i for i in metadata.drop(columns=["hash", "name"]).iloc[0].values.astype(str)])
-        model_attr[id_part] = (model_name, simhash, metadata)
-        existing_data_types[id_part].add(existing_data)
+        try:
+            metadata = what_is_hash_for(simhash)
+            model_name = metadata["name"].iloc[0]
+            metadata = "; ".join([i for i in metadata.drop(columns=["hash", "name"]).iloc[0].values.astype(str)])
+            model_attr[id_part] = (model_name, simhash, metadata)
+            existing_data_types[id_part].add(existing_data)
+        except:
+            print(f"Could not find metadata for {simhash} in the csv registry. Ignoring file.")
 
     df_data = []
     for run_id, data_types in existing_data_types.items():
