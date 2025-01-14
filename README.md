@@ -25,7 +25,7 @@ pip install ./
 
 ```python
 # get a model
-from snax import Supernova_Models
+from snax import models
 
 SN_Nakazato = Supernova_Models.Models("Nakazato_2013", config_file="./local_conf.conf")
 SN_Nakazato(index=5)  # load a progenitor (brings the attributes)
