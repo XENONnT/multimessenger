@@ -1,7 +1,7 @@
 import argparse
 import configparser
 
-from snax import Supernova_Models
+from snax import models
 from snax.interactions import Interactions
 from snax.sn_utils import fetch_context
 import numpy as np
