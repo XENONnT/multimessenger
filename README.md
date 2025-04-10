@@ -43,7 +43,7 @@ Creating a target nuclei
 ```python
 # create a target
 from snax.Nucleus import Target
-from snax.Xenon_Atom import ATOM_TABLE
+from snax.nuclei.Xenon_Atom import ATOM_TABLE
 
 print("Target we load", ATOM_TABLE['Xe131'])
 singleXe = Target(ATOM_TABLE['Xe131'], pure=True) # pure means setting the abundance to =1  
