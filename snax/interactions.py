@@ -117,9 +117,9 @@ class Interactions:
         self.Model = Model
 
         if Nuclei=="Xenon":
-            from nuclei.Xenon_Atom import ATOM_TABLE
+            from snax.nuclei.Xenon_Atom import ATOM_TABLE
         elif Nuclei=="Argon":
-            from nuclei.Argon_Atom import ATOM_TABLE
+            from snax.nuclei.Argon_Atom import ATOM_TABLE
         else:
             raise NotImplementedError(f"Requested {Nuclei} but only have Xenon and Argon for now.")
         

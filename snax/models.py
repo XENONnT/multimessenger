@@ -234,10 +234,15 @@ class SnaxModel:
         # sets the object attributes, and resets the fluxes if things have changed
         self.set_params(time_samples=time_samples, neutrino_energies=neutrino_energies)
 
+        def _spectra_dict(t, E):
+            """{Flavor: Quantity(len(E))}; snewpy>=2.0 returns a flux.Container instead of a dict"""
+            spectra = self.model.get_initial_spectra(t, E, **kw)
+            if isinstance(spectra, dict):
+                return spectra
+            return {f: spectra[f].array.squeeze() for f in Flavor}
+
         # get fluxes at each time and at each neutrino energy
-        flux_unit = self.model.get_initial_spectra(1 * u.s, 100 * u.MeV, **kw)[
-            Flavor.NU_E
-        ].unit
+        flux_unit = _spectra_dict(1 * u.s, 100 * u.MeV)[Flavor.NU_E].unit
 
         # create a flux dictionary for each flavor
         _fluxes = np.zeros((len(self.times), len(self.neutrino_energies))) * flux_unit
@@ -246,9 +251,7 @@ class SnaxModel:
         for i, sec in tqdm(
             enumerate(self.times), total=len(self.times), desc="Looping", leave=leave
         ):
-            _fluxes_dict = self.model.get_initial_spectra(
-                sec, self.neutrino_energies, **kw
-            )
+            _fluxes_dict = _spectra_dict(sec, self.neutrino_energies)
             # for f in tqdm(Flavor, total=len(Flavor), leave=False):
             for f in Flavor:
                 _fluxes[f][i, :] = _fluxes_dict[f]

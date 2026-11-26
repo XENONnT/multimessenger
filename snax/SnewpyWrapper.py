@@ -38,10 +38,20 @@ class SnewpyModel:
                 "Not on the cluster, snewpy models are not available. "
                 "Get models first \nimport snewpy; snewpy.get_models()"
             )
-        from snewpy import _model_urls
+        # snewpy >= 2.0 removed `snewpy._model_urls`. Models are registered
+        # (via the RegistryModel decorator) when their module is imported.
+        # NB: import snewpy.models first; importing _model_downloader directly is circular.
+        import snewpy.models.ccsn, snewpy.models.presn  # noqa: F401
+        from snewpy.models.registry_model import all_models
 
-        self.model_urls = _model_urls.model_urls
-        self.model_keys = self.model_urls.keys()
+        # The downloader captures `model_path` at import time, so propagate the chosen path.
+        import snewpy._model_downloader as _dl
+        _dl.model_path = snewpy.model_path
+        _dl.registry.local_path = snewpy.model_path
+
+        # {model_name: sntype}, e.g. {"Bollig_2016": "ccsn", "Kato_2017": "presn"}
+        self.model_types = {m.__name__: m.__module__.split(".")[-1] for m in all_models}
+        self.model_keys = sorted(self.model_types)
         self.imported_snewpy_models = {}
         self.all_params = None
 
@@ -124,7 +134,7 @@ class SnewpyModel:
             print(f"{e} \nGetting all parameters")
 
         dfs = []
-        ccsn_keys = [k for k in self.model_keys if k not in ["PISN", "Type_Ia", "presn-models"]]
+        ccsn_keys = [k for k in self.model_keys if self.model_types[k] == "ccsn"]
         for input_name in ccsn_keys:
             # Call your function to get a dataframe for each input
             df = self.display_models(input_name, verbose=False)
